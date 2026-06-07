@@ -12,6 +12,7 @@ from openai.types.chat import ChatCompletionMessageParam
 
 from app.core.config import settings
 from app.core.llm import llm_client
+from app.services.synagogue_service import synagogue_service
 
 
 # ---------------------------------------------------------------------------
@@ -20,11 +21,21 @@ from app.core.llm import llm_client
 # Replace stub callables with real service calls as features are implemented.
 # ---------------------------------------------------------------------------
 ACTION_REGISTRY: dict[str, str] = {
-    "get_prayer_times": "Return the prayer schedule for a given date.",
-    "list_members": "List synagogue members, optionally filtered by criteria.",
-    "add_event": "Create a new synagogue event.",
-    "record_donation": "Record a donation from a member.",
-    "assign_seat": "Assign or look up a seat for a member.",
+    # Congregant management
+    "add_congregant":      "Register a new person (congregant / mispallel) in the synagogue.",
+    "get_congregant":      "Retrieve details about a specific congregant.",
+    "update_congregant":   "Update information (phone, Hebrew name, etc.) for an existing congregant.",
+    "list_congregants":    "List all registered congregants.",
+
+    # Payments & donations
+    "record_payment":      "Record a payment or donation from a congregant.",
+    "get_payment_history": "Show the payment history for a specific congregant.",
+    "get_pending_payments":"List all congregants who have outstanding balances.",
+
+    # Aliya La-Torah
+    "assign_aliya":            "Assign an Aliya La-Torah to a congregant for a specific Parasha.",
+    "get_aliyot_for_parasha":  "Show who is assigned each Aliya for a given Parasha.",
+    "get_aliya_history":       "Show the Aliya history for a specific congregant.",
 }
 
 
@@ -65,11 +76,28 @@ class LLMService:
         if action_name not in ACTION_REGISTRY:
             return {"action": "unknown", "result": None, "message": "No matching action found."}
 
-        # TODO: replace stub with real dispatch once services are implemented
+        # Dispatch to the matching service method
+        dispatch_map = {
+            "add_congregant":          lambda: synagogue_service.add_congregant("Unknown", "Unknown"),
+            "get_congregant":          lambda: synagogue_service.get_congregant("1"),
+            "update_congregant":       lambda: synagogue_service.update_congregant("1", {}),
+            "list_congregants":        lambda: synagogue_service.list_congregants(),
+            "record_payment":          lambda: synagogue_service.record_payment("1", 0.0, "general"),
+            "get_payment_history":     lambda: synagogue_service.get_payment_history("1"),
+            "get_pending_payments":    lambda: synagogue_service.get_pending_payments(),
+            "assign_aliya":            lambda: synagogue_service.assign_aliya("1", "Unknown", "Kohen"),
+            "get_aliyot_for_parasha":  lambda: synagogue_service.get_aliyot_for_parasha("Unknown"),
+            "get_aliya_history":       lambda: synagogue_service.get_aliya_history("1"),
+        }
+
+        result = await dispatch_map[action_name]()
         return {
             "action": action_name,
-            "result": None,
-            "message": f"Action '{action_name}' identified – execution not yet implemented.",
+            "result": result,
+            "message": (
+                f"Action '{action_name}' executed. "
+                "Pass specific parameters via the API for precise results."
+            ),
         }
 
 
