@@ -10,6 +10,10 @@ class Settings(BaseSettings):
     # CORS – extend in production
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
 
+    # Database
+    DATABASE_URL: str = "sqlite:///./gabay.db"
+    DATABASE_ECHO: bool = False   # set True to log every SQL statement
+
     # LLM provider settings
     LLM_PROVIDER: str = "openai"          # "openai" | "azure" | "ollama"
     LLM_MODEL: str = "gpt-4o"

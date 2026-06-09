@@ -1,4 +1,4 @@
-# Gabay – Synagogue Management System
++# Gabay – Synagogue Management System
 
 A FastAPI-based backend for managing synagogue operations, with built-in LLM support for natural-language interaction.
 
