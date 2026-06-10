@@ -47,9 +47,12 @@ GET   /synagogue/calendar/months
 
 from __future__ import annotations
 
+import csv
+import io
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+import httpx
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from app.models.base import APIResponse
@@ -640,5 +643,175 @@ async def list_hebrew_months():
     try:
         data = await synagogue_service.list_hebrew_months()
         return APIResponse(data=data)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.get("/calendar/month-view", response_model=APIResponse)
+async def get_calendar_month_view(
+    year: int = Query(..., description="Hebrew year, e.g. 5786"),
+    month: int = Query(..., description="Hebrew month number (Tishrei=7 … Elul=6)"),
+):
+    """
+    Return a full month-view for a Hebrew month.
+
+    The response includes:
+    - Month metadata (name, leap year flag, prev/next month pointers)
+    - A ``days`` list where each entry has: Gregorian date, day-of-week,
+      Shabbat flag, holiday name (Hebrew + English), and all azkarot / smachot
+      events whose Hebrew anniversary falls on that day.
+    """
+    try:
+        data = await synagogue_service.get_calendar_month_view(year, month)
+        if "error" in data:
+            raise HTTPException(status_code=400, detail=data["error"])
+        return APIResponse(data=data)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ===========================================================================
+# Bulk import – congregants
+# ===========================================================================
+
+# Expected CSV columns (case-insensitive, order-independent):
+# first_name, last_name, hebrew_name, father_name, phone, email,
+# address, is_kohen, is_levi, member_type, notes, join_date
+#
+# All columns except first_name and last_name are optional.
+
+COLUMN_ALIASES: dict[str, str] = {
+    "שם פרטי": "first_name",
+    "שם משפחה": "last_name",
+    "שם בעברית": "hebrew_name",
+    "שם האב": "father_name",
+    "טלפון": "phone",
+    "אימייל": "email",
+    "כתובת": "address",
+    "כהן": "is_kohen",
+    "לוי": "is_levi",
+    "סוג חברות": "member_type",
+    "הערות": "notes",
+    "תאריך הצטרפות": "join_date",
+}
+
+
+def _normalise_row(row: dict) -> dict:
+    """Normalise CSV row keys to English field names, ignoring unknown columns."""
+    normalised: dict = {}
+    for raw_key, value in row.items():
+        key = raw_key.strip()
+        key_lower = key.lower().replace(" ", "_")
+        field = COLUMN_ALIASES.get(key, key_lower)
+        normalised[field] = value.strip() if isinstance(value, str) else value
+    return normalised
+
+
+def _coerce_congregant(raw: dict) -> dict:
+    """Convert string values from CSV into proper Python types."""
+    result: dict = {}
+    for field in ("first_name", "last_name", "hebrew_name", "father_name",
+                  "phone", "email", "address", "member_type", "notes", "join_date"):
+        result[field] = raw.get(field, "")
+    for bool_field in ("is_kohen", "is_levi"):
+        val = str(raw.get(bool_field, "")).strip().lower()
+        result[bool_field] = val in ("true", "1", "yes", "כן", "v", "✓")
+    if not result["member_type"]:
+        result["member_type"] = "regular"
+    return result
+
+
+async def _rows_from_csv(content: str) -> list[dict]:
+    reader = csv.DictReader(io.StringIO(content))
+    return [_normalise_row(row) for row in reader]
+
+
+class BulkImportURL(BaseModel):
+    url: str
+    sheet_name: Optional[str] = None
+
+
+@router.post("/congregants/bulk/csv", response_model=APIResponse, status_code=201)
+async def bulk_import_csv(file: UploadFile = File(...)):
+    """
+    Import multiple congregants from an uploaded CSV file.
+
+    The first row must be a header with column names.
+    Supports both English and Hebrew column headers.
+    Returns a summary of created / skipped records.
+    """
+    try:
+        content = (await file.read()).decode("utf-8-sig")  # utf-8-sig handles Excel BOM
+        rows = await _rows_from_csv(content)
+        if not rows:
+            raise HTTPException(status_code=400, detail="הקובץ ריק או אינו תקין.")
+
+        created, skipped, errors = [], [], []
+        for i, row in enumerate(rows, start=2):
+            coerced = _coerce_congregant(row)
+            if not coerced["first_name"] or not coerced["last_name"]:
+                skipped.append({"row": i, "reason": "חסר שם פרטי או שם משפחה"})
+                continue
+            try:
+                result = await synagogue_service.add_congregant(**coerced)
+                created.append(result)
+            except Exception as exc:
+                errors.append({"row": i, "name": f"{coerced['first_name']} {coerced['last_name']}", "error": str(exc)})
+
+        return APIResponse(
+            message=f"ייבוא הושלם: {len(created)} נוצרו, {len(skipped)} דולגו, {len(errors)} שגיאות.",
+            data={"created": len(created), "skipped": skipped, "errors": errors, "records": created},
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/congregants/bulk/sheets", response_model=APIResponse, status_code=201)
+async def bulk_import_google_sheets(req: BulkImportURL):
+    """
+    Import congregants from a published Google Sheet.
+
+    Steps to get the URL:
+    1. Open your Google Sheet.
+    2. File → Share → Publish to web.
+    3. Choose the sheet tab and select \"Comma-separated values (.csv)\".
+    4. Click Publish and copy the link.
+    5. Paste that link here.
+
+    The sheet must have a header row with column names (Hebrew or English).
+    """
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
+            response = await client.get(req.url)
+        if response.status_code != 200:
+            raise HTTPException(status_code=400, detail=f"לא ניתן לגשת לגיליון: HTTP {response.status_code}")
+
+        content = response.text
+        rows = await _rows_from_csv(content)
+        if not rows:
+            raise HTTPException(status_code=400, detail="הגיליון ריק או אינו תקין.")
+
+        created, skipped, errors = [], [], []
+        for i, row in enumerate(rows, start=2):
+            coerced = _coerce_congregant(row)
+            if not coerced["first_name"] or not coerced["last_name"]:
+                skipped.append({"row": i, "reason": "חסר שם פרטי או שם משפחה"})
+                continue
+            try:
+                result = await synagogue_service.add_congregant(**coerced)
+                created.append(result)
+            except Exception as exc:
+                errors.append({"row": i, "name": f"{coerced['first_name']} {coerced['last_name']}", "error": str(exc)})
+
+        return APIResponse(
+            message=f"ייבוא מגיליון הושלם: {len(created)} נוצרו, {len(skipped)} דולגו, {len(errors)} שגיאות.",
+            data={"created": len(created), "skipped": skipped, "errors": errors, "records": created},
+        )
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

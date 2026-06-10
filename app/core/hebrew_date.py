@@ -3,13 +3,13 @@ Hebrew / Gregorian calendar conversion utilities.
 
 Uses the `pyluach` library (pip install pyluach).
 
-Month numbering follows the civil Hebrew calendar (Tishrei-first):
-  7=Nisan  8=Iyar  9=Sivan  10=Tammuz  11=Av  12=Elul
-  1=Tishrei  2=Cheshvan  3=Kislev  4=Tevet  5=Shvat
-  6=Adar (or Adar I)  13=Adar II (leap years only)
+Month numbering follows pyluach's own scheme:
+  Nisan=1, Iyar=2, Sivan=3, Tammuz=4, Av=5, Elul=6,
+  Tishrei=7, Cheshvan=8, Kislev=9, Tevet=10, Shvat=11,
+  Adar=12, Adar II=13 (leap years only)
 
-pyluach uses its own internal numbering; we always work via HebrewDate
-objects and never rely on raw month integers across library versions.
+Civil calendar order (Tishrei-first):
+  7 8 9 10 11 12 [13] 1 2 3 4 5 6
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from datetime import date, timedelta
 from typing import Optional
 
 from pyluach import dates as _dates
+from pyluach import hebrewcal as _hebrewcal
 
 # ---------------------------------------------------------------------------
 # Month-name maps  (pyluach internal numbering: Nisan=1 … Elul=6, Tishrei=7 …)
@@ -158,3 +159,224 @@ def hebrew_month_list() -> list[dict]:
         {"month": m, "hebrew": h, "english": e}
         for m, (h, e) in sorted(HEBREW_MONTH_NAMES.items())
     ]
+
+
+# ---------------------------------------------------------------------------
+# Hebrew numeral helpers
+# ---------------------------------------------------------------------------
+
+_GEMATRIA_SPECIAL: dict[int, str] = {15: "טו", 16: "טז"}
+_GEMATRIA_TENS = [(30, "ל"), (20, "כ"), (10, "י")]
+_GEMATRIA_ONES = [(9, "ט"), (8, "ח"), (7, "ז"), (6, "ו"), (5, "ה"),
+                  (4, "ד"), (3, "ג"), (2, "ב"), (1, "א")]
+
+
+def to_hebrew_numeral(n: int) -> str:
+    """Convert an integer (1-30) to Hebrew gematria letters for day display."""
+    if n in _GEMATRIA_SPECIAL:
+        return _GEMATRIA_SPECIAL[n]
+    result = ""
+    remainder = n
+    for val, letter in _GEMATRIA_TENS:
+        if remainder >= val:
+            result += letter
+            remainder -= val
+            break
+    for val, letter in _GEMATRIA_ONES:
+        if remainder >= val:
+            result += letter
+            break
+    return result
+
+
+def to_hebrew_year_str(year: int) -> str:
+    """
+    Convert a Hebrew year to its short gematria display string.
+    e.g. 5786 → תשפ״ו
+    """
+    n = year % 1000  # Drop thousands digit for common short form
+    hundreds = [(400, "ת"), (300, "ש"), (200, "ר"), (100, "ק")]
+    tens = [(90, "צ"), (80, "פ"), (70, "ע"), (60, "ס"), (50, "נ"),
+            (40, "מ"), (30, "ל"), (20, "כ"), (10, "י")]
+    ones = [(9, "ט"), (8, "ח"), (7, "ז"), (6, "ו"), (5, "ה"),
+            (4, "ד"), (3, "ג"), (2, "ב"), (1, "א")]
+
+    result = ""
+    for val, letter in hundreds:
+        while n >= val:
+            result += letter
+            n -= val
+
+    if n in _GEMATRIA_SPECIAL:
+        result += _GEMATRIA_SPECIAL[n]
+        n = 0
+    else:
+        for val, letter in tens:
+            if n >= val:
+                result += letter
+                n -= val
+                break
+        for val, letter in ones:
+            if n >= val:
+                result += letter
+                break
+
+    # Add geresh / gerashayim
+    if len(result) == 1:
+        result += "׳"
+    elif len(result) > 1:
+        result = result[:-1] + "״" + result[-1]
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Holiday name mapping (pyluach English → Hebrew)
+# ---------------------------------------------------------------------------
+
+_HOLIDAY_HE: dict[str, str] = {
+    "Rosh Hashana": "ראש השנה",
+    "Yom Kippur": "יום כיפור",
+    "Sukkos": "סוכות",
+    "Chol Hamoed Sukkos": "חול המועד סוכות",
+    "Hoshana Raba": "הושענא רבה",
+    "Shmini Atzeres": "שמיני עצרת",
+    "Simchas Torah": "שמחת תורה",
+    "Chanukah": "חנוכה",
+    "Tu Bishvat": 'ט"ו בשבט',
+    "Purim Katan": "פורים קטן",
+    "Purim": "פורים",
+    "Shushan Purim": "שושן פורים",
+    "Pesach": "פסח",
+    "Chol Hamoed Pesach": "חול המועד פסח",
+    "Pesach Sheni": "פסח שני",
+    "Lag Baomer": 'ל"ג בעומר',
+    "Shavuos": "שבועות",
+    "Tu Beav": 'ט"ו באב',
+    "Rosh Chodesh": "ראש חודש",
+}
+
+
+def _holiday_info(hd: "_dates.HebrewDate") -> tuple[str | None, str | None]:
+    """Return (english_name, hebrew_name) for a date's holiday, or (None, None)."""
+    try:
+        eng = hd.holiday(israel=False)
+    except Exception:
+        eng = None
+    if not eng:
+        return None, None
+    heb = _HOLIDAY_HE.get(eng, eng)
+    return eng, heb
+
+
+# ---------------------------------------------------------------------------
+# Civil month order
+# ---------------------------------------------------------------------------
+
+def _civil_month_order(year: int) -> list[int]:
+    """Return pyluach month numbers in civil order (Tishrei-first) for the year."""
+    try:
+        is_leap = _hebrewcal.Year(year).leap
+    except Exception:
+        is_leap = False
+    order = [7, 8, 9, 10, 11, 12]
+    if is_leap:
+        order.append(13)
+    order.extend([1, 2, 3, 4, 5, 6])
+    return order
+
+
+def _prev_next_months(year: int, month: int) -> tuple[tuple[int, int], tuple[int, int]]:
+    """Return ((prev_year, prev_month), (next_year, next_month))."""
+    order = _civil_month_order(year)
+    if month not in order:
+        order = [7, 8, 9, 10, 11, 12, 13, 1, 2, 3, 4, 5, 6]
+
+    try:
+        idx = order.index(month)
+    except ValueError:
+        return (year, 7), (year, 7)
+
+    if idx == 0:
+        prev = (year - 1, 6)
+    else:
+        prev = (year, order[idx - 1])
+
+    if idx == len(order) - 1:
+        nxt = (year + 1, 7)
+    else:
+        nxt = (year, order[idx + 1])
+
+    return prev, nxt
+
+
+# ---------------------------------------------------------------------------
+# Full month-view builder
+# ---------------------------------------------------------------------------
+
+def get_month_view(year: int, month: int) -> dict:
+    """
+    Build a full calendar data object for one Hebrew month.
+
+    Returns a dict with year/month metadata and a ``days`` list.
+    Each day includes Gregorian date, weekday, Shabbat flag, holiday names,
+    and placeholder lists for azkarot/smachot events (populated by the service).
+    """
+    try:
+        heb_year_obj = _hebrewcal.Year(year)
+        is_leap: bool = heb_year_obj.leap
+        # Find the requested month using itermonths()
+        target_month = None
+        for m in heb_year_obj.itermonths():
+            if m.month == month:
+                target_month = m
+                break
+        if target_month is None:
+            return {"error": f"Month {month} does not exist in Hebrew year {year}"}
+        hebrew_dates = list(target_month.iterdates())
+    except Exception as exc:
+        return {"error": str(exc)}
+
+    heb_name, eng_name = _month_names(month)
+    prev, nxt = _prev_next_months(year, month)
+
+    days: list[dict] = []
+    for hd in hebrew_dates:
+        try:
+            gd = hd.to_pydate()
+            py_weekday = gd.weekday()        # 0=Mon … 5=Sat … 6=Sun (Python)
+            grid_col = (py_weekday + 1) % 7  # 0=Sun, 1=Mon … 6=Sat
+            is_shabbat = py_weekday == 5
+            holiday_en, holiday_he = _holiday_info(hd)
+            is_rosh_chodesh = (hd.day == 1) and not holiday_en
+
+            days.append({
+                "hebrew_day": hd.day,
+                "hebrew_month": month,
+                "hebrew_year": year,
+                "hebrew_day_str": to_hebrew_numeral(hd.day),
+                "gregorian_date": gd.isoformat(),
+                "day_of_week": py_weekday,
+                "grid_col": grid_col,
+                "is_shabbat": is_shabbat,
+                "holiday_en": holiday_en,
+                "holiday_he": holiday_he if holiday_he else ("ראש חודש" if is_rosh_chodesh else None),
+                "is_rosh_chodesh": is_rosh_chodesh,
+                "azkarot": [],
+                "smachot": [],
+            })
+        except Exception:
+            continue
+
+    return {
+        "year": year,
+        "month": month,
+        "month_name_hebrew": heb_name,
+        "month_name_english": eng_name,
+        "is_leap_year": is_leap,
+        "num_days": len(days),
+        "hebrew_year_str": to_hebrew_year_str(year),
+        "prev_month": {"year": prev[0], "month": prev[1]},
+        "next_month": {"year": nxt[0], "month": nxt[1]},
+        "days": days,
+    }

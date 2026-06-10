@@ -1,9 +1,12 @@
 """
 LLM interaction router.
 
-Two endpoints:
-  POST /llm/chat          – free-form conversation with the Gabay assistant
-  POST /llm/action        – natural-language action dispatch
+POST /llm/chat   – conversational endpoint.
+                   The LLM may call tools transparently; the caller always
+                   receives a "reply" string and an optional "actions" list.
+
+POST /llm/action – thin wrapper kept for backward-compatibility.
+                   Internally delegates to /chat.
 """
 
 from fastapi import APIRouter, HTTPException
@@ -26,19 +29,26 @@ class ActionRequest(BaseModel):
 
 @router.post("/chat", response_model=APIResponse)
 async def chat(request: ChatRequest):
-    """Send a message to the Gabay LLM assistant and receive a reply."""
+    """
+    Send a message to the Gabay assistant.
+
+    The assistant understands Hebrew naturally and can perform all synagogue
+    operations autonomously using function calling.  It returns:
+      - reply:   the assistant's Hebrew text response
+      - actions: list of tools that were invoked (may be empty)
+    """
     try:
-        reply = await llm_service.chat(request.message, request.history)
-        return APIResponse(data={"reply": reply})
+        result = await llm_service.chat(request.message, request.history)
+        return APIResponse(data=result)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @router.post("/action", response_model=APIResponse)
 async def dispatch_action(request: ActionRequest):
-    """Interpret a natural-language request and route it to the matching operation."""
+    """Backward-compatible action endpoint – delegates to /chat."""
     try:
-        result = await llm_service.dispatch_action(request.message)
+        result = await llm_service.chat(request.message)
         return APIResponse(data=result)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc

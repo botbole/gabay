@@ -1,0 +1,30 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: 210 60% 97%;
+    --foreground: 222 47% 11%;
+    --primary: 210 80% 45%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 210 50% 93%;
+    --muted-foreground: 215 16% 47%;
+    --border: 210 40% 86%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+  }
+
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    direction: rtl;
+  }
+
+  body {
+    background-color: hsl(210, 55%, 96%);
+    color: hsl(var(--foreground));
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  }
+}

@@ -29,6 +29,7 @@ from app.core.hebrew_date import (
     get_next_occurrence,
     parse_gregorian_iso,
     upcoming_occurrences,
+    get_month_view,
 )
 from app.models.db_models import (
     Aliya,
@@ -106,6 +107,28 @@ class SynagogueService:
         with get_session() as session:
             congregant = session.get(Congregant, congregant_id)
             return congregant.model_dump() if congregant else None
+
+    async def find_congregant_by_name(self, name: str) -> dict | None:
+        """
+        Find a congregant by full or partial name (case-insensitive).
+        Tries exact full-name match first, then partial match.
+        Returns the first match or None.
+        """
+        with get_session() as session:
+            all_c = session.exec(select(Congregant)).all()
+        name_lower = name.strip().lower()
+        # Exact full-name match
+        for c in all_c:
+            full = f"{c.first_name} {c.last_name}".lower()
+            if full == name_lower:
+                return c.model_dump()
+        # Partial match – either first_name or last_name contains the query
+        for c in all_c:
+            if (name_lower in c.first_name.lower() or
+                    name_lower in c.last_name.lower() or
+                    name_lower in f"{c.first_name} {c.last_name}".lower()):
+                return c.model_dump()
+        return None
 
     async def update_congregant(self, congregant_id: str, updates: dict) -> dict | None:
         """Update specific fields of an existing congregant."""
@@ -617,6 +640,39 @@ class SynagogueService:
     async def list_hebrew_months(self) -> dict:
         """Return a reference list of all Hebrew month names."""
         return {"months": hebrew_month_list()}
+
+    async def get_calendar_month_view(self, year: int, month: int) -> dict:
+        """
+        Return a full calendar month view with holiday/Shabbat info and
+        all azkarot & smachot events overlaid on matching Hebrew days.
+        """
+        data = get_month_view(year, month)
+        if "error" in data:
+            return data
+
+        with get_session() as session:
+            azkarot = session.exec(select(Azkara)).all()
+            smachot = session.exec(select(Simcha)).all()
+
+        # Build lookup: (hebrew_day, hebrew_month) → list of events
+        az_by_day: dict[tuple[int, int], list[dict]] = {}
+        for a in azkarot:
+            if a.hebrew_day and a.hebrew_month:
+                key = (a.hebrew_day, a.hebrew_month)
+                az_by_day.setdefault(key, []).append(a.model_dump())
+
+        sm_by_day: dict[tuple[int, int], list[dict]] = {}
+        for s in smachot:
+            if s.hebrew_day and s.hebrew_month:
+                key = (s.hebrew_day, s.hebrew_month)
+                sm_by_day.setdefault(key, []).append(s.model_dump())
+
+        for day in data["days"]:
+            key = (day["hebrew_day"], day["hebrew_month"])
+            day["azkarot"] = az_by_day.get(key, [])
+            day["smachot"] = sm_by_day.get(key, [])
+
+        return data
 
 
 synagogue_service = SynagogueService()
