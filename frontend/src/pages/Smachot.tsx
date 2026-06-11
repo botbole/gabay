@@ -73,6 +73,7 @@ function AddSimchaModal({ open, onClose }: { open: boolean; onClose: () => void 
   const [dateMode, setDateMode] = useState<'gregorian' | 'hebrew'>('gregorian');
   const [hebrewDay, setHebrewDay] = useState('');
   const [hebrewMonth, setHebrewMonth] = useState('');
+  const [yearOccurred, setYearOccurred] = useState('');
 
   const { data: congregantsData } = useQuery({
     queryKey: ['congregants'],
@@ -87,6 +88,7 @@ function AddSimchaModal({ open, onClose }: { open: boolean; onClose: () => void 
         payload.hebrew_day = hebrewDay ? parseInt(hebrewDay) : undefined;
         payload.hebrew_month = hebrewMonth ? parseInt(hebrewMonth) : undefined;
       }
+      if (yearOccurred) payload.year_occurred = parseInt(yearOccurred);
       return smachotApi.create(payload);
     },
     onSuccess: () => {
@@ -101,6 +103,7 @@ function AddSimchaModal({ open, onClose }: { open: boolean; onClose: () => void 
     setForm({ congregant_id: '', occasion_type: 'birthday', description: '', gregorian_date: '', parasha: '', notes: '' });
     setHebrewDay('');
     setHebrewMonth('');
+    setYearOccurred('');
     setDateMode('gregorian');
   };
 
@@ -108,10 +111,11 @@ function AddSimchaModal({ open, onClose }: { open: boolean; onClose: () => void 
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       setForm(prev => ({ ...prev, [field]: e.target.value }));
 
-  const canSubmit = !!form.congregant_id && !!form.occasion_type &&
-    (dateMode === 'gregorian' ? !!form.gregorian_date : !!(hebrewDay && hebrewMonth));
-
   const isBarBat = form.occasion_type === 'bar_mitzvah' || form.occasion_type === 'bat_mitzvah';
+
+  const canSubmit = !!form.congregant_id && !!form.occasion_type &&
+    (dateMode === 'gregorian' ? !!form.gregorian_date : !!(hebrewDay && hebrewMonth)) &&
+    (!isBarBat || !!form.parasha);
 
   return (
     <Modal open={open} onClose={() => { onClose(); resetForm(); }} title="הוספת שמחה" size="lg">
@@ -133,7 +137,7 @@ function AddSimchaModal({ open, onClose }: { open: boolean; onClose: () => void 
         </div>
 
         {isBarBat && (
-          <Input label="פרשה" value={form.parasha} onChange={set('parasha')} placeholder="בראשית, נח, לך לך..." />
+          <Input label="פרשה *" value={form.parasha} onChange={set('parasha')} placeholder="בראשית, נח, לך לך..." />
         )}
 
         <div>
@@ -174,7 +178,16 @@ function AddSimchaModal({ open, onClose }: { open: boolean; onClose: () => void 
           )}
         </div>
 
-        <Input label="הערות" value={form.notes} onChange={set('notes')} placeholder="הערות נוספות..." />
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="שנת האירוע (לועזי)"
+            type="number"
+            value={yearOccurred}
+            onChange={e => setYearOccurred(e.target.value)}
+            placeholder={`${new Date().getFullYear()}`}
+          />
+          <Input label="הערות" value={form.notes} onChange={set('notes')} placeholder="הערות נוספות..." />
+        </div>
 
         {mutation.error && (
           <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>
@@ -192,6 +205,13 @@ function AddSimchaModal({ open, onClose }: { open: boolean; onClose: () => void 
 
 // ─── Simcha Row ──────────────────────────────────────────────────────────────
 
+function yearsAgo(yearOccurred?: number | null): string | null {
+  if (!yearOccurred) return null;
+  const diff = new Date().getFullYear() - yearOccurred;
+  if (diff === 0) return 'השנה';
+  return diff > 0 ? `לפני ${diff} שנים` : null;
+}
+
 function SimchaRow({
   s,
   congregantName,
@@ -201,6 +221,7 @@ function SimchaRow({
   congregantName: string;
   onDelete: () => void;
 }) {
+  const ago = yearsAgo(s.year_occurred);
   return (
     <tr className="hover:bg-blue-50 transition-colors">
       <td className="px-4 py-3">
@@ -218,11 +239,12 @@ function SimchaRow({
       <td className="px-4 py-3 text-sm font-medium text-gray-800">
         {formatHebrewDate(s.hebrew_day, s.hebrew_month)}
       </td>
-      <td className="px-4 py-3 text-xs text-gray-400">{s.gregorian_date || '—'}</td>
-      {s.parasha && (
-        <td className="px-4 py-3 text-xs text-blue-600">{s.parasha}</td>
-      )}
-      {!s.parasha && <td className="px-4 py-3" />}
+      <td className="px-4 py-3 text-xs text-gray-500">
+        {s.year_occurred ? (
+          <span title={s.gregorian_date || ''}>{s.year_occurred}{ago ? <span className="text-gray-400 mr-1">· {ago}</span> : null}</span>
+        ) : s.gregorian_date || '—'}
+      </td>
+      <td className="px-4 py-3 text-xs text-blue-600">{s.parasha || '—'}</td>
       <td className="px-4 py-3">
         <button
           onClick={onDelete}
@@ -271,6 +293,9 @@ function UpcomingCard({
         <p className="text-xs text-gray-600 mt-0.5">
           {formatHebrewDate(s.hebrew_day, s.hebrew_month)}
         </p>
+        {s.year_occurred && (
+          <p className="text-xs text-pink-600 font-medium mt-0.5">{yearsAgo(s.year_occurred)}</p>
+        )}
       </div>
       <div className="text-left shrink-0">
         {isToday ? (

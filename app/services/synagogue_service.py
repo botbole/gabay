@@ -270,6 +270,15 @@ class SynagogueService:
             session.refresh(aliya)
             return aliya.model_dump()
 
+    async def list_aliyot(self) -> dict:
+        """Return all aliyot records, sorted by date descending."""
+        with get_session() as session:
+            aliyot = session.exec(select(Aliya).order_by(Aliya.date.desc())).all()
+            return {
+                "total": len(aliyot),
+                "aliyot": [a.model_dump() for a in aliyot],
+            }
+
     async def get_aliyot_for_parasha(self, parasha: str) -> dict:
         """Return all Aliyot assigned for a specific Parasha."""
         with get_session() as session:
@@ -403,6 +412,7 @@ class SynagogueService:
         gregorian_date: str = "",
         hebrew_day: int = 0,
         hebrew_month: int = 0,
+        year_occurred: Optional[int] = None,
         notes: str = "",
     ) -> dict:
         """
@@ -420,6 +430,13 @@ class SynagogueService:
                 day = heb["day"]
                 month = heb["month"]
 
+        # Derive year_occurred from gregorian_date if not explicitly supplied
+        if year_occurred is None and gregorian_date:
+            try:
+                year_occurred = int(gregorian_date[:4])
+            except (ValueError, IndexError):
+                pass
+
         azkara = Azkara(
             congregant_id=congregant_id,
             deceased_name=deceased_name,
@@ -428,6 +445,7 @@ class SynagogueService:
             gregorian_date=gregorian_date,
             hebrew_day=day,
             hebrew_month=month,
+            year_occurred=year_occurred,
             notes=notes,
         )
         with get_session() as session:
@@ -491,6 +509,7 @@ class SynagogueService:
         hebrew_day: int = 0,
         hebrew_month: int = 0,
         parasha: str = "",
+        year_occurred: Optional[int] = None,
         notes: str = "",
     ) -> dict:
         """
@@ -507,6 +526,13 @@ class SynagogueService:
                 day = heb["day"]
                 month = heb["month"]
 
+        # Derive year_occurred from gregorian_date if not explicitly supplied
+        if year_occurred is None and gregorian_date:
+            try:
+                year_occurred = int(gregorian_date[:4])
+            except (ValueError, IndexError):
+                pass
+
         simcha = Simcha(
             congregant_id=congregant_id,
             occasion_type=occasion_type,
@@ -515,6 +541,7 @@ class SynagogueService:
             hebrew_day=day,
             hebrew_month=month,
             parasha=parasha,
+            year_occurred=year_occurred,
             notes=notes,
         )
         with get_session() as session:

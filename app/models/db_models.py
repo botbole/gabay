@@ -120,6 +120,8 @@ class Azkara(SQLModel, table=True):
     hebrew_month: int = 0
     # Gregorian anchor date (the actual passing; used to derive Hebrew date)
     gregorian_date: str = ""       # ISO date string
+    # Year the person passed away (Gregorian) — used to calculate yahrzeit number
+    year_occurred: Optional[int] = Field(default=None, nullable=True)
     notes: str = ""
 
 
@@ -152,4 +154,6 @@ class Simcha(SQLModel, table=True):
     gregorian_date: str = ""       # ISO date string
     # For bar/bat mitzvah – the Torah portion
     parasha: str = ""
+    # Year the event occurred (Gregorian) — used to calculate age / number of years
+    year_occurred: Optional[int] = Field(default=None, nullable=True)
     notes: str = ""

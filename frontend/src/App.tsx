@@ -10,7 +10,7 @@ import { Smachot } from './pages/Smachot';
 import { Calendar } from './pages/Calendar';
 import { Import } from './pages/Import';
 import { Chat } from './pages/Chat';
-import { Placeholder } from './pages/Placeholder';
+import { Aliyot } from './pages/Aliyot';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,7 +31,7 @@ export default function App() {
             <Route path="/congregants" element={<Congregants />} />
             <Route path="/payments" element={<Payments />} />
             <Route path="/seating" element={<Seating />} />
-            <Route path="/aliyot" element={<Placeholder title="עליות לתורה" />} />
+            <Route path="/aliyot" element={<Aliyot />} />
             <Route path="/azkarot" element={<Azkarot />} />
             <Route path="/smachot" element={<Smachot />} />
             <Route path="/calendar" element={<Calendar />} />

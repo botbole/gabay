@@ -220,7 +220,19 @@ export interface Aliya {
   notes: string;
 }
 
+export interface AliyaCreate {
+  congregant_id: string;
+  parasha: string;
+  aliya_type: string;
+  date_str?: string;
+  minhag?: string;
+  donation_amount?: number;
+  notes?: string;
+}
+
 export const aliyotApi = {
+  list: () =>
+    request<{ total: number; aliyot: Aliya[] }>('/synagogue/aliyot'),
   history: (congregant_id: string) =>
     request<{ congregant_id: string; total_aliyot: number; aliyot: Aliya[] }>(
       `/synagogue/aliyot/${congregant_id}/history`
@@ -229,6 +241,8 @@ export const aliyotApi = {
     request<{ parasha: string; total: number; aliyot: Aliya[] }>(
       `/synagogue/aliyot/parasha/${parasha}`
     ),
+  create: (body: AliyaCreate) =>
+    request<Aliya>('/synagogue/aliyot', { method: 'POST', body: JSON.stringify(body) }),
 };
 
 // ─── Azkarot & Smachot ───────────────────────────────────────────────────────
@@ -242,6 +256,7 @@ export interface Azkara {
   gregorian_date: string;
   hebrew_day: number;
   hebrew_month: number;
+  year_occurred?: number | null;
   notes: string;
   next_gregorian?: string;
 }
@@ -254,6 +269,7 @@ export interface AzkaraCreate {
   gregorian_date?: string;
   hebrew_day?: number;
   hebrew_month?: number;
+  year_occurred?: number;
   notes?: string;
 }
 
@@ -266,6 +282,7 @@ export interface Simcha {
   hebrew_day: number;
   hebrew_month: number;
   parasha: string;
+  year_occurred?: number | null;
   notes: string;
   next_gregorian?: string;
 }
@@ -278,6 +295,7 @@ export interface SimchaCreate {
   hebrew_day?: number;
   hebrew_month?: number;
   parasha?: string;
+  year_occurred?: number;
   notes?: string;
 }
 

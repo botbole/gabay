@@ -141,14 +141,19 @@ function MapBuilderModal({ open, onClose }: { open: boolean; onClose: () => void
   const [annualFee, setAnnualFee] = useState(0);
   const [isBuilding, setIsBuilding] = useState(false);
   const [progress, setProgress] = useState('');
+  const [result, setResult] = useState<{ created: number; failed: number } | null>(null);
+  const [buildError, setBuildError] = useState('');
 
-  const addSection = () => setSections(s => [...s, { name: '', rows: [{ rowLabel: 'א', count: 10 }] }]);
+  const addSection = () => setSections(s => [...s, { name: `אגף ${s.length + 1}`, rows: [{ rowLabel: 'א', count: 10 }] }]);
   const removeSection = (si: number) => setSections(s => s.filter((_, i) => i !== si));
   const updateSection = (si: number, name: string) => setSections(s => s.map((sec, i) => i === si ? { ...sec, name } : sec));
 
-  const addRow = (si: number) => setSections(s => s.map((sec, i) => i === si
-    ? { ...sec, rows: [...sec.rows, { rowLabel: '', count: 10 }] }
-    : sec));
+  const addRow = (si: number) => {
+    const nextLabel = String.fromCharCode('א'.charCodeAt(0) + sections[si].rows.length);
+    setSections(s => s.map((sec, i) => i === si
+      ? { ...sec, rows: [...sec.rows, { rowLabel: nextLabel, count: 10 }] }
+      : sec));
+  };
   const removeRow = (si: number, ri: number) => setSections(s => s.map((sec, i) => i === si
     ? { ...sec, rows: sec.rows.filter((_, j) => j !== ri) }
     : sec));
@@ -159,118 +164,173 @@ function MapBuilderModal({ open, onClose }: { open: boolean; onClose: () => void
 
   const totalSeats = sections.reduce((acc, sec) => acc + sec.rows.reduce((a, r) => a + r.count, 0), 0);
 
+  const hasEmptyRowLabels = sections.some(sec => sec.rows.some(r => !r.rowLabel.trim()));
+  const hasEmptySectionNames = sections.some(s => !s.name.trim());
+
   const handleBuild = async () => {
     setIsBuilding(true);
+    setResult(null);
+    setBuildError('');
     let created = 0;
-    for (const sec of sections) {
-      for (const row of sec.rows) {
-        for (let n = 1; n <= row.count; n++) {
-          try {
-            await seatingApi.create({ section: sec.name, row: row.rowLabel, place_number: n, annual_fee: annualFee });
-            created++;
-            setProgress(`יוצר מושבים... ${created} / ${totalSeats}`);
-          } catch { /* skip duplicates */ }
+    let failed = 0;
+    try {
+      for (const sec of sections) {
+        for (const row of sec.rows) {
+          for (let n = 1; n <= row.count; n++) {
+            try {
+              await seatingApi.create({ section: sec.name.trim(), row: row.rowLabel.trim(), place_number: n, annual_fee: annualFee });
+              created++;
+            } catch {
+              failed++;
+            }
+            setProgress(`יוצר מושבים... ${created + failed} / ${totalSeats}`);
+          }
         }
       }
+      if (created === 0) {
+        setBuildError('לא נוצר אף מושב. ייתכן שהמושבים כבר קיימים או שיש בעיה בחיבור לשרת.');
+      } else {
+        setResult({ created, failed });
+        await qc.invalidateQueries({ queryKey: ['places'] });
+      }
+    } catch (err) {
+      setBuildError(`שגיאה בלתי צפויה: ${(err as Error).message}`);
+    } finally {
+      setIsBuilding(false);
+      setProgress('');
     }
-    qc.invalidateQueries({ queryKey: ['places'] });
-    setIsBuilding(false);
+  };
+
+  const handleClose = () => {
+    setResult(null);
+    setBuildError('');
     setProgress('');
     onClose();
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="בניית מפת בית הכנסת" size="lg">
+    <Modal open={open} onClose={handleClose} title="בניית מפת בית הכנסת" size="lg">
       <div className="space-y-5" dir="rtl">
-        <p className="text-sm text-gray-500">הגדר אגפים, שורות ומספר מושבים בכל שורה. המערכת תיצור את כל המושבים אוטומטית.</p>
 
-        {/* Annual fee */}
-        <Input label="דמי מקום שנתיים (₪) — אחיד לכל המושבים" type="number" min={0} value={annualFee}
-          onChange={e => setAnnualFee(Number(e.target.value))} placeholder="0" className="w-64" />
+        {result ? (
+          /* ── Success state ── */
+          <div className="text-center space-y-4 py-4">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+              <Building2 className="h-8 w-8 text-green-600" />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-gray-900">{result.created} מושבים נוצרו בהצלחה!</p>
+              {result.failed > 0 && (
+                <p className="text-sm text-amber-600 mt-1">{result.failed} מושבים דולגו (כנראה כבר קיימים)</p>
+              )}
+            </div>
+            <Button onClick={handleClose}>סגור וצפה במפה</Button>
+          </div>
+        ) : (
+          <>
+            <p className="text-sm text-gray-500">הגדר אגפים, שורות ומספר מושבים בכל שורה. המערכת תיצור את כל המושבים אוטומטית.</p>
 
-        {/* Sections */}
-        <div className="space-y-4">
-          {sections.map((sec, si) => (
-            <div key={si} className="border border-blue-100 rounded-xl p-4 bg-blue-50 space-y-3">
-              <div className="flex items-center gap-3">
-                <Input
-                  label="שם אגף"
-                  value={sec.name}
-                  onChange={e => updateSection(si, e.target.value)}
-                  placeholder="ראשי / מזרח / עזרת נשים..."
-                  className="flex-1"
-                />
-                {sections.length > 1 && (
-                  <button onClick={() => removeSection(si)} className="mt-5 text-red-400 hover:text-red-600 transition-colors">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
+            {/* Annual fee */}
+            <Input label="דמי מקום שנתיים (₪) — אחיד לכל המושבים" type="number" min={0} value={annualFee}
+              onChange={e => setAnnualFee(Number(e.target.value))} placeholder="0" className="w-64" />
 
-              {/* Rows */}
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-gray-500">שורות</p>
-                {sec.rows.map((row, ri) => (
-                  <div key={ri} className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-blue-100">
+            {/* Sections */}
+            <div className="space-y-4">
+              {sections.map((sec, si) => (
+                <div key={si} className="border border-blue-100 rounded-xl p-4 bg-blue-50 space-y-3">
+                  <div className="flex items-center gap-3">
                     <Input
-                      placeholder="תווית שורה (א, ב, 1...)"
-                      value={row.rowLabel}
-                      onChange={e => updateRow(si, ri, 'rowLabel', e.target.value)}
-                      className="w-40"
+                      label="שם אגף"
+                      value={sec.name}
+                      onChange={e => updateSection(si, e.target.value)}
+                      placeholder="ראשי / מזרח / עזרת נשים..."
+                      className="flex-1"
                     />
-                    <div className="flex items-center gap-2 text-sm text-gray-500">
-                      <span>מספר מושבים:</span>
-                      <input
-                        type="number"
-                        min={1}
-                        max={50}
-                        value={row.count}
-                        onChange={e => updateRow(si, ri, 'count', Number(e.target.value))}
-                        className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-                    {sec.rows.length > 1 && (
-                      <button onClick={() => removeRow(si, ri)} className="text-red-400 hover:text-red-600 mr-auto">
-                        <Trash2 className="h-3.5 w-3.5" />
+                    {sections.length > 1 && (
+                      <button onClick={() => removeSection(si)} className="mt-5 text-red-400 hover:text-red-600 transition-colors">
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     )}
                   </div>
-                ))}
-                <Button variant="ghost" size="sm" onClick={() => addRow(si)} className="text-blue-600">
-                  + הוסף שורה
-                </Button>
-              </div>
+
+                  {/* Rows */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-gray-500">שורות</p>
+                    {sec.rows.map((row, ri) => (
+                      <div key={ri} className="flex items-center gap-3 bg-white rounded-lg px-3 py-2 border border-blue-100">
+                        <Input
+                          placeholder="תווית שורה (א, ב, 1...)"
+                          value={row.rowLabel}
+                          onChange={e => updateRow(si, ri, 'rowLabel', e.target.value)}
+                          className="w-40"
+                        />
+                        <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <span>מספר מושבים:</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={50}
+                            value={row.count}
+                            onChange={e => updateRow(si, ri, 'count', Number(e.target.value))}
+                            className="w-16 rounded-lg border border-gray-300 px-2 py-1 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        {sec.rows.length > 1 && (
+                          <button onClick={() => removeRow(si, ri)} className="text-red-400 hover:text-red-600 mr-auto">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                    <Button variant="ghost" size="sm" onClick={() => addRow(si)} className="text-blue-600">
+                      + הוסף שורה
+                    </Button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <Button variant="secondary" onClick={addSection} className="w-full">
-          + הוסף אגף
-        </Button>
+            <Button variant="secondary" onClick={addSection} className="w-full">
+              + הוסף אגף
+            </Button>
 
-        {/* Summary */}
-        <div className="bg-blue-100 rounded-xl p-4 text-sm text-blue-800">
-          <p className="font-semibold mb-1">סיכום</p>
-          {sections.map((sec, si) => (
-            <p key={si}>
-              אגף <strong>{sec.name || '?'}</strong>: {sec.rows.length} שורות, {sec.rows.reduce((a, r) => a + r.count, 0)} מושבים
-            </p>
-          ))}
-          <p className="font-bold mt-2 text-blue-900">סה״כ: {totalSeats} מושבים ייוצרו</p>
-        </div>
+            {/* Summary */}
+            <div className="bg-blue-100 rounded-xl p-4 text-sm text-blue-800">
+              <p className="font-semibold mb-1">סיכום</p>
+              {sections.map((sec, si) => (
+                <p key={si}>
+                  אגף <strong>{sec.name || '?'}</strong>: {sec.rows.length} שורות, {sec.rows.reduce((a, r) => a + r.count, 0)} מושבים
+                </p>
+              ))}
+              <p className="font-bold mt-2 text-blue-900">סה״כ: {totalSeats} מושבים ייוצרו</p>
+            </div>
 
-        {progress && <p className="text-sm text-blue-600 text-center font-medium">{progress}</p>}
+            {progress && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+                <p className="text-sm text-blue-700 text-center font-medium">{progress}</p>
+              </div>
+            )}
 
-        <div className="flex justify-start gap-3 pt-2">
-          <Button variant="secondary" onClick={onClose}>ביטול</Button>
-          <Button
-            loading={isBuilding}
-            disabled={totalSeats === 0 || sections.some(s => !s.name)}
-            onClick={handleBuild}
-          >
-            <Building2 className="h-4 w-4" /> צור {totalSeats} מושבים
-          </Button>
-        </div>
+            {buildError && (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">{buildError}</p>
+            )}
+
+            {(hasEmptySectionNames || hasEmptyRowLabels) && (
+              <p className="text-xs text-amber-600">יש למלא שמות לכל האגפים והשורות לפני הבנייה.</p>
+            )}
+
+            <div className="flex justify-start gap-3 pt-2">
+              <Button variant="secondary" onClick={handleClose}>ביטול</Button>
+              <Button
+                loading={isBuilding}
+                disabled={totalSeats === 0 || hasEmptySectionNames || hasEmptyRowLabels}
+                onClick={handleBuild}
+              >
+                <Building2 className="h-4 w-4" /> צור {totalSeats} מושבים
+              </Button>
+            </div>
+          </>
+        )}
       </div>
     </Modal>
   );

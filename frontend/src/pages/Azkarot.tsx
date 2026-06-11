@@ -65,6 +65,7 @@ function AddAzkaraModal({ open, onClose }: { open: boolean; onClose: () => void 
   const [dateMode, setDateMode] = useState<'gregorian' | 'hebrew'>('gregorian');
   const [hebrewDay, setHebrewDay] = useState('');
   const [hebrewMonth, setHebrewMonth] = useState('');
+  const [yearOccurred, setYearOccurred] = useState('');
 
   const { data: congregantsData } = useQuery({
     queryKey: ['congregants'],
@@ -79,6 +80,7 @@ function AddAzkaraModal({ open, onClose }: { open: boolean; onClose: () => void 
         payload.hebrew_day = hebrewDay ? parseInt(hebrewDay) : undefined;
         payload.hebrew_month = hebrewMonth ? parseInt(hebrewMonth) : undefined;
       }
+      if (yearOccurred) payload.year_occurred = parseInt(yearOccurred);
       return azkarotApi.create(payload);
     },
     onSuccess: () => {
@@ -93,6 +95,7 @@ function AddAzkaraModal({ open, onClose }: { open: boolean; onClose: () => void 
     setForm({ congregant_id: '', deceased_name: '', deceased_hebrew_name: '', relation: '', gregorian_date: '', notes: '' });
     setHebrewDay('');
     setHebrewMonth('');
+    setYearOccurred('');
     setDateMode('gregorian');
   };
 
@@ -163,7 +166,16 @@ function AddAzkaraModal({ open, onClose }: { open: boolean; onClose: () => void 
           )}
         </div>
 
-        <Input label="הערות" value={form.notes} onChange={set('notes')} placeholder="הערות נוספות..." />
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="שנת פטירה (לועזי)"
+            type="number"
+            value={yearOccurred}
+            onChange={e => setYearOccurred(e.target.value)}
+            placeholder={`${new Date().getFullYear() - 20}`}
+          />
+          <Input label="הערות" value={form.notes} onChange={set('notes')} placeholder="הערות נוספות..." />
+        </div>
 
         {mutation.error && (
           <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>
@@ -181,6 +193,12 @@ function AddAzkaraModal({ open, onClose }: { open: boolean; onClose: () => void 
 
 // ─── Azkara Row ──────────────────────────────────────────────────────────────
 
+function yahrzeitNumber(yearOccurred?: number | null): string | null {
+  if (!yearOccurred) return null;
+  const years = new Date().getFullYear() - yearOccurred;
+  return years > 0 ? `יארצייט ${years}` : null;
+}
+
 function AzkaraRow({
   a,
   congregantName,
@@ -190,6 +208,7 @@ function AzkaraRow({
   congregantName: string;
   onDelete: () => void;
 }) {
+  const yahrzeit = yahrzeitNumber(a.year_occurred);
   return (
     <tr className="hover:bg-blue-50 transition-colors">
       <td className="px-4 py-3">
@@ -199,6 +218,9 @@ function AzkaraRow({
             <p className="text-sm font-medium text-gray-900">{a.deceased_name}</p>
             {a.deceased_hebrew_name && (
               <p className="text-xs text-gray-400">{a.deceased_hebrew_name}</p>
+            )}
+            {yahrzeit && (
+              <p className="text-xs text-amber-600 font-medium">{yahrzeit}</p>
             )}
           </div>
         </div>
@@ -211,7 +233,7 @@ function AzkaraRow({
         {formatHebrewDate(a.hebrew_day, a.hebrew_month)}
       </td>
       <td className="px-4 py-3 text-xs text-gray-400">
-        {a.gregorian_date || '—'}
+        {a.year_occurred ? `${a.year_occurred}` : a.gregorian_date || '—'}
       </td>
       <td className="px-4 py-3">
         <button
@@ -258,6 +280,9 @@ function UpcomingCard({
         <p className="text-xs text-gray-600 mt-0.5">
           {formatHebrewDate(a.hebrew_day, a.hebrew_month)}
         </p>
+        {a.year_occurred && (
+          <p className="text-xs text-amber-600 font-medium mt-0.5">{yahrzeitNumber(a.year_occurred)}</p>
+        )}
       </div>
       <div className="text-left shrink-0">
         {isToday ? (
@@ -399,7 +424,7 @@ export function Azkarot() {
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">מתפלל</th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">קרבה</th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">תאריך עברי</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">תאריך לועזי</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">שנה</th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>

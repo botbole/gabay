@@ -137,6 +137,7 @@ class AzkaraCreate(BaseModel):
     gregorian_date: str = ""        # YYYY-MM-DD – auto-converts to Hebrew if provided
     hebrew_day: int = 0             # override / supply when Gregorian date unknown
     hebrew_month: int = 0
+    year_occurred: Optional[int] = None   # Gregorian year of passing
     notes: str = ""
 
 
@@ -148,6 +149,7 @@ class SimchaCreate(BaseModel):
     hebrew_day: int = 0
     hebrew_month: int = 0
     parasha: str = ""               # for bar/bat mitzvah
+    year_occurred: Optional[int] = None   # Gregorian year the event occurred
     notes: str = ""
 
 
@@ -324,6 +326,16 @@ async def assign_aliya(req: AliyaCreate):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@router.get("/aliyot", response_model=APIResponse)
+async def list_aliyot():
+    """Return all aliyot records."""
+    try:
+        data = await synagogue_service.list_aliyot()
+        return APIResponse(data=data)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @router.get("/aliyot/parasha/{parasha}", response_model=APIResponse)
 async def get_aliyot_for_parasha(parasha: str):
     """Return all aliyot assigned for a specific Parasha."""
@@ -446,6 +458,7 @@ async def add_azkara(req: AzkaraCreate):
             gregorian_date=req.gregorian_date,
             hebrew_day=req.hebrew_day,
             hebrew_month=req.hebrew_month,
+            year_occurred=req.year_occurred,
             notes=req.notes,
         )
         return APIResponse(message="Azkara added successfully.", data=data)
@@ -525,6 +538,7 @@ async def add_simcha(req: SimchaCreate):
             hebrew_day=req.hebrew_day,
             hebrew_month=req.hebrew_month,
             parasha=req.parasha,
+            year_occurred=req.year_occurred,
             notes=req.notes,
         )
         return APIResponse(message="Simcha added successfully.", data=data)
