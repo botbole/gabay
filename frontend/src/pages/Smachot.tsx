@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input, Select } from '../components/ui/Input';
+import { DatePickerField } from '../components/ui/DatePickerField';
 import { Modal } from '../components/ui/Modal';
 
 // ─── Hebrew helpers ──────────────────────────────────────────────────────────
@@ -70,10 +71,10 @@ function AddSimchaModal({ open, onClose }: { open: boolean; onClose: () => void 
     parasha: '',
     notes: '',
   });
-  const [dateMode, setDateMode] = useState<'gregorian' | 'hebrew'>('gregorian');
+  const [dateMode, setDateMode] = useState<'gregorian' | 'hebrew'>('hebrew');
   const [hebrewDay, setHebrewDay] = useState('');
   const [hebrewMonth, setHebrewMonth] = useState('');
-  const [yearOccurred, setYearOccurred] = useState('');
+  const [yearOccurred, setYearOccurred] = useState(0);
 
   const { data: congregantsData } = useQuery({
     queryKey: ['congregants'],
@@ -88,7 +89,7 @@ function AddSimchaModal({ open, onClose }: { open: boolean; onClose: () => void 
         payload.hebrew_day = hebrewDay ? parseInt(hebrewDay) : undefined;
         payload.hebrew_month = hebrewMonth ? parseInt(hebrewMonth) : undefined;
       }
-      if (yearOccurred) payload.year_occurred = parseInt(yearOccurred);
+      if (yearOccurred) payload.year_occurred = yearOccurred;
       return smachotApi.create(payload);
     },
     onSuccess: () => {
@@ -103,8 +104,8 @@ function AddSimchaModal({ open, onClose }: { open: boolean; onClose: () => void 
     setForm({ congregant_id: '', occasion_type: 'birthday', description: '', gregorian_date: '', parasha: '', notes: '' });
     setHebrewDay('');
     setHebrewMonth('');
-    setYearOccurred('');
-    setDateMode('gregorian');
+    setYearOccurred(0);
+    setDateMode('hebrew');
   };
 
   const set = (field: keyof SimchaCreate) =>
@@ -140,54 +141,20 @@ function AddSimchaModal({ open, onClose }: { open: boolean; onClose: () => void 
           <Input label="פרשה *" value={form.parasha} onChange={set('parasha')} placeholder="בראשית, נח, לך לך..." />
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">תאריך</label>
-          <div className="flex gap-2 mb-2">
-            <button
-              type="button"
-              onClick={() => setDateMode('gregorian')}
-              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${dateMode === 'gregorian' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-            >
-              לועזי
-            </button>
-            <button
-              type="button"
-              onClick={() => setDateMode('hebrew')}
-              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${dateMode === 'hebrew' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-            >
-              עברי
-            </button>
-          </div>
-          {dateMode === 'gregorian' ? (
-            <Input type="date" value={form.gregorian_date} onChange={set('gregorian_date')} />
-          ) : (
-            <div className="flex gap-3">
-              <Select label="יום" value={hebrewDay} onChange={e => setHebrewDay(e.target.value)}>
-                <option value="">יום...</option>
-                {Array.from({ length: 30 }, (_, i) => i + 1).map(d => (
-                  <option key={d} value={d}>{HEBREW_DAYS[d] ?? d}</option>
-                ))}
-              </Select>
-              <Select label="חודש" value={hebrewMonth} onChange={e => setHebrewMonth(e.target.value)}>
-                <option value="">חודש...</option>
-                {Object.entries(HEBREW_MONTHS).map(([m, name]) => (
-                  <option key={m} value={m}>{name}</option>
-                ))}
-              </Select>
-            </div>
-          )}
-        </div>
+        <DatePickerField
+          label="תאריך"
+          mode={dateMode}
+          onModeChange={setDateMode}
+          gregorianDate={form.gregorian_date ?? ''}
+          onGregorianChange={v => setForm(prev => ({ ...prev, gregorian_date: v }))}
+          hebrewDay={hebrewDay}
+          hebrewMonth={hebrewMonth}
+          onHebrewDayChange={setHebrewDay}
+          onHebrewMonthChange={setHebrewMonth}
+          onYearPicked={setYearOccurred}
+        />
 
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="שנת האירוע (לועזי)"
-            type="number"
-            value={yearOccurred}
-            onChange={e => setYearOccurred(e.target.value)}
-            placeholder={`${new Date().getFullYear()}`}
-          />
-          <Input label="הערות" value={form.notes} onChange={set('notes')} placeholder="הערות נוספות..." />
-        </div>
+        <Input label="הערות" value={form.notes} onChange={set('notes')} placeholder="הערות נוספות..." />
 
         {mutation.error && (
           <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>
@@ -212,6 +179,25 @@ function yearsAgo(yearOccurred?: number | null): string | null {
   return diff > 0 ? `לפני ${diff} שנים` : null;
 }
 
+function ageDisplay(yearOccurred?: number | null): string | null {
+  if (!yearOccurred) return null;
+  const age = new Date().getFullYear() - yearOccurred;
+  if (age < 0) return null;
+  if (age === 0) return 'נולד השנה';
+  return `גיל ${age}`;
+}
+
+function yearInfo(s: Simcha): { year: string; sub: string | null } | null {
+  if (!s.year_occurred) {
+    if (s.gregorian_date) return { year: s.gregorian_date, sub: null };
+    return null;
+  }
+  if (s.occasion_type === 'birthday') {
+    return { year: String(s.year_occurred), sub: ageDisplay(s.year_occurred) };
+  }
+  return { year: String(s.year_occurred), sub: yearsAgo(s.year_occurred) };
+}
+
 function SimchaRow({
   s,
   congregantName,
@@ -225,7 +211,7 @@ function SimchaRow({
   checked: boolean;
   onToggle: () => void;
 }) {
-  const ago = yearsAgo(s.year_occurred);
+  const info = yearInfo(s);
   return (
     <tr className={`hover:bg-blue-50 transition-colors ${checked ? 'bg-blue-50' : ''}`}>
       <td className="px-3 py-3">
@@ -248,9 +234,16 @@ function SimchaRow({
         {formatHebrewDate(s.hebrew_day, s.hebrew_month)}
       </td>
       <td className="px-4 py-3 text-xs text-gray-500">
-        {s.year_occurred ? (
-          <span title={s.gregorian_date || ''}>{s.year_occurred}{ago ? <span className="text-gray-400 mr-1">· {ago}</span> : null}</span>
-        ) : s.gregorian_date || '—'}
+        {info ? (
+          <span title={s.gregorian_date || ''}>
+            {info.year}
+            {info.sub && (
+              <span className={`mr-1 ${s.occasion_type === 'birthday' ? 'text-pink-600 font-semibold' : 'text-gray-400'}`}>
+                · {info.sub}
+              </span>
+            )}
+          </span>
+        ) : '—'}
       </td>
       <td className="px-4 py-3 text-xs text-blue-600">{s.parasha || '—'}</td>
       <td className="px-4 py-3">
@@ -302,7 +295,9 @@ function UpcomingCard({
           {formatHebrewDate(s.hebrew_day, s.hebrew_month)}
         </p>
         {s.year_occurred && (
-          <p className="text-xs text-pink-600 font-medium mt-0.5">{yearsAgo(s.year_occurred)}</p>
+          <p className="text-xs text-pink-600 font-medium mt-0.5">
+            {s.occasion_type === 'birthday' ? ageDisplay(s.year_occurred) : yearsAgo(s.year_occurred)}
+          </p>
         )}
       </div>
       <div className="text-left shrink-0">

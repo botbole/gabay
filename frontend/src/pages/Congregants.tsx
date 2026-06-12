@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { UserPlus, Search, Phone, Mail, Crown, Trash2, Archive, RotateCcw } from 'lucide-react';
+import { UserPlus, Search, Phone, Mail, Crown, Trash2, Archive, RotateCcw, Pencil } from 'lucide-react';
 import { congregantsApi, type Congregant, type CongregantCreate } from '../api/client';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input, Select } from '../components/ui/Input';
+import { DatePickerField } from '../components/ui/DatePickerField';
 import { Modal } from '../components/ui/Modal';
 
 const memberTypeLabel: Record<string, string> = {
@@ -68,9 +69,23 @@ function BulkBar({
 const EMPTY_FORM: CongregantCreate = {
   first_name: '', last_name: '', hebrew_name: '', father_name: '', mother_name: '',
   phone: '', email: '', address: '', is_kohen: false, is_levi: false,
-  member_type: 'regular', notes: '', join_date: '',
+  member_type: 'regular', notes: '', join_date: '', gender: 'male',
   azkara_father: '', azkara_mother: '', birth_date: '', bar_mitzvah_shabbat: '',
 };
+
+// Convert YYYY-MM-DD → DD/MM/YYYY (for event date fields sent to the backend)
+function isoToDdMmYyyy(iso: string) {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+// Convert DD/MM/YYYY → YYYY-MM-DD (for initialising DatePickerField from form state)
+function ddMmYyyyToIso(dmy: string) {
+  if (!dmy) return '';
+  const [d, m, y] = dmy.split('/');
+  if (!d || !m || !y) return '';
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
 
 // ─── Add congregant modal ─────────────────────────────────────────────────────
 
@@ -79,8 +94,58 @@ function AddCongregantModal({ open, onClose }: { open: boolean; onClose: () => v
   const [form, setForm] = useState<CongregantCreate>(EMPTY_FORM);
   const [showEvents, setShowEvents] = useState(false);
 
+  // ── Hebrew/Gregorian date state for the 3 event date fields ──────────────
+  const [fatherMode, setFatherMode] = useState<'gregorian' | 'hebrew'>('hebrew');
+  const [fatherHebrewDay, setFatherHebrewDay] = useState('');
+  const [fatherHebrewMonth, setFatherHebrewMonth] = useState('');
+
+  const [motherMode, setMotherMode] = useState<'gregorian' | 'hebrew'>('hebrew');
+  const [motherHebrewDay, setMotherHebrewDay] = useState('');
+  const [motherHebrewMonth, setMotherHebrewMonth] = useState('');
+
+  const [birthMode, setBirthMode] = useState<'gregorian' | 'hebrew'>('hebrew');
+  const [birthHebrewDay, setBirthHebrewDay] = useState('');
+  const [birthHebrewMonth, setBirthHebrewMonth] = useState('');
+
+  const resetEventState = () => {
+    setFatherMode('hebrew'); setFatherHebrewDay(''); setFatherHebrewMonth('');
+    setMotherMode('hebrew'); setMotherHebrewDay(''); setMotherHebrewMonth('');
+    setBirthMode('hebrew');  setBirthHebrewDay('');  setBirthHebrewMonth('');
+  };
+
   const mutation = useMutation({
-    mutationFn: () => congregantsApi.create(form),
+    mutationFn: () => {
+      const payload: CongregantCreate = { ...form };
+      // Gregorian dates are already in YYYY-MM-DD on form; convert to DD/MM/YYYY for backend
+      if (fatherMode === 'gregorian') {
+        payload.azkara_father = isoToDdMmYyyy(form.azkara_father ?? '');
+        payload.azkara_father_hebrew_day = 0;
+        payload.azkara_father_hebrew_month = 0;
+      } else {
+        payload.azkara_father = '';
+        payload.azkara_father_hebrew_day = parseInt(fatherHebrewDay) || 0;
+        payload.azkara_father_hebrew_month = parseInt(fatherHebrewMonth) || 0;
+      }
+      if (motherMode === 'gregorian') {
+        payload.azkara_mother = isoToDdMmYyyy(form.azkara_mother ?? '');
+        payload.azkara_mother_hebrew_day = 0;
+        payload.azkara_mother_hebrew_month = 0;
+      } else {
+        payload.azkara_mother = '';
+        payload.azkara_mother_hebrew_day = parseInt(motherHebrewDay) || 0;
+        payload.azkara_mother_hebrew_month = parseInt(motherHebrewMonth) || 0;
+      }
+      if (birthMode === 'gregorian') {
+        payload.birth_date = isoToDdMmYyyy(form.birth_date ?? '');
+        payload.birth_date_hebrew_day = 0;
+        payload.birth_date_hebrew_month = 0;
+      } else {
+        payload.birth_date = '';
+        payload.birth_date_hebrew_day = parseInt(birthHebrewDay) || 0;
+        payload.birth_date_hebrew_month = parseInt(birthHebrewMonth) || 0;
+      }
+      return congregantsApi.create(payload);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['congregants'] });
       qc.invalidateQueries({ queryKey: ['azkarot'] });
@@ -88,6 +153,7 @@ function AddCongregantModal({ open, onClose }: { open: boolean; onClose: () => v
       onClose();
       setForm(EMPTY_FORM);
       setShowEvents(false);
+      resetEventState();
     },
   });
 
@@ -111,9 +177,33 @@ function AddCongregantModal({ open, onClose }: { open: boolean; onClose: () => v
           <Input label="שם בעברית" value={form.hebrew_name ?? ''} onChange={set('hebrew_name')} placeholder="משה בן אברהם" />
           <Input label="שם האב" value={form.father_name ?? ''} onChange={set('father_name')} placeholder="אברהם" />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4 items-end">
           <Input label="שם האמא" value={form.mother_name ?? ''} onChange={set('mother_name')} placeholder="שרה" />
-          <Input label="תאריך הצטרפות" type="date" value={form.join_date ?? ''} onChange={set('join_date')} />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">מגדר</label>
+            <div className="flex rounded-lg border border-gray-300 overflow-hidden h-[38px]">
+              <button type="button" onClick={() => setForm(p => ({ ...p, gender: 'male' }))}
+                className={`flex-1 text-sm font-medium transition-colors ${form.gender !== 'female' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                זכר
+              </button>
+              <button type="button" onClick={() => setForm(p => ({ ...p, gender: 'female' }))}
+                className={`flex-1 text-sm font-medium transition-colors border-r border-gray-300 ${form.gender === 'female' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                נקבה
+              </button>
+            </div>
+          </div>
+          <DatePickerField
+            label="תאריך הצטרפות"
+            gregorianOnly
+            mode="gregorian"
+            onModeChange={() => {}}
+            gregorianDate={form.join_date ?? ''}
+            onGregorianChange={v => setForm(prev => ({ ...prev, join_date: v }))}
+            hebrewDay=""
+            hebrewMonth=""
+            onHebrewDayChange={() => {}}
+            onHebrewMonthChange={() => {}}
+          />
         </div>
 
         {/* ── Contact ── */}
@@ -165,34 +255,49 @@ function AddCongregantModal({ open, onClose }: { open: boolean; onClose: () => v
           {showEvents && (
             <div className="p-4 space-y-3">
               <p className="text-xs text-gray-500">
-                מלא תאריכים גרגוריאניים (DD/MM/YYYY) — המערכת תיצור רשומות אזכרה/שמחה אוטומטית.
+                בחר תאריכים — המערכת תיצור רשומות אזכרה/שמחה אוטומטית.
               </p>
               <div className="grid grid-cols-2 gap-4">
-                <Input
+                <DatePickerField
                   label="אזכרה אבא (תאריך פטירה)"
-                  placeholder="DD/MM/YYYY"
-                  value={form.azkara_father ?? ''}
-                  onChange={set('azkara_father')}
+                  mode={fatherMode}
+                  onModeChange={setFatherMode}
+                  gregorianDate={form.azkara_father ?? ''}
+                  onGregorianChange={v => setForm(prev => ({ ...prev, azkara_father: v }))}
+                  hebrewDay={fatherHebrewDay}
+                  hebrewMonth={fatherHebrewMonth}
+                  onHebrewDayChange={setFatherHebrewDay}
+                  onHebrewMonthChange={setFatherHebrewMonth}
                 />
-                <Input
+                <DatePickerField
                   label="אזכרה אמא (תאריך פטירה)"
-                  placeholder="DD/MM/YYYY"
-                  value={form.azkara_mother ?? ''}
-                  onChange={set('azkara_mother')}
+                  mode={motherMode}
+                  onModeChange={setMotherMode}
+                  gregorianDate={form.azkara_mother ?? ''}
+                  onGregorianChange={v => setForm(prev => ({ ...prev, azkara_mother: v }))}
+                  hebrewDay={motherHebrewDay}
+                  hebrewMonth={motherHebrewMonth}
+                  onHebrewDayChange={setMotherHebrewDay}
+                  onHebrewMonthChange={setMotherHebrewMonth}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Input
+                <DatePickerField
                   label="תאריך לידה"
-                  placeholder="DD/MM/YYYY"
-                  value={form.birth_date ?? ''}
-                  onChange={set('birth_date')}
+                  mode={birthMode}
+                  onModeChange={setBirthMode}
+                  gregorianDate={form.birth_date ?? ''}
+                  onGregorianChange={v => setForm(prev => ({ ...prev, birth_date: v }))}
+                  hebrewDay={birthHebrewDay}
+                  hebrewMonth={birthHebrewMonth}
+                  onHebrewDayChange={setBirthHebrewDay}
+                  onHebrewMonthChange={setBirthHebrewMonth}
                 />
                 <Input
                   label="שבת בר מצווה"
-                  placeholder="DD/MM/YYYY"
                   value={form.bar_mitzvah_shabbat ?? ''}
                   onChange={set('bar_mitzvah_shabbat')}
+                  placeholder="בראשית, נח, לך לך..."
                 />
               </div>
             </div>
@@ -211,59 +316,212 @@ function AddCongregantModal({ open, onClose }: { open: boolean; onClose: () => v
   );
 }
 
-// ─── Congregant detail modal ──────────────────────────────────────────────────
+// ─── Congregant detail / edit modal ──────────────────────────────────────────
 
-function CongregantDetailModal({ congregant, onClose }: { congregant: Congregant; onClose: () => void }) {
+function CongregantDetailModal({
+  congregant,
+  onClose,
+}: {
+  congregant: Congregant;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [editMode, setEditMode] = useState(false);
+  const [form, setForm] = useState<Partial<CongregantCreate>>({
+    first_name: congregant.first_name,
+    last_name: congregant.last_name,
+    hebrew_name: congregant.hebrew_name,
+    father_name: congregant.father_name,
+    mother_name: congregant.mother_name,
+    phone: congregant.phone,
+    email: congregant.email,
+    address: congregant.address,
+    is_kohen: congregant.is_kohen,
+    is_levi: congregant.is_levi,
+    member_type: congregant.member_type,
+    notes: congregant.notes,
+    join_date: congregant.join_date,
+    gender: congregant.gender ?? 'male',
+  });
+
   const { data: place } = useQuery({
     queryKey: ['congregant-place', congregant.id],
     queryFn: () => congregantsApi.getPlace(congregant.id).catch(() => null),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: () => congregantsApi.update(congregant.id, form),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['congregants'] });
+      setEditMode(false);
+    },
+  });
+
+  const set = (field: keyof CongregantCreate) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+      const value = e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value;
+      setForm(prev => ({ ...prev, [field]: value }));
+    };
+
+  const isFemale = form.gender === 'female';
+  const benBat = isFemale ? 'בת' : 'בן';
+  const title = editMode
+    ? `עריכת ${congregant.first_name} ${congregant.last_name}`
+    : `${congregant.first_name} ${congregant.last_name}`;
+
   return (
-    <Modal open={true} onClose={onClose} title={`${congregant.first_name} ${congregant.last_name}`} size="md">
+    <Modal open={true} onClose={onClose} title={title} size="lg">
       <div className="space-y-4" dir="rtl">
-        <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xl font-bold">
-            {congregant.first_name[0]}{congregant.last_name[0]}
-          </div>
-          <div>
-            <p className="font-semibold text-gray-900">{congregant.first_name} {congregant.last_name}</p>
-            {congregant.hebrew_name && <p className="text-sm text-gray-500">{congregant.hebrew_name}</p>}
-            <div className="flex gap-1.5 mt-1">
-              <Badge variant={memberTypeVariant[congregant.member_type] ?? 'default'}>{memberTypeLabel[congregant.member_type] ?? congregant.member_type}</Badge>
-              {congregant.is_kohen && <Badge variant="info">כהן</Badge>}
-              {congregant.is_levi && <Badge variant="warning">לוי</Badge>}
+        {!editMode ? (
+          /* ── View mode ── */
+          <>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 text-xl font-bold shrink-0">
+                  {congregant.first_name[0]}{congregant.last_name[0]}
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">{congregant.first_name} {congregant.last_name}</p>
+                  {congregant.hebrew_name && <p className="text-sm text-gray-500">{congregant.hebrew_name}</p>}
+                  <div className="flex gap-1.5 mt-1 flex-wrap">
+                    <Badge variant={isFemale ? 'warning' : 'info'}>{isFemale ? 'נקבה' : 'זכר'}</Badge>
+                    <Badge variant={memberTypeVariant[congregant.member_type] ?? 'default'}>
+                      {memberTypeLabel[congregant.member_type] ?? congregant.member_type}
+                    </Badge>
+                    {congregant.is_kohen && <Badge variant="info">כהן</Badge>}
+                    {congregant.is_levi && <Badge variant="warning">לוי</Badge>}
+                  </div>
+                </div>
+              </div>
+              <Button variant="secondary" onClick={() => setEditMode(true)}>
+                <Pencil className="h-3.5 w-3.5" /> עריכה
+              </Button>
             </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          {congregant.phone && (
-            <div className="flex items-center gap-2 text-gray-600"><Phone className="h-4 w-4 text-gray-400" />{congregant.phone}</div>
-          )}
-          {congregant.email && (
-            <div className="flex items-center gap-2 text-gray-600"><Mail className="h-4 w-4 text-gray-400" />{congregant.email}</div>
-          )}
-          {congregant.father_name && (
-            <div className="flex items-center gap-2 text-gray-600"><Crown className="h-4 w-4 text-gray-400" />בן {congregant.father_name}</div>
-          )}
-          {congregant.mother_name && (
-            <div className="flex items-center gap-2 text-gray-600"><Crown className="h-4 w-4 text-gray-400" />בת {congregant.mother_name}</div>
-          )}
-        </div>
-        {congregant.address && <p className="text-sm text-gray-500">{congregant.address}</p>}
-        {place && (
-          <div className="bg-blue-50 rounded-lg p-3 text-sm border border-blue-100">
-            <p className="font-medium text-blue-800">מקום מושב</p>
-            <p className="text-blue-600">אגף: {place.section} · שורה {place.row} · מושב #{place.place_number}</p>
-          </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              {congregant.phone && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Phone className="h-4 w-4 text-gray-400" />{congregant.phone}
+                </div>
+              )}
+              {congregant.email && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Mail className="h-4 w-4 text-gray-400" />{congregant.email}
+                </div>
+              )}
+              {congregant.father_name && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Crown className="h-4 w-4 text-gray-400" />{benBat} {congregant.father_name}
+                </div>
+              )}
+              {congregant.mother_name && (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Crown className="h-4 w-4 text-gray-400" />אמא: {congregant.mother_name}
+                </div>
+              )}
+            </div>
+
+            {congregant.address && (
+              <p className="text-sm text-gray-500">{congregant.address}</p>
+            )}
+            {place && (
+              <div className="bg-blue-50 rounded-lg p-3 text-sm border border-blue-100">
+                <p className="font-medium text-blue-800">מקום מושב</p>
+                <p className="text-blue-600">אגף: {place.section} · שורה {place.row} · מושב #{place.place_number}</p>
+              </div>
+            )}
+            {congregant.notes && (
+              <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
+                <p className="font-medium text-gray-700 mb-1">הערות</p>
+                {congregant.notes}
+              </div>
+            )}
+            <p className="text-xs text-gray-400">
+              הצטרף{isFemale ? 'ה' : ''}: {congregant.join_date}
+            </p>
+          </>
+        ) : (
+          /* ── Edit mode ── */
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="שם פרטי *" value={form.first_name ?? ''} onChange={set('first_name')} />
+              <Input label="שם משפחה *" value={form.last_name ?? ''} onChange={set('last_name')} />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="שם בעברית" value={form.hebrew_name ?? ''} onChange={set('hebrew_name')} />
+              <Input label="שם האב" value={form.father_name ?? ''} onChange={set('father_name')} />
+            </div>
+            <div className="grid grid-cols-3 gap-4 items-end">
+              <Input label="שם האמא" value={form.mother_name ?? ''} onChange={set('mother_name')} />
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">מגדר</label>
+                <div className="flex rounded-lg border border-gray-300 overflow-hidden h-[38px]">
+                  <button type="button" onClick={() => setForm(p => ({ ...p, gender: 'male' }))}
+                    className={`flex-1 text-sm font-medium transition-colors ${form.gender !== 'female' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                    זכר
+                  </button>
+                  <button type="button" onClick={() => setForm(p => ({ ...p, gender: 'female' }))}
+                    className={`flex-1 text-sm font-medium transition-colors border-r border-gray-300 ${form.gender === 'female' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                    נקבה
+                  </button>
+                </div>
+              </div>
+              <DatePickerField
+                label="תאריך הצטרפות"
+                gregorianOnly
+                mode="gregorian"
+                onModeChange={() => {}}
+                gregorianDate={form.join_date ?? ''}
+                onGregorianChange={v => setForm(p => ({ ...p, join_date: v }))}
+                hebrewDay="" hebrewMonth=""
+                onHebrewDayChange={() => {}} onHebrewMonthChange={() => {}}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <Input label="טלפון" value={form.phone ?? ''} onChange={set('phone')} />
+              <Input label="אימייל" type="email" value={form.email ?? ''} onChange={set('email')} />
+            </div>
+            <Input label="כתובת" value={form.address ?? ''} onChange={set('address')} />
+            <div className="grid grid-cols-3 gap-4 items-end">
+              <Select label="סוג חברות" value={form.member_type ?? 'regular'} onChange={set('member_type')}>
+                <option value="regular">קבוע</option>
+                <option value="guest">אורח</option>
+                <option value="occasional">מזדמן</option>
+              </Select>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer pb-2">
+                <input type="checkbox" className="rounded border-gray-300" checked={!!form.is_kohen} onChange={set('is_kohen')} />
+                כהן
+              </label>
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700 cursor-pointer pb-2">
+                <input type="checkbox" className="rounded border-gray-300" checked={!!form.is_levi} onChange={set('is_levi')} />
+                לוי
+              </label>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-gray-700">הערות</label>
+              <textarea
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors resize-none"
+                rows={2}
+                value={form.notes ?? ''}
+                onChange={set('notes')}
+              />
+            </div>
+
+            {updateMutation.error && (
+              <p className="text-sm text-red-600">{(updateMutation.error as Error).message}</p>
+            )}
+            <div className="flex justify-start gap-3 pt-2">
+              <Button variant="secondary" onClick={() => setEditMode(false)}>ביטול</Button>
+              <Button
+                loading={updateMutation.isPending}
+                disabled={!form.first_name || !form.last_name}
+                onClick={() => updateMutation.mutate()}
+              >
+                שמור שינויים
+              </Button>
+            </div>
+          </>
         )}
-        {congregant.notes && (
-          <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600">
-            <p className="font-medium text-gray-700 mb-1">הערות</p>
-            {congregant.notes}
-          </div>
-        )}
-        <p className="text-xs text-gray-400">הצטרף: {congregant.join_date}</p>
       </div>
     </Modal>
   );

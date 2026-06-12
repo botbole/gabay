@@ -84,10 +84,17 @@ class CongregantCreate(BaseModel):
     notes: str = ""
     join_date: str = ""
     # Optional fields that auto-create linked Azkara / Simcha records
-    azkara_father: str = ""        # DD/MM/YYYY or YYYY-MM-DD → Azkara for father
-    azkara_mother: str = ""        # DD/MM/YYYY or YYYY-MM-DD → Azkara for mother
-    birth_date: str = ""           # DD/MM/YYYY or YYYY-MM-DD → Simcha birthday
-    bar_mitzvah_shabbat: str = ""  # DD/MM/YYYY or YYYY-MM-DD → Simcha bar_mitzvah
+    azkara_father: str = ""               # DD/MM/YYYY or YYYY-MM-DD → Azkara for father
+    azkara_father_hebrew_day: int = 0     # Hebrew day (1-30) – used when no Gregorian date
+    azkara_father_hebrew_month: int = 0   # Hebrew month (1-13)
+    azkara_mother: str = ""               # DD/MM/YYYY or YYYY-MM-DD → Azkara for mother
+    azkara_mother_hebrew_day: int = 0
+    azkara_mother_hebrew_month: int = 0
+    birth_date: str = ""                  # DD/MM/YYYY or YYYY-MM-DD → Simcha birthday
+    birth_date_hebrew_day: int = 0
+    birth_date_hebrew_month: int = 0
+    bar_mitzvah_shabbat: str = ""         # Parasha/Shabbat name (text, not a date)
+    gender: str = "male"                  # male | female
 
 
 class CongregantUpdate(BaseModel):
@@ -103,6 +110,7 @@ class CongregantUpdate(BaseModel):
     is_levi: Optional[bool] = None
     member_type: Optional[str] = None
     notes: Optional[str] = None
+    gender: Optional[str] = None
 
 
 class PaymentCreate(BaseModel):
@@ -204,7 +212,7 @@ async def create_congregant(req: CongregantCreate):
         )
         cid = data["id"]
 
-        # Auto-create related records when extra date fields are provided
+        # Auto-create related records when date fields are provided
         if req.azkara_father:
             iso = _parse_date_iso(req.azkara_father)
             if iso:
@@ -214,6 +222,14 @@ async def create_congregant(req: CongregantCreate):
                     relation="father",
                     gregorian_date=iso,
                 )
+        elif req.azkara_father_hebrew_day and req.azkara_father_hebrew_month:
+            await synagogue_service.add_azkara(
+                congregant_id=cid,
+                deceased_name=req.father_name or "אבא",
+                relation="father",
+                hebrew_day=req.azkara_father_hebrew_day,
+                hebrew_month=req.azkara_father_hebrew_month,
+            )
 
         if req.azkara_mother:
             iso = _parse_date_iso(req.azkara_mother)
@@ -224,6 +240,14 @@ async def create_congregant(req: CongregantCreate):
                     relation="mother",
                     gregorian_date=iso,
                 )
+        elif req.azkara_mother_hebrew_day and req.azkara_mother_hebrew_month:
+            await synagogue_service.add_azkara(
+                congregant_id=cid,
+                deceased_name=req.mother_name or "אמא",
+                relation="mother",
+                hebrew_day=req.azkara_mother_hebrew_day,
+                hebrew_month=req.azkara_mother_hebrew_month,
+            )
 
         if req.birth_date:
             iso = _parse_date_iso(req.birth_date)
@@ -233,15 +257,15 @@ async def create_congregant(req: CongregantCreate):
                     occasion_type="birthday",
                     gregorian_date=iso,
                 )
+        elif req.birth_date_hebrew_day and req.birth_date_hebrew_month:
+            await synagogue_service.add_simcha(
+                congregant_id=cid,
+                occasion_type="birthday",
+                hebrew_day=req.birth_date_hebrew_day,
+                hebrew_month=req.birth_date_hebrew_month,
+            )
 
-        if req.bar_mitzvah_shabbat:
-            iso = _parse_date_iso(req.bar_mitzvah_shabbat)
-            if iso:
-                await synagogue_service.add_simcha(
-                    congregant_id=cid,
-                    occasion_type="bar_mitzvah",
-                    gregorian_date=iso,
-                )
+        # bar_mitzvah_shabbat is now a free-text parasha name, not a date
 
         return APIResponse(message="Congregant created successfully.", data=data)
     except Exception as exc:

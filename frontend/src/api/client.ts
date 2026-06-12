@@ -39,6 +39,7 @@ export interface Congregant {
   member_type: string;
   notes: string;
   join_date: string;
+  gender: string;
   is_archived: boolean;
   archived_at: string;
 }
@@ -58,10 +59,17 @@ export interface CongregantCreate {
   notes?: string;
   join_date?: string;
   // Extra fields that auto-create linked Azkara / Simcha records
-  azkara_father?: string;
+  azkara_father?: string;               // Gregorian date YYYY-MM-DD (converted to DD/MM/YYYY before send)
+  azkara_father_hebrew_day?: number;
+  azkara_father_hebrew_month?: number;
   azkara_mother?: string;
+  azkara_mother_hebrew_day?: number;
+  azkara_mother_hebrew_month?: number;
   birth_date?: string;
-  bar_mitzvah_shabbat?: string;
+  birth_date_hebrew_day?: number;
+  birth_date_hebrew_month?: number;
+  bar_mitzvah_shabbat?: string;         // Free-text parasha / Shabbat name
+  gender?: string;                      // 'male' | 'female'
 }
 
 export interface BulkImportResult {

@@ -23,6 +23,7 @@ _MIGRATIONS = [
     "ALTER TABLE congregants ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE congregants ADD COLUMN archived_at TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE congregants ADD COLUMN mother_name TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE congregants ADD COLUMN gender TEXT NOT NULL DEFAULT 'male'",
 ]
 
 

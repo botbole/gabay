@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, ChevronLeft, Flame, PartyPopper, Star, CalendarDays } from 'lucide-react';
-import { calendarApi, type CalendarDay, type CalendarMonth } from '../api/client';
+import { calendarApi, congregantsApi, type CalendarDay, type CalendarMonth } from '../api/client';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -134,7 +134,15 @@ function DayCell({
 
 // ─── Day Detail Panel ─────────────────────────────────────────────────────────
 
-function DayDetail({ day, showGregorian }: { day: CalendarDay; showGregorian: boolean }) {
+function DayDetail({
+  day,
+  showGregorian,
+  congregantMap,
+}: {
+  day: CalendarDay;
+  showGregorian: boolean;
+  congregantMap: Record<string, string>;
+}) {
   const hasContent = day.holiday_he || day.is_rosh_chodesh || day.is_shabbat || day.azkarot.length > 0 || day.smachot.length > 0;
 
   return (
@@ -185,10 +193,15 @@ function DayDetail({ day, showGregorian }: { day: CalendarDay; showGregorian: bo
             {day.azkarot.map(a => (
               <div key={a.id} className="flex items-start gap-2 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2">
                 <Flame className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800">{a.deceased_name}</p>
                   {a.deceased_hebrew_name && <p className="text-xs text-gray-500">{a.deceased_hebrew_name}</p>}
                   {a.relation && <p className="text-xs text-gray-400">{RELATION_LABELS[a.relation] ?? a.relation}</p>}
+                  {congregantMap[a.congregant_id] && (
+                    <p className="text-xs text-amber-700 font-medium mt-0.5 truncate">
+                      {congregantMap[a.congregant_id]}
+                    </p>
+                  )}
                 </div>
               </div>
             ))}
@@ -204,10 +217,15 @@ function DayDetail({ day, showGregorian }: { day: CalendarDay; showGregorian: bo
             {day.smachot.map(s => (
               <div key={s.id} className="flex items-start gap-2 rounded-lg bg-pink-50 border border-pink-100 px-3 py-2">
                 <PartyPopper className="h-4 w-4 text-pink-500 shrink-0 mt-0.5" />
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-800">
                     {OCCASION_LABELS[s.occasion_type] ?? s.occasion_type}
                   </p>
+                  {congregantMap[s.congregant_id] && (
+                    <p className="text-xs text-pink-700 font-medium truncate">
+                      {congregantMap[s.congregant_id]}
+                    </p>
+                  )}
                   {s.description && <p className="text-xs text-gray-500">{s.description}</p>}
                   {s.parasha && <p className="text-xs text-blue-500">פרשת {s.parasha}</p>}
                 </div>
@@ -394,6 +412,17 @@ export function Calendar() {
     staleTime: Infinity,
   });
 
+  // Congregant name map for the detail panel
+  const { data: congregantsData } = useQuery({
+    queryKey: ['congregants'],
+    queryFn: () => congregantsApi.list(),
+    staleTime: 1000 * 60 * 5,
+  });
+  const congregantMap: Record<string, string> = {};
+  (congregantsData?.congregants ?? []).forEach(c => {
+    congregantMap[c.id] = `${c.first_name} ${c.last_name}`;
+  });
+
   useEffect(() => {
     if (todayHebrew && year === null) {
       setYear(todayHebrew.year);
@@ -506,7 +535,7 @@ export function Calendar() {
           <div className="w-64 shrink-0">
             <div className="bg-white rounded-xl border border-blue-100 shadow-sm h-full min-h-[400px] overflow-y-auto">
               {selectedDay ? (
-                <DayDetail day={selectedDay} showGregorian={showGregorian} />
+                <DayDetail day={selectedDay} showGregorian={showGregorian} congregantMap={congregantMap} />
               ) : (
                 <div className="flex flex-col items-center justify-center h-full py-12 text-center px-4">
                   <CalendarDays className="h-10 w-10 text-gray-200 mb-3" />

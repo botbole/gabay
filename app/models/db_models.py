@@ -50,6 +50,7 @@ class Congregant(SQLModel, table=True):
     member_type: str = "regular"    # MemberType values; stored as str for SQLite
     notes: str = ""
     join_date: str = ""             # ISO date string
+    gender: str = "male"            # male | female
     is_archived: bool = False       # soft-delete / archive flag
     archived_at: str = ""           # ISO date string when archived
 

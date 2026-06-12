@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input, Select } from '../components/ui/Input';
+import { DatePickerField } from '../components/ui/DatePickerField';
 import { Modal } from '../components/ui/Modal';
 
 // ─── Hebrew helpers ──────────────────────────────────────────────────────────
@@ -62,10 +63,10 @@ function AddAzkaraModal({ open, onClose }: { open: boolean; onClose: () => void 
     gregorian_date: '',
     notes: '',
   });
-  const [dateMode, setDateMode] = useState<'gregorian' | 'hebrew'>('gregorian');
+  const [dateMode, setDateMode] = useState<'gregorian' | 'hebrew'>('hebrew');
   const [hebrewDay, setHebrewDay] = useState('');
   const [hebrewMonth, setHebrewMonth] = useState('');
-  const [yearOccurred, setYearOccurred] = useState('');
+  const [yearOccurred, setYearOccurred] = useState(0);
 
   const { data: congregantsData } = useQuery({
     queryKey: ['congregants'],
@@ -80,7 +81,7 @@ function AddAzkaraModal({ open, onClose }: { open: boolean; onClose: () => void 
         payload.hebrew_day = hebrewDay ? parseInt(hebrewDay) : undefined;
         payload.hebrew_month = hebrewMonth ? parseInt(hebrewMonth) : undefined;
       }
-      if (yearOccurred) payload.year_occurred = parseInt(yearOccurred);
+      if (yearOccurred) payload.year_occurred = yearOccurred;
       return azkarotApi.create(payload);
     },
     onSuccess: () => {
@@ -95,8 +96,8 @@ function AddAzkaraModal({ open, onClose }: { open: boolean; onClose: () => void 
     setForm({ congregant_id: '', deceased_name: '', deceased_hebrew_name: '', relation: '', gregorian_date: '', notes: '' });
     setHebrewDay('');
     setHebrewMonth('');
-    setYearOccurred('');
-    setDateMode('gregorian');
+    setYearOccurred(0);
+    setDateMode('hebrew');
   };
 
   const set = (field: keyof AzkaraCreate) =>
@@ -128,54 +129,20 @@ function AddAzkaraModal({ open, onClose }: { open: boolean; onClose: () => void 
           ))}
         </Select>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">תאריך פטירה</label>
-          <div className="flex gap-2 mb-2">
-            <button
-              type="button"
-              onClick={() => setDateMode('gregorian')}
-              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${dateMode === 'gregorian' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-            >
-              לועזי
-            </button>
-            <button
-              type="button"
-              onClick={() => setDateMode('hebrew')}
-              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${dateMode === 'hebrew' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-            >
-              עברי
-            </button>
-          </div>
-          {dateMode === 'gregorian' ? (
-            <Input type="date" value={form.gregorian_date} onChange={set('gregorian_date')} />
-          ) : (
-            <div className="flex gap-3">
-              <Select label="יום" value={hebrewDay} onChange={e => setHebrewDay(e.target.value)}>
-                <option value="">יום...</option>
-                {Array.from({ length: 30 }, (_, i) => i + 1).map(d => (
-                  <option key={d} value={d}>{HEBREW_DAYS[d] ?? d}</option>
-                ))}
-              </Select>
-              <Select label="חודש" value={hebrewMonth} onChange={e => setHebrewMonth(e.target.value)}>
-                <option value="">חודש...</option>
-                {Object.entries(HEBREW_MONTHS).map(([m, name]) => (
-                  <option key={m} value={m}>{name}</option>
-                ))}
-              </Select>
-            </div>
-          )}
-        </div>
+        <DatePickerField
+          label="תאריך פטירה"
+          mode={dateMode}
+          onModeChange={setDateMode}
+          gregorianDate={form.gregorian_date ?? ''}
+          onGregorianChange={v => setForm(prev => ({ ...prev, gregorian_date: v }))}
+          hebrewDay={hebrewDay}
+          hebrewMonth={hebrewMonth}
+          onHebrewDayChange={setHebrewDay}
+          onHebrewMonthChange={setHebrewMonth}
+          onYearPicked={setYearOccurred}
+        />
 
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="שנת פטירה (לועזי)"
-            type="number"
-            value={yearOccurred}
-            onChange={e => setYearOccurred(e.target.value)}
-            placeholder={`${new Date().getFullYear() - 20}`}
-          />
-          <Input label="הערות" value={form.notes} onChange={set('notes')} placeholder="הערות נוספות..." />
-        </div>
+        <Input label="הערות" value={form.notes} onChange={set('notes')} placeholder="הערות נוספות..." />
 
         {mutation.error && (
           <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>
