@@ -40,6 +40,7 @@ class Congregant(SQLModel, table=True):
     last_name: str
     hebrew_name: str = ""
     father_name: str = ""           # ben / bat …
+    mother_name: str = ""
     phone: str = ""
     email: str = ""
     address: str = ""
@@ -49,6 +50,8 @@ class Congregant(SQLModel, table=True):
     member_type: str = "regular"    # MemberType values; stored as str for SQLite
     notes: str = ""
     join_date: str = ""             # ISO date string
+    is_archived: bool = False       # soft-delete / archive flag
+    archived_at: str = ""           # ISO date string when archived
 
 
 # ---------------------------------------------------------------------------

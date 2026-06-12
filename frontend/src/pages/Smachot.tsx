@@ -216,14 +216,22 @@ function SimchaRow({
   s,
   congregantName,
   onDelete,
+  checked,
+  onToggle,
 }: {
   s: Simcha;
   congregantName: string;
   onDelete: () => void;
+  checked: boolean;
+  onToggle: () => void;
 }) {
   const ago = yearsAgo(s.year_occurred);
   return (
-    <tr className="hover:bg-blue-50 transition-colors">
+    <tr className={`hover:bg-blue-50 transition-colors ${checked ? 'bg-blue-50' : ''}`}>
+      <td className="px-3 py-3">
+        <input type="checkbox" checked={checked} onChange={onToggle}
+          className="rounded border-gray-300 cursor-pointer" />
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <PartyPopper className="h-4 w-4 text-pink-500 shrink-0" />
@@ -319,6 +327,7 @@ export function Smachot() {
   const [filterType, setFilterType] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [upcomingDays, setUpcomingDays] = useState(30);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
   const { data: listData, isLoading } = useQuery({
     queryKey: ['smachot', filterType],
@@ -348,9 +357,31 @@ export function Smachot() {
     },
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: () => smachotApi.bulkDelete([...checkedIds]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['smachot'] });
+      qc.invalidateQueries({ queryKey: ['smachot-upcoming'] });
+      setCheckedIds(new Set());
+    },
+  });
+
   const filtered = (listData?.smachot ?? []).filter(s =>
     `${OCCASION_LABELS[s.occasion_type] ?? ''} ${s.description} ${congregantMap[s.congregant_id] ?? ''}`.toLowerCase().includes(search.toLowerCase())
   );
+
+  const allChecked = filtered.length > 0 && filtered.every(s => checkedIds.has(s.id));
+  const toggleAll = () => {
+    if (allChecked) setCheckedIds(new Set());
+    else setCheckedIds(new Set(filtered.map(s => s.id)));
+  };
+  const toggle = (id: string) => {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
 
   const upcoming = upcomingData?.smachot ?? [];
 
@@ -403,6 +434,20 @@ export function Smachot() {
         </Card>
       )}
 
+      {/* Bulk bar */}
+      {checkedIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-blue-700 text-white rounded-xl px-4 py-2.5">
+          <span className="text-sm font-semibold">{checkedIds.size} נבחרו</span>
+          <div className="flex gap-2 mr-auto">
+            <Button size="sm" variant="danger" loading={bulkDeleteMutation.isPending}
+              onClick={() => bulkDeleteMutation.mutate()}>
+              <Trash2 className="h-3.5 w-3.5" /> מחק
+            </Button>
+            <button onClick={() => setCheckedIds(new Set())} className="text-white/70 hover:text-white text-sm px-2">✕</button>
+          </div>
+        </div>
+      )}
+
       {/* Full list */}
       <Card className="border-blue-100">
         <CardHeader>
@@ -440,6 +485,10 @@ export function Smachot() {
               <table className="w-full text-right">
                 <thead>
                   <tr className="border-b border-blue-50 bg-blue-50">
+                    <th className="px-3 py-3 w-10">
+                      <input type="checkbox" checked={allChecked} onChange={toggleAll}
+                        className="rounded border-gray-300 cursor-pointer" />
+                    </th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">סוג שמחה</th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">מתפלל</th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">תאריך עברי</th>
@@ -455,6 +504,8 @@ export function Smachot() {
                       s={s}
                       congregantName={congregantMap[s.congregant_id] ?? '—'}
                       onDelete={() => deleteMutation.mutate(s.id)}
+                      checked={checkedIds.has(s.id)}
+                      onToggle={() => toggle(s.id)}
                     />
                   ))}
                 </tbody>

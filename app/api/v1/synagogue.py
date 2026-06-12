@@ -65,11 +65,16 @@ router = APIRouter(prefix="/synagogue", tags=["synagogue"])
 # Request schemas
 # ===========================================================================
 
+class BulkIdsRequest(BaseModel):
+    ids: list[str]
+
+
 class CongregantCreate(BaseModel):
     first_name: str
     last_name: str
     hebrew_name: str = ""
     father_name: str = ""
+    mother_name: str = ""
     phone: str = ""
     email: str = ""
     address: str = ""
@@ -78,6 +83,11 @@ class CongregantCreate(BaseModel):
     member_type: str = "regular"   # regular | guest | occasional
     notes: str = ""
     join_date: str = ""
+    # Optional fields that auto-create linked Azkara / Simcha records
+    azkara_father: str = ""        # DD/MM/YYYY or YYYY-MM-DD → Azkara for father
+    azkara_mother: str = ""        # DD/MM/YYYY or YYYY-MM-DD → Azkara for mother
+    birth_date: str = ""           # DD/MM/YYYY or YYYY-MM-DD → Simcha birthday
+    bar_mitzvah_shabbat: str = ""  # DD/MM/YYYY or YYYY-MM-DD → Simcha bar_mitzvah
 
 
 class CongregantUpdate(BaseModel):
@@ -85,6 +95,7 @@ class CongregantUpdate(BaseModel):
     last_name: Optional[str] = None
     hebrew_name: Optional[str] = None
     father_name: Optional[str] = None
+    mother_name: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
     address: Optional[str] = None
@@ -170,13 +181,18 @@ async def get_synagogue_info():
 
 @router.post("/congregants", response_model=APIResponse, status_code=201)
 async def create_congregant(req: CongregantCreate):
-    """Register a new congregant (regular, guest, or occasional)."""
+    """Register a new congregant (regular, guest, or occasional).
+
+    Optionally pass azkara_father / azkara_mother / birth_date / bar_mitzvah_shabbat
+    (date in DD/MM/YYYY or YYYY-MM-DD) to auto-create linked Azkara / Simcha records.
+    """
     try:
         data = await synagogue_service.add_congregant(
             first_name=req.first_name,
             last_name=req.last_name,
             hebrew_name=req.hebrew_name,
             father_name=req.father_name,
+            mother_name=req.mother_name,
             phone=req.phone,
             email=req.email,
             address=req.address,
@@ -186,6 +202,47 @@ async def create_congregant(req: CongregantCreate):
             notes=req.notes,
             join_date=req.join_date,
         )
+        cid = data["id"]
+
+        # Auto-create related records when extra date fields are provided
+        if req.azkara_father:
+            iso = _parse_date_iso(req.azkara_father)
+            if iso:
+                await synagogue_service.add_azkara(
+                    congregant_id=cid,
+                    deceased_name=req.father_name or "אבא",
+                    relation="father",
+                    gregorian_date=iso,
+                )
+
+        if req.azkara_mother:
+            iso = _parse_date_iso(req.azkara_mother)
+            if iso:
+                await synagogue_service.add_azkara(
+                    congregant_id=cid,
+                    deceased_name=req.mother_name or "אמא",
+                    relation="mother",
+                    gregorian_date=iso,
+                )
+
+        if req.birth_date:
+            iso = _parse_date_iso(req.birth_date)
+            if iso:
+                await synagogue_service.add_simcha(
+                    congregant_id=cid,
+                    occasion_type="birthday",
+                    gregorian_date=iso,
+                )
+
+        if req.bar_mitzvah_shabbat:
+            iso = _parse_date_iso(req.bar_mitzvah_shabbat)
+            if iso:
+                await synagogue_service.add_simcha(
+                    congregant_id=cid,
+                    occasion_type="bar_mitzvah",
+                    gregorian_date=iso,
+                )
+
         return APIResponse(message="Congregant created successfully.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -194,11 +251,42 @@ async def create_congregant(req: CongregantCreate):
 @router.get("/congregants", response_model=APIResponse)
 async def list_congregants(
     member_type: Optional[str] = Query(None, description="Filter: regular | guest | occasional"),
+    archived: bool = Query(False, description="Return archived congregants instead of active ones"),
 ):
     """Return the list of all registered congregants."""
     try:
-        data = await synagogue_service.list_congregants(member_type=member_type)
+        data = await synagogue_service.list_congregants(member_type=member_type, archived=archived)
         return APIResponse(data=data)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/congregants/bulk-delete", response_model=APIResponse)
+async def bulk_delete_congregants(req: BulkIdsRequest):
+    """Permanently delete multiple congregants."""
+    try:
+        data = await synagogue_service.bulk_delete_congregants(req.ids)
+        return APIResponse(message=f"{data['deleted']} מתפללים נמחקו.", data=data)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/congregants/bulk-archive", response_model=APIResponse)
+async def bulk_archive_congregants(req: BulkIdsRequest):
+    """Move multiple congregants to the archive."""
+    try:
+        data = await synagogue_service.bulk_archive_congregants(req.ids)
+        return APIResponse(message=f"{data['archived']} מתפללים הועברו לארכיב.", data=data)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/congregants/bulk-restore", response_model=APIResponse)
+async def bulk_restore_congregants(req: BulkIdsRequest):
+    """Restore multiple congregants from the archive."""
+    try:
+        data = await synagogue_service.bulk_restore_congregants(req.ids)
+        return APIResponse(message=f"{data['restored']} מתפללים שוחזרו.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -281,6 +369,16 @@ async def get_all_payments(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@router.post("/payments/bulk-delete", response_model=APIResponse)
+async def bulk_delete_payments(req: BulkIdsRequest):
+    """Permanently delete multiple payment records."""
+    try:
+        data = await synagogue_service.bulk_delete_payments(req.ids)
+        return APIResponse(message=f"{data['deleted']} תשלומים נמחקו.", data=data)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 @router.get("/payments/pending", response_model=APIResponse)
 async def get_pending_payments():
     """Return congregants with no recorded payments."""
@@ -352,6 +450,16 @@ async def get_aliya_history(congregant_id: str):
     try:
         data = await synagogue_service.get_aliya_history(congregant_id)
         return APIResponse(data=data)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/aliyot/bulk-delete", response_model=APIResponse)
+async def bulk_delete_aliyot(req: BulkIdsRequest):
+    """Permanently delete multiple aliya records."""
+    try:
+        data = await synagogue_service.bulk_delete_aliyot(req.ids)
+        return APIResponse(message=f"{data['deleted']} עליות נמחקו.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -438,6 +546,16 @@ async def unassign_place(place_id: str):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@router.post("/places/bulk-delete", response_model=APIResponse)
+async def bulk_delete_places(req: BulkIdsRequest):
+    """Permanently delete multiple seat records."""
+    try:
+        data = await synagogue_service.bulk_delete_places(req.ids)
+        return APIResponse(message=f"{data['deleted']} מושבים נמחקו.", data=data)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 # ===========================================================================
 # Azkarot (yahrzeit / memorial)
 # ===========================================================================
@@ -514,6 +632,16 @@ async def delete_azkara(azkara_id: str):
         return APIResponse(message="Azkara deleted.", data={"id": azkara_id})
     except HTTPException:
         raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/azkarot/bulk-delete", response_model=APIResponse)
+async def bulk_delete_azkarot(req: BulkIdsRequest):
+    """Permanently delete multiple azkara records."""
+    try:
+        data = await synagogue_service.bulk_delete_azkarot(req.ids)
+        return APIResponse(message=f"{data['deleted']} אזכרות נמחקו.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -604,6 +732,16 @@ async def delete_simcha(simcha_id: str):
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@router.post("/smachot/bulk-delete", response_model=APIResponse)
+async def bulk_delete_smachot(req: BulkIdsRequest):
+    """Permanently delete multiple simcha records."""
+    try:
+        data = await synagogue_service.bulk_delete_smachot(req.ids)
+        return APIResponse(message=f"{data['deleted']} שמחות נמחקו.", data=data)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 # ===========================================================================
 # Hebrew ↔ Gregorian calendar utilities
 # ===========================================================================
@@ -690,30 +828,63 @@ async def get_calendar_month_view(
 # Bulk import – congregants
 # ===========================================================================
 
-# Expected CSV columns (case-insensitive, order-independent):
-# first_name, last_name, hebrew_name, father_name, phone, email,
-# address, is_kohen, is_levi, member_type, notes, join_date
+# Supported CSV columns (Hebrew or English, case-insensitive, order-independent):
 #
-# All columns except first_name and last_name are optional.
+# Congregant core fields:
+#   שם פרטי / first_name         – required
+#   שם משפחה / last_name         – required
+#   שם בעברית / hebrew_name      – optional
+#   שם אבא / שם האב / father_name
+#   שם אמא / mother_name
+#   טלפון / phone
+#   אימייל / email
+#   כתובת / address
+#   כהן/לוי/ישראל               – "כהן" | "לוי" | "ישראל" (sets is_kohen / is_levi)
+#   כהן / is_kohen               – true/כן/1/v/✓
+#   לוי / is_levi                – true/כן/1/v/✓
+#   סוג חברות / member_type      – regular | guest | occasional
+#   הערות / notes
+#   תאריך הצטרפות / join_date
+#
+# Generates related records automatically:
+#   אזכרה אבא  – date (DD/MM/YYYY or YYYY-MM-DD) → Azkara record for father
+#   אזכרה אמא  – date (DD/MM/YYYY or YYYY-MM-DD) → Azkara record for mother
+#   תאריך לידה – date → Simcha "birthday" record
+#   שבת בר מצווה – date → Simcha "bar_mitzvah" record
 
 COLUMN_ALIASES: dict[str, str] = {
     "שם פרטי": "first_name",
     "שם משפחה": "last_name",
     "שם בעברית": "hebrew_name",
     "שם האב": "father_name",
+    "שם אבא": "father_name",
+    "שם אמא": "mother_name",
     "טלפון": "phone",
     "אימייל": "email",
     "כתובת": "address",
     "כהן": "is_kohen",
     "לוי": "is_levi",
+    "כהן/לוי/ישראל": "cohen_levi_israel",
     "סוג חברות": "member_type",
     "הערות": "notes",
     "תאריך הצטרפות": "join_date",
+    "אזכרה אבא": "azkara_father",
+    "אזכרה אמא": "azkara_mother",
+    "תאריך לידה": "birth_date",
+    "שבת בר מצווה": "bar_mitzvah_shabbat",
 }
+
+# Congregant fields passed to add_congregant()
+_CONGREGANT_FIELDS = (
+    "first_name", "last_name", "hebrew_name", "father_name", "mother_name",
+    "phone", "email", "address", "member_type", "notes", "join_date",
+)
+# Extra import-only fields that generate related records
+_EXTRA_FIELDS = ("azkara_father", "azkara_mother", "birth_date", "bar_mitzvah_shabbat")
 
 
 def _normalise_row(row: dict) -> dict:
-    """Normalise CSV row keys to English field names, ignoring unknown columns."""
+    """Normalise CSV row keys to internal field names, ignoring unknown columns."""
     normalised: dict = {}
     for raw_key, value in row.items():
         key = raw_key.strip()
@@ -723,23 +894,121 @@ def _normalise_row(row: dict) -> dict:
     return normalised
 
 
-def _coerce_congregant(raw: dict) -> dict:
-    """Convert string values from CSV into proper Python types."""
-    result: dict = {}
-    for field in ("first_name", "last_name", "hebrew_name", "father_name",
-                  "phone", "email", "address", "member_type", "notes", "join_date"):
-        result[field] = raw.get(field, "")
-    for bool_field in ("is_kohen", "is_levi"):
-        val = str(raw.get(bool_field, "")).strip().lower()
-        result[bool_field] = val in ("true", "1", "yes", "כן", "v", "✓")
-    if not result["member_type"]:
-        result["member_type"] = "regular"
-    return result
+def _parse_date_iso(date_str: str) -> str:
+    """
+    Normalise a date string to ISO YYYY-MM-DD.
+    Handles DD/MM/YYYY, DD.MM.YYYY, and YYYY-MM-DD.
+    Returns empty string on failure.
+    """
+    import re
+    s = date_str.strip()
+    if not s:
+        return ""
+    # DD/MM/YYYY or DD.MM.YYYY
+    m = re.match(r"^(\d{1,2})[./](\d{1,2})[./](\d{4})$", s)
+    if m:
+        d, mo, y = m.groups()
+        return f"{y}-{int(mo):02d}-{int(d):02d}"
+    # YYYY-MM-DD already
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", s):
+        return s
+    return ""
+
+
+def _coerce_congregant(raw: dict) -> tuple[dict, dict]:
+    """
+    Split a normalised CSV row into:
+    - congregant_fields dict (passed directly to add_congregant)
+    - extra_fields dict (azkara/simcha dates to create afterwards)
+    """
+    congregant: dict = {}
+    for field in _CONGREGANT_FIELDS:
+        congregant[field] = raw.get(field, "")
+
+    # Handle כהן/לוי/ישראל combined column
+    cli = str(raw.get("cohen_levi_israel", "")).strip()
+    if cli:
+        congregant["is_kohen"] = "כהן" in cli
+        congregant["is_levi"] = "לוי" in cli
+    else:
+        for bool_field in ("is_kohen", "is_levi"):
+            val = str(raw.get(bool_field, "")).strip().lower()
+            congregant[bool_field] = val in ("true", "1", "yes", "כן", "v", "✓")
+
+    if not congregant["member_type"]:
+        congregant["member_type"] = "regular"
+
+    extra: dict = {}
+    for field in _EXTRA_FIELDS:
+        extra[field] = _parse_date_iso(str(raw.get(field, "")))
+
+    return congregant, extra
 
 
 async def _rows_from_csv(content: str) -> list[dict]:
     reader = csv.DictReader(io.StringIO(content))
     return [_normalise_row(row) for row in reader]
+
+
+async def _import_rows(rows: list[dict]) -> tuple[list, list, list]:
+    """
+    Process normalised CSV rows: create congregants + related Azkara / Simcha records.
+    Returns (created, skipped, errors).
+    """
+    created, skipped, errors = [], [], []
+    for i, row in enumerate(rows, start=2):
+        congregant_fields, extra = _coerce_congregant(row)
+        if not congregant_fields["first_name"] or not congregant_fields["last_name"]:
+            skipped.append({"row": i, "reason": "חסר שם פרטי או שם משפחה"})
+            continue
+        try:
+            result = await synagogue_service.add_congregant(**congregant_fields)
+            cid = result["id"]
+
+            # Azkara for father
+            if extra["azkara_father"]:
+                father = congregant_fields.get("father_name") or "אבא"
+                await synagogue_service.add_azkara(
+                    congregant_id=cid,
+                    deceased_name=father,
+                    relation="father",
+                    gregorian_date=extra["azkara_father"],
+                )
+
+            # Azkara for mother
+            if extra["azkara_mother"]:
+                mother = congregant_fields.get("mother_name") or "אמא"
+                await synagogue_service.add_azkara(
+                    congregant_id=cid,
+                    deceased_name=mother,
+                    relation="mother",
+                    gregorian_date=extra["azkara_mother"],
+                )
+
+            # Birthday simcha
+            if extra["birth_date"]:
+                await synagogue_service.add_simcha(
+                    congregant_id=cid,
+                    occasion_type="birthday",
+                    gregorian_date=extra["birth_date"],
+                )
+
+            # Bar Mitzvah simcha
+            if extra["bar_mitzvah_shabbat"]:
+                await synagogue_service.add_simcha(
+                    congregant_id=cid,
+                    occasion_type="bar_mitzvah",
+                    gregorian_date=extra["bar_mitzvah_shabbat"],
+                )
+
+            created.append(result)
+        except Exception as exc:
+            errors.append({
+                "row": i,
+                "name": f"{congregant_fields['first_name']} {congregant_fields['last_name']}",
+                "error": str(exc),
+            })
+    return created, skipped, errors
 
 
 class BulkImportURL(BaseModel):
@@ -753,7 +1022,9 @@ async def bulk_import_csv(file: UploadFile = File(...)):
     Import multiple congregants from an uploaded CSV file.
 
     The first row must be a header with column names.
-    Supports both English and Hebrew column headers.
+    Supports both English and Hebrew column headers (see COLUMN_ALIASES above).
+    Extra columns (אזכרה אבא, אזכרה אמא, תאריך לידה, שבת בר מצווה) automatically
+    create linked Azkara / Simcha records.
     Returns a summary of created / skipped records.
     """
     try:
@@ -762,18 +1033,7 @@ async def bulk_import_csv(file: UploadFile = File(...)):
         if not rows:
             raise HTTPException(status_code=400, detail="הקובץ ריק או אינו תקין.")
 
-        created, skipped, errors = [], [], []
-        for i, row in enumerate(rows, start=2):
-            coerced = _coerce_congregant(row)
-            if not coerced["first_name"] or not coerced["last_name"]:
-                skipped.append({"row": i, "reason": "חסר שם פרטי או שם משפחה"})
-                continue
-            try:
-                result = await synagogue_service.add_congregant(**coerced)
-                created.append(result)
-            except Exception as exc:
-                errors.append({"row": i, "name": f"{coerced['first_name']} {coerced['last_name']}", "error": str(exc)})
-
+        created, skipped, errors = await _import_rows(rows)
         return APIResponse(
             message=f"ייבוא הושלם: {len(created)} נוצרו, {len(skipped)} דולגו, {len(errors)} שגיאות.",
             data={"created": len(created), "skipped": skipped, "errors": errors, "records": created},
@@ -796,7 +1056,9 @@ async def bulk_import_google_sheets(req: BulkImportURL):
     4. Click Publish and copy the link.
     5. Paste that link here.
 
-    The sheet must have a header row with column names (Hebrew or English).
+    The sheet must have a header row with Hebrew or English column names.
+    Extra columns (אזכרה אבא, אזכרה אמא, תאריך לידה, שבת בר מצווה) automatically
+    create linked Azkara / Simcha records.
     """
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
@@ -809,18 +1071,7 @@ async def bulk_import_google_sheets(req: BulkImportURL):
         if not rows:
             raise HTTPException(status_code=400, detail="הגיליון ריק או אינו תקין.")
 
-        created, skipped, errors = [], [], []
-        for i, row in enumerate(rows, start=2):
-            coerced = _coerce_congregant(row)
-            if not coerced["first_name"] or not coerced["last_name"]:
-                skipped.append({"row": i, "reason": "חסר שם פרטי או שם משפחה"})
-                continue
-            try:
-                result = await synagogue_service.add_congregant(**coerced)
-                created.append(result)
-            except Exception as exc:
-                errors.append({"row": i, "name": f"{coerced['first_name']} {coerced['last_name']}", "error": str(exc)})
-
+        created, skipped, errors = await _import_rows(rows)
         return APIResponse(
             message=f"ייבוא מגיליון הושלם: {len(created)} נוצרו, {len(skipped)} דולגו, {len(errors)} שגיאות.",
             data={"created": len(created), "skipped": skipped, "errors": errors, "records": created},

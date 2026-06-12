@@ -7,14 +7,13 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
 
-const CSV_TEMPLATE = `first_name,last_name,hebrew_name,father_name,phone,email,address,is_kohen,is_levi,member_type,notes
-משה,כהן,משה בן אברהם,אברהם,050-1111111,moshe@example.com,ירושלים,true,false,regular,
-ישראל,לוי,ישראל בן יצחק,יצחק,052-2222222,,תל אביב,false,true,regular,
-שרה,ישראלי,,,053-3333333,,,false,false,regular,`;
+const CSV_TEMPLATE = `first_name,last_name,father_name,mother_name,phone,email,address,is_kohen,is_levi,member_type,birth_date,bar_mitzvah_shabbat,azkara_father,azkara_mother,notes
+משה,כהן,אברהם,שרה,050-1111111,moshe@example.com,ירושלים,true,false,regular,15/03/1975,,10/02/1955,,
+ישראל,לוי,יצחק,רבקה,052-2222222,,תל אביב,false,true,regular,,,,21/11/1998,`;
 
-const HEBREW_TEMPLATE = `שם פרטי,שם משפחה,שם בעברית,שם האב,טלפון,אימייל,כתובת,כהן,לוי,סוג חברות,הערות
-משה,כהן,משה בן אברהם,אברהם,050-1111111,moshe@example.com,ירושלים,כן,לא,regular,
-ישראל,לוי,ישראל בן יצחק,יצחק,052-2222222,,תל אביב,לא,כן,regular,`;
+const HEBREW_TEMPLATE = `שם פרטי,שם משפחה,שם אבא,שם אמא,טלפון,אימייל,כתובת,כהן/לוי/ישראל,סוג חברות,תאריך לידה,שבת בר מצווה,אזכרה אבא,אזכרה אמא,הערות
+משה,כהן,אברהם,שרה,050-1111111,moshe@example.com,ירושלים,כהן,קבוע,15/03/1975,,,10/02/1955,
+ישראל,לוי,יצחק,רבקה,052-2222222,,תל אביב,לוי,קבוע,,,,21/11/1998,`;
 
 function downloadCsv(content: string, filename: string) {
   const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
@@ -178,16 +177,20 @@ export function Import() {
                   <p className="text-sm font-semibold text-gray-700 mb-2">עמודות נתמכות</p>
                   <div className="grid grid-cols-2 gap-1 text-xs text-gray-500">
                     {[
-                      ['first_name / שם פרטי', 'חובה'],
-                      ['last_name / שם משפחה', 'חובה'],
-                      ['hebrew_name / שם בעברית', 'אופציונלי'],
-                      ['father_name / שם האב', 'אופציונלי'],
-                      ['phone / טלפון', 'אופציונלי'],
-                      ['email / אימייל', 'אופציונלי'],
-                      ['address / כתובת', 'אופציונלי'],
-                      ['is_kohen / כהן', 'true/כן/1'],
-                      ['is_levi / לוי', 'true/כן/1'],
-                      ['member_type / סוג חברות', 'regular/guest/occasional'],
+                      ['שם פרטי / first_name', 'חובה'],
+                      ['שם משפחה / last_name', 'חובה'],
+                      ['שם אבא / father_name', 'אופציונלי'],
+                      ['שם אמא / mother_name', 'אופציונלי'],
+                      ['טלפון / phone', 'אופציונלי'],
+                      ['אימייל / email', 'אופציונלי'],
+                      ['כתובת / address', 'אופציונלי'],
+                      ['כהן/לוי/ישראל', 'כהן | לוי | ישראל'],
+                      ['תאריך לידה / birth_date', 'DD/MM/YYYY'],
+                      ['שבת בר מצווה / bar_mitzvah_shabbat', 'DD/MM/YYYY'],
+                      ['אזכרה אבא / azkara_father', 'DD/MM/YYYY'],
+                      ['אזכרה אמא / azkara_mother', 'DD/MM/YYYY'],
+                      ['סוג חברות / member_type', 'regular/guest/occasional'],
+                      ['הערות / notes', 'אופציונלי'],
                     ].map(([col, note]) => (
                       <div key={col} className="flex gap-1">
                         <span className="font-mono bg-gray-100 px-1 rounded text-xs">{col}</span>
@@ -246,10 +249,11 @@ export function Import() {
                 <div className="bg-amber-50 rounded-xl p-4 border border-amber-100">
                   <p className="text-sm font-semibold text-amber-800 mb-1">הכנת טופס Google Forms</p>
                   <p className="text-xs text-amber-700">
-                    צור טופס עם שאלות בשמות: <span className="font-mono bg-amber-100 px-1 rounded">שם פרטי</span>,{' '}
-                    <span className="font-mono bg-amber-100 px-1 rounded">שם משפחה</span>,{' '}
-                    <span className="font-mono bg-amber-100 px-1 rounded">טלפון</span>,{' '}
-                    <span className="font-mono bg-amber-100 px-1 rounded">אימייל</span> וכו׳.
+                    צור טופס עם שאלות בשמות:{' '}
+                    {['שם פרטי','שם משפחה','שם אבא','שם אמא','טלפון','אימייל','כתובת',
+                      'כהן/לוי/ישראל','תאריך לידה','שבת בר מצווה','אזכרה אבא','אזכרה אמא'].map(f => (
+                      <span key={f} className="font-mono bg-amber-100 px-1 rounded mx-0.5">{f}</span>
+                    ))}.{' '}
                     Google Forms ישמור תשובות לגיליון שניתן לפרסם.
                   </p>
                 </div>

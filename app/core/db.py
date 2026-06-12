@@ -20,6 +20,9 @@ engine = create_engine(
 _MIGRATIONS = [
     "ALTER TABLE azkarot ADD COLUMN year_occurred INTEGER",
     "ALTER TABLE smachot ADD COLUMN year_occurred INTEGER",
+    "ALTER TABLE congregants ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE congregants ADD COLUMN archived_at TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE congregants ADD COLUMN mother_name TEXT NOT NULL DEFAULT ''",
 ]
 
 

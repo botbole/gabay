@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PlusCircle, AlertCircle } from 'lucide-react';
+import { PlusCircle, AlertCircle, Trash2 } from 'lucide-react';
 import { paymentsApi, congregantsApi, type PaymentCreate } from '../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -57,7 +57,6 @@ function RecordPaymentModal({ open, onClose }: { open: boolean; onClose: () => v
             <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
           ))}
         </Select>
-
         <div className="grid grid-cols-2 gap-4">
           <Input label="סכום *" type="number" min={0} step={0.01} value={form.amount} onChange={set('amount')} placeholder="100" />
           <Select label="מטבע" value={form.currency} onChange={set('currency')}>
@@ -66,7 +65,6 @@ function RecordPaymentModal({ open, onClose }: { open: boolean; onClose: () => v
             <option value="EUR">€ יורו</option>
           </Select>
         </div>
-
         <Select label="מטרה *" value={form.purpose} onChange={set('purpose')}>
           <option value="donation">תרומה</option>
           <option value="aliya">עלייה לתורה</option>
@@ -75,12 +73,9 @@ function RecordPaymentModal({ open, onClose }: { open: boolean; onClose: () => v
           <option value="seat_fee">דמי מקום</option>
           <option value="other">אחר</option>
         </Select>
-
         <Input label="תאריך" type="date" value={form.payment_date} onChange={set('payment_date')} />
         <Input label="הערות" value={form.notes} onChange={set('notes')} placeholder="הערות אופציונליות..." />
-
         {mutation.error && <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>}
-
         <div className="flex justify-start gap-3 pt-2">
           <Button variant="secondary" onClick={onClose}>ביטול</Button>
           <Button loading={mutation.isPending} disabled={!form.congregant_id || form.amount <= 0} onClick={() => mutation.mutate()}>
@@ -93,9 +88,11 @@ function RecordPaymentModal({ open, onClose }: { open: boolean; onClose: () => v
 }
 
 export function Payments() {
+  const qc = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [purposeFilter, setPurposeFilter] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'pending'>('all');
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
   const { data, isLoading } = useQuery({
     queryKey: ['payments', purposeFilter],
@@ -105,6 +102,40 @@ export function Payments() {
   const { data: pendingData } = useQuery({
     queryKey: ['pending-payments'],
     queryFn: () => paymentsApi.pending(),
+  });
+
+  const { data: congregantsData } = useQuery({
+    queryKey: ['congregants'],
+    queryFn: () => congregantsApi.list(),
+  });
+
+  const congregantMap: Record<string, string> = {};
+  (congregantsData?.congregants ?? []).forEach(c => {
+    congregantMap[c.id] = `${c.first_name} ${c.last_name}`;
+  });
+
+  const payments = data?.payments ?? [];
+  const allChecked = payments.length > 0 && payments.every(p => checkedIds.has(p.id));
+
+  const toggleAll = () => {
+    if (allChecked) setCheckedIds(new Set());
+    else setCheckedIds(new Set(payments.map(p => p.id)));
+  };
+  const toggle = (id: string) => {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: () => paymentsApi.bulkDelete([...checkedIds]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['payments'] });
+      qc.invalidateQueries({ queryKey: ['pending-payments'] });
+      setCheckedIds(new Set());
+    },
   });
 
   return (
@@ -136,6 +167,20 @@ export function Payments() {
         ))}
       </div>
 
+      {/* Bulk bar */}
+      {checkedIds.size > 0 && activeTab === 'all' && (
+        <div className="flex items-center gap-3 bg-blue-700 text-white rounded-xl px-4 py-2.5">
+          <span className="text-sm font-semibold">{checkedIds.size} נבחרו</span>
+          <div className="flex gap-2 mr-auto">
+            <Button size="sm" variant="danger" loading={bulkDeleteMutation.isPending}
+              onClick={() => bulkDeleteMutation.mutate()}>
+              <Trash2 className="h-3.5 w-3.5" /> מחק
+            </Button>
+            <button onClick={() => setCheckedIds(new Set())} className="text-white/70 hover:text-white text-sm px-2">✕</button>
+          </div>
+        </div>
+      )}
+
       {activeTab === 'all' && (
         <Card className="border-blue-100">
           <CardHeader>
@@ -156,13 +201,17 @@ export function Payments() {
           <CardContent className="p-0">
             {isLoading ? (
               <div className="px-5 py-8 text-center text-sm text-gray-400">טוען...</div>
-            ) : !data?.payments.length ? (
+            ) : !payments.length ? (
               <div className="px-5 py-8 text-center text-sm text-gray-400">לא נמצאו תשלומים.</div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-right">
                   <thead>
                     <tr className="border-b border-blue-50 bg-blue-50">
+                      <th className="px-3 py-3 w-10">
+                        <input type="checkbox" checked={allChecked} onChange={toggleAll}
+                          className="rounded border-gray-300 cursor-pointer" />
+                      </th>
                       <th className="px-4 py-3 text-xs font-semibold text-gray-500">תאריך</th>
                       <th className="px-4 py-3 text-xs font-semibold text-gray-500">מתפלל</th>
                       <th className="px-4 py-3 text-xs font-semibold text-gray-500">סכום</th>
@@ -171,10 +220,16 @@ export function Payments() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-blue-50">
-                    {data.payments.map(p => (
-                      <tr key={p.id} className="hover:bg-blue-50 transition-colors">
+                    {payments.map(p => (
+                      <tr key={p.id} className={`hover:bg-blue-50 transition-colors ${checkedIds.has(p.id) ? 'bg-blue-50' : ''}`}>
+                        <td className="px-3 py-3">
+                          <input type="checkbox" checked={checkedIds.has(p.id)} onChange={() => toggle(p.id)}
+                            className="rounded border-gray-300 cursor-pointer" />
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-500">{p.date}</td>
-                        <td className="px-4 py-3 text-sm font-mono text-gray-400 text-xs">{p.congregant_id.slice(0, 8)}…</td>
+                        <td className="px-4 py-3 text-sm font-medium text-gray-700">
+                          {congregantMap[p.congregant_id] ?? <span className="text-xs text-gray-400 font-mono">{p.congregant_id.slice(0, 8)}…</span>}
+                        </td>
                         <td className="px-4 py-3 text-sm font-semibold text-emerald-700">
                           {p.currency === 'ILS' ? '₪' : p.currency === 'USD' ? '$' : '€'}{p.amount.toLocaleString()}
                         </td>

@@ -203,14 +203,22 @@ function AzkaraRow({
   a,
   congregantName,
   onDelete,
+  checked,
+  onToggle,
 }: {
   a: Azkara;
   congregantName: string;
   onDelete: () => void;
+  checked: boolean;
+  onToggle: () => void;
 }) {
   const yahrzeit = yahrzeitNumber(a.year_occurred);
   return (
-    <tr className="hover:bg-blue-50 transition-colors">
+    <tr className={`hover:bg-blue-50 transition-colors ${checked ? 'bg-blue-50' : ''}`}>
+      <td className="px-3 py-3">
+        <input type="checkbox" checked={checked} onChange={onToggle}
+          className="rounded border-gray-300 cursor-pointer" />
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <Flame className="h-4 w-4 text-amber-500 shrink-0" />
@@ -305,6 +313,7 @@ export function Azkarot() {
   const [search, setSearch] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [upcomingDays, setUpcomingDays] = useState(30);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
   const { data: listData, isLoading } = useQuery({
     queryKey: ['azkarot'],
@@ -334,9 +343,31 @@ export function Azkarot() {
     },
   });
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: () => azkarotApi.bulkDelete([...checkedIds]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['azkarot'] });
+      qc.invalidateQueries({ queryKey: ['azkarot-upcoming'] });
+      setCheckedIds(new Set());
+    },
+  });
+
   const filtered = (listData?.azkarot ?? []).filter(a =>
     `${a.deceased_name} ${a.deceased_hebrew_name} ${congregantMap[a.congregant_id] ?? ''}`.toLowerCase().includes(search.toLowerCase())
   );
+
+  const allChecked = filtered.length > 0 && filtered.every(a => checkedIds.has(a.id));
+  const toggleAll = () => {
+    if (allChecked) setCheckedIds(new Set());
+    else setCheckedIds(new Set(filtered.map(a => a.id)));
+  };
+  const toggle = (id: string) => {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
 
   const upcoming = upcomingData?.azkarot ?? [];
 
@@ -389,6 +420,20 @@ export function Azkarot() {
         </Card>
       )}
 
+      {/* Bulk bar */}
+      {checkedIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-blue-700 text-white rounded-xl px-4 py-2.5">
+          <span className="text-sm font-semibold">{checkedIds.size} נבחרו</span>
+          <div className="flex gap-2 mr-auto">
+            <Button size="sm" variant="danger" loading={bulkDeleteMutation.isPending}
+              onClick={() => bulkDeleteMutation.mutate()}>
+              <Trash2 className="h-3.5 w-3.5" /> מחק
+            </Button>
+            <button onClick={() => setCheckedIds(new Set())} className="text-white/70 hover:text-white text-sm px-2">✕</button>
+          </div>
+        </div>
+      )}
+
       {/* Full list */}
       <Card className="border-blue-100">
         <CardHeader>
@@ -420,6 +465,10 @@ export function Azkarot() {
               <table className="w-full text-right">
                 <thead>
                   <tr className="border-b border-blue-50 bg-blue-50">
+                    <th className="px-3 py-3 w-10">
+                      <input type="checkbox" checked={allChecked} onChange={toggleAll}
+                        className="rounded border-gray-300 cursor-pointer" />
+                    </th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">שם הנפטר</th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">מתפלל</th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">קרבה</th>
@@ -435,6 +484,8 @@ export function Azkarot() {
                       a={a}
                       congregantName={congregantMap[a.congregant_id] ?? '—'}
                       onDelete={() => deleteMutation.mutate(a.id)}
+                      checked={checkedIds.has(a.id)}
+                      onToggle={() => toggle(a.id)}
                     />
                   ))}
                 </tbody>

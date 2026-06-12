@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PlusCircle, Building2, Trash2 } from 'lucide-react';
+import { PlusCircle, Building2, Trash2, LayoutList, Map } from 'lucide-react';
 import { seatingApi, congregantsApi, type Place, type PlaceCreate } from '../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -339,11 +339,14 @@ function MapBuilderModal({ open, onClose }: { open: boolean; onClose: () => void
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export function Seating() {
+  const qc = useQueryClient();
   const [sectionFilter, setSectionFilter] = useState('');
   const [onlyFree, setOnlyFree] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);
   const [selected, setSelected] = useState<Place | null>(null);
+  const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
   const { data, isLoading } = useQuery({
     queryKey: ['places', sectionFilter, onlyFree],
@@ -367,6 +370,27 @@ export function Seating() {
     }
   }
 
+  const allChecked = places.length > 0 && places.every(p => checkedIds.has(p.id));
+  const toggleAll = () => {
+    if (allChecked) setCheckedIds(new Set());
+    else setCheckedIds(new Set(places.map(p => p.id)));
+  };
+  const toggle = (id: string) => {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: () => seatingApi.bulkDelete([...checkedIds]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['places'] });
+      setCheckedIds(new Set());
+    },
+  });
+
   return (
     <div className="p-6 space-y-4" dir="rtl">
       <div className="flex items-center justify-between">
@@ -377,8 +401,19 @@ export function Seating() {
           </p>
         </div>
         <div className="flex gap-2">
+          {/* View toggle */}
+          <div className="flex gap-1 bg-blue-100 rounded-xl p-1">
+            <button onClick={() => setViewMode('map')} title="מפה"
+              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'map' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <Map className="h-4 w-4" />
+            </button>
+            <button onClick={() => setViewMode('list')} title="רשימה"
+              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              <LayoutList className="h-4 w-4" />
+            </button>
+          </div>
           <Button variant="secondary" onClick={() => setShowBuilder(true)}>
-            <Building2 className="h-4 w-4" /> בנה מפת בית כנסת
+            <Building2 className="h-4 w-4" /> בנה מפה
           </Button>
           <Button onClick={() => setShowAdd(true)}>
             <PlusCircle className="h-4 w-4" /> מושב בודד
@@ -386,17 +421,35 @@ export function Seating() {
         </div>
       </div>
 
+      {/* Bulk bar (list mode only) */}
+      {checkedIds.size > 0 && viewMode === 'list' && (
+        <div className="flex items-center gap-3 bg-blue-700 text-white rounded-xl px-4 py-2.5">
+          <span className="text-sm font-semibold">{checkedIds.size} נבחרו</span>
+          <div className="flex gap-2 mr-auto">
+            <Button size="sm" variant="danger" loading={bulkDeleteMutation.isPending}
+              onClick={() => bulkDeleteMutation.mutate()}>
+              <Trash2 className="h-3.5 w-3.5" /> מחק
+            </Button>
+            <button onClick={() => setCheckedIds(new Set())} className="text-white/70 hover:text-white text-sm px-2">✕</button>
+          </div>
+        </div>
+      )}
+
       {/* Legend + filters */}
       <Card className="border-blue-100">
         <CardContent className="flex items-center gap-6 py-3">
-          <div className="flex items-center gap-2 text-sm">
-            <div className="w-5 h-5 rounded bg-blue-50 border-2 border-blue-300" />
-            <span className="text-gray-600">פנוי</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm">
-            <div className="w-5 h-5 rounded bg-red-100 border-2 border-red-300" />
-            <span className="text-gray-600">תפוס</span>
-          </div>
+          {viewMode === 'map' && (
+            <>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-5 h-5 rounded bg-blue-50 border-2 border-blue-300" />
+                <span className="text-gray-600">פנוי</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-5 h-5 rounded bg-red-100 border-2 border-red-300" />
+                <span className="text-gray-600">תפוס</span>
+              </div>
+            </>
+          )}
           <div className="mr-auto flex items-center gap-3">
             <Select value={sectionFilter} onChange={e => setSectionFilter(e.target.value)} className="w-36">
               <option value="">כל האגפים</option>
@@ -410,7 +463,6 @@ export function Seating() {
         </CardContent>
       </Card>
 
-      {/* Seating map */}
       {isLoading ? (
         <Card><CardContent className="py-8 text-center text-sm text-gray-400">טוען מפת מושבים...</CardContent></Card>
       ) : places.length === 0 ? (
@@ -424,12 +476,11 @@ export function Seating() {
             </Button>
           </CardContent>
         </Card>
-      ) : (
+      ) : viewMode === 'map' ? (
+        // Map view
         Object.entries(grouped).map(([section, rows]) => (
           <Card key={section} className="border-blue-100">
-            <CardHeader>
-              <CardTitle>אגף {section}</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>אגף {section}</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {Object.entries(rows).sort().map(([row, seats]) => (
                 <div key={row} className="flex items-center gap-3">
@@ -444,6 +495,50 @@ export function Seating() {
             </CardContent>
           </Card>
         ))
+      ) : (
+        // List view with checkboxes
+        <Card className="border-blue-100">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-right">
+                <thead>
+                  <tr className="border-b border-blue-50 bg-blue-50">
+                    <th className="px-3 py-3 w-10">
+                      <input type="checkbox" checked={allChecked} onChange={toggleAll}
+                        className="rounded border-gray-300 cursor-pointer" />
+                    </th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500">אגף</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500">שורה</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500">מספר</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500">סטטוס</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-gray-500">דמי מקום</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-blue-50">
+                  {places.map(p => (
+                    <tr key={p.id} className={`hover:bg-blue-50 transition-colors ${checkedIds.has(p.id) ? 'bg-blue-50' : ''}`}>
+                      <td className="px-3 py-3">
+                        <input type="checkbox" checked={checkedIds.has(p.id)} onChange={() => toggle(p.id)}
+                          className="rounded border-gray-300 cursor-pointer" />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700 cursor-pointer" onClick={() => setSelected(p)}>{p.section}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 cursor-pointer" onClick={() => setSelected(p)}>{p.row}</td>
+                      <td className="px-4 py-3 text-sm text-gray-700 cursor-pointer" onClick={() => setSelected(p)}>{p.place_number}</td>
+                      <td className="px-4 py-3 cursor-pointer" onClick={() => setSelected(p)}>
+                        {p.congregant_id
+                          ? <Badge variant="warning">תפוס</Badge>
+                          : <Badge variant="success">פנוי</Badge>}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-500 cursor-pointer" onClick={() => setSelected(p)}>
+                        {p.annual_fee ? `₪${p.annual_fee.toLocaleString()}` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       <AddSeatModal open={showAdd} onClose={() => setShowAdd(false)} />

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Search, BookOpen, DollarSign, User, Calendar } from 'lucide-react';
+import { Plus, Search, BookOpen, DollarSign, User, Calendar, Trash2 } from 'lucide-react';
 import {
   aliyotApi,
   congregantsApi,
@@ -186,9 +186,18 @@ function AddAliyaModal({ open, onClose }: { open: boolean; onClose: () => void }
 
 // ─── Aliya Row ────────────────────────────────────────────────────────────────
 
-function AliyaRow({ a, congregantName }: { a: Aliya; congregantName: string }) {
+function AliyaRow({ a, congregantName, checked, onToggle }: {
+  a: Aliya;
+  congregantName: string;
+  checked: boolean;
+  onToggle: () => void;
+}) {
   return (
-    <tr className="hover:bg-blue-50 transition-colors">
+    <tr className={`hover:bg-blue-50 transition-colors ${checked ? 'bg-blue-50' : ''}`}>
+      <td className="px-3 py-3">
+        <input type="checkbox" checked={checked} onChange={onToggle}
+          className="rounded border-gray-300 cursor-pointer" />
+      </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           <BookOpen className="h-4 w-4 text-blue-500 shrink-0" />
@@ -298,11 +307,13 @@ function CongregantHistoryPanel({ congregantId, congregantName, onClose }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function Aliyot() {
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [filterParasha, setFilterParasha] = useState('');
   const [filterType, setFilterType] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [historyFor, setHistoryFor] = useState<{ id: string; name: string } | null>(null);
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
   const { data, isLoading } = useQuery({
     queryKey: ['aliyot'],
@@ -321,6 +332,14 @@ export function Aliyot() {
 
   const allAliyot = data?.aliyot ?? [];
 
+  const bulkDeleteMutation = useMutation({
+    mutationFn: () => aliyotApi.bulkDelete([...checkedIds]),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['aliyot'] });
+      setCheckedIds(new Set());
+    },
+  });
+
   const filtered = allAliyot.filter(a => {
     const name = congregantMap[a.congregant_id] ?? '';
     const textMatch = `${a.parasha} ${name} ${ALIYA_TYPE_LABELS[a.aliya_type] ?? ''}`.toLowerCase().includes(search.toLowerCase());
@@ -332,6 +351,19 @@ export function Aliyot() {
   const totalDonations = filtered.reduce((s, a) => s + (a.donation_amount ?? 0), 0);
 
   const uniqueParashot = [...new Set(allAliyot.map(a => a.parasha))].sort();
+
+  const allChecked = filtered.length > 0 && filtered.every(a => checkedIds.has(a.id));
+  const toggleAll = () => {
+    if (allChecked) setCheckedIds(new Set());
+    else setCheckedIds(new Set(filtered.map(a => a.id)));
+  };
+  const toggle = (id: string) => {
+    setCheckedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
 
   return (
     <div className="p-6 space-y-6" dir="rtl">
@@ -405,6 +437,20 @@ export function Aliyot() {
         </CardContent>
       </Card>
 
+      {/* Bulk bar */}
+      {checkedIds.size > 0 && (
+        <div className="flex items-center gap-3 bg-blue-700 text-white rounded-xl px-4 py-2.5">
+          <span className="text-sm font-semibold">{checkedIds.size} נבחרו</span>
+          <div className="flex gap-2 mr-auto">
+            <Button size="sm" variant="danger" loading={bulkDeleteMutation.isPending}
+              onClick={() => bulkDeleteMutation.mutate()}>
+              <Trash2 className="h-3.5 w-3.5" /> מחק
+            </Button>
+            <button onClick={() => setCheckedIds(new Set())} className="text-white/70 hover:text-white text-sm px-2">✕</button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <Card className="border-blue-100">
         <CardHeader>
@@ -435,6 +481,10 @@ export function Aliyot() {
               <table className="w-full text-right">
                 <thead>
                   <tr className="border-b border-blue-50 bg-blue-50">
+                    <th className="px-3 py-3 w-10">
+                      <input type="checkbox" checked={allChecked} onChange={toggleAll}
+                        className="rounded border-gray-300 cursor-pointer" />
+                    </th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">פרשה</th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">עלייה</th>
                     <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">מתפלל</th>
@@ -449,6 +499,8 @@ export function Aliyot() {
                       key={a.id}
                       a={a}
                       congregantName={congregantMap[a.congregant_id] ?? '—'}
+                      checked={checkedIds.has(a.id)}
+                      onToggle={() => toggle(a.id)}
                     />
                   ))}
                 </tbody>

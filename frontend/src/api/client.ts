@@ -15,12 +15,22 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 // ─── Congregants ────────────────────────────────────────────────────────────
 
+// ─── Shared helpers ──────────────────────────────────────────────────────────
+
+function bulkDelete(path: string, ids: string[]) {
+  return request<{ deleted: number }>(`${path}/bulk-delete`, {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+}
+
 export interface Congregant {
   id: string;
   first_name: string;
   last_name: string;
   hebrew_name: string;
   father_name: string;
+  mother_name: string;
   phone: string;
   email: string;
   address: string;
@@ -29,6 +39,8 @@ export interface Congregant {
   member_type: string;
   notes: string;
   join_date: string;
+  is_archived: boolean;
+  archived_at: string;
 }
 
 export interface CongregantCreate {
@@ -36,6 +48,7 @@ export interface CongregantCreate {
   last_name: string;
   hebrew_name?: string;
   father_name?: string;
+  mother_name?: string;
   phone?: string;
   email?: string;
   address?: string;
@@ -44,6 +57,11 @@ export interface CongregantCreate {
   member_type?: string;
   notes?: string;
   join_date?: string;
+  // Extra fields that auto-create linked Azkara / Simcha records
+  azkara_father?: string;
+  azkara_mother?: string;
+  birth_date?: string;
+  bar_mitzvah_shabbat?: string;
 }
 
 export interface BulkImportResult {
@@ -55,10 +73,15 @@ export interface BulkImportResult {
 }
 
 export const congregantsApi = {
-  list: (member_type?: string) =>
-    request<{ total: number; congregants: Congregant[] }>(
-      `/synagogue/congregants${member_type ? `?member_type=${member_type}` : ''}`
-    ),
+  list: (member_type?: string, archived = false) => {
+    const params = new URLSearchParams();
+    if (member_type) params.set('member_type', member_type);
+    if (archived) params.set('archived', 'true');
+    const qs = params.toString();
+    return request<{ total: number; congregants: Congregant[] }>(
+      `/synagogue/congregants${qs ? `?${qs}` : ''}`
+    );
+  },
   get: (id: string) =>
     request<Congregant>(`/synagogue/congregants/${id}`),
   create: (body: CongregantCreate) =>
@@ -85,6 +108,16 @@ export const congregantsApi = {
     const json = await res.json();
     return { ...(json.data ?? {}), message: json.message };
   },
+
+  bulkDelete: (ids: string[]) => bulkDelete('/synagogue/congregants', ids),
+  bulkArchive: (ids: string[]) =>
+    request<{ archived: number }>('/synagogue/congregants/bulk-archive', {
+      method: 'POST', body: JSON.stringify({ ids }),
+    }),
+  bulkRestore: (ids: string[]) =>
+    request<{ restored: number }>('/synagogue/congregants/bulk-restore', {
+      method: 'POST', body: JSON.stringify({ ids }),
+    }),
 
   bulkImportSheets: async (url: string): Promise<BulkImportResult> => {
     const res = await fetch(`${BASE_URL}/synagogue/congregants/bulk/sheets`, {
@@ -140,6 +173,7 @@ export const paymentsApi = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  bulkDelete: (ids: string[]) => bulkDelete('/synagogue/payments', ids),
 };
 
 // ─── Places / Seating ────────────────────────────────────────────────────────
@@ -185,6 +219,7 @@ export const seatingApi = {
     }),
   unassign: (id: string) =>
     request<Place>(`/synagogue/places/${id}/unassign`, { method: 'PATCH' }),
+  bulkDelete: (ids: string[]) => bulkDelete('/synagogue/places', ids),
 };
 
 // ─── LLM / Chat ─────────────────────────────────────────────────────────────
@@ -243,6 +278,7 @@ export const aliyotApi = {
     ),
   create: (body: AliyaCreate) =>
     request<Aliya>('/synagogue/aliyot', { method: 'POST', body: JSON.stringify(body) }),
+  bulkDelete: (ids: string[]) => bulkDelete('/synagogue/aliyot', ids),
 };
 
 // ─── Azkarot & Smachot ───────────────────────────────────────────────────────
@@ -324,6 +360,7 @@ export const azkarotApi = {
     request<Azkara>('/synagogue/azkarot', { method: 'POST', body: JSON.stringify(body) }),
   delete: (id: string) =>
     request<{ id: string }>(`/synagogue/azkarot/${id}`, { method: 'DELETE' }),
+  bulkDelete: (ids: string[]) => bulkDelete('/synagogue/azkarot', ids),
 };
 
 export const smachotApi = {
@@ -345,6 +382,7 @@ export const smachotApi = {
     request<Simcha>('/synagogue/smachot', { method: 'POST', body: JSON.stringify(body) }),
   delete: (id: string) =>
     request<{ id: string }>(`/synagogue/smachot/${id}`, { method: 'DELETE' }),
+  bulkDelete: (ids: string[]) => bulkDelete('/synagogue/smachot', ids),
 };
 
 // ─── Calendar ────────────────────────────────────────────────────────────────

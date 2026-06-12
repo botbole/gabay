@@ -72,6 +72,7 @@ class SynagogueService:
         last_name: str,
         hebrew_name: str = "",
         father_name: str = "",
+        mother_name: str = "",
         phone: str = "",
         email: str = "",
         address: str = "",
@@ -87,6 +88,7 @@ class SynagogueService:
             last_name=last_name,
             hebrew_name=hebrew_name,
             father_name=father_name,
+            mother_name=mother_name,
             phone=phone,
             email=email,
             address=address,
@@ -143,10 +145,14 @@ class SynagogueService:
             session.refresh(congregant)
             return congregant.model_dump()
 
-    async def list_congregants(self, member_type: Optional[str] = None) -> dict:
-        """Return all registered congregants, optionally filtered by member_type."""
+    async def list_congregants(
+        self,
+        member_type: Optional[str] = None,
+        archived: bool = False,
+    ) -> dict:
+        """Return all registered congregants, optionally filtered by member_type or archived status."""
         with get_session() as session:
-            stmt = select(Congregant)
+            stmt = select(Congregant).where(Congregant.is_archived == archived)
             if member_type:
                 stmt = stmt.where(Congregant.member_type == member_type)
             congregants = session.exec(stmt).all()
@@ -154,6 +160,47 @@ class SynagogueService:
                 "total": len(congregants),
                 "congregants": [c.model_dump() for c in congregants],
             }
+
+    async def bulk_delete_congregants(self, ids: list[str]) -> dict:
+        """Permanently delete multiple congregants by ID."""
+        deleted = 0
+        with get_session() as session:
+            for cid in ids:
+                c = session.get(Congregant, cid)
+                if c:
+                    session.delete(c)
+                    deleted += 1
+            session.commit()
+        return {"deleted": deleted}
+
+    async def bulk_archive_congregants(self, ids: list[str]) -> dict:
+        """Move multiple congregants to the archive (soft-delete)."""
+        archived = 0
+        today = date.today().isoformat()
+        with get_session() as session:
+            for cid in ids:
+                c = session.get(Congregant, cid)
+                if c and not c.is_archived:
+                    c.is_archived = True
+                    c.archived_at = today
+                    session.add(c)
+                    archived += 1
+            session.commit()
+        return {"archived": archived}
+
+    async def bulk_restore_congregants(self, ids: list[str]) -> dict:
+        """Restore multiple congregants from the archive."""
+        restored = 0
+        with get_session() as session:
+            for cid in ids:
+                c = session.get(Congregant, cid)
+                if c and c.is_archived:
+                    c.is_archived = False
+                    c.archived_at = ""
+                    session.add(c)
+                    restored += 1
+            session.commit()
+        return {"restored": restored}
 
     # ------------------------------------------------------------------
     # 2.  Payments & Donations
@@ -230,6 +277,18 @@ class SynagogueService:
                 "payments": [p.model_dump() for p in payments],
             }
 
+    async def bulk_delete_payments(self, ids: list[str]) -> dict:
+        """Permanently delete multiple payment records."""
+        deleted = 0
+        with get_session() as session:
+            for pid in ids:
+                p = session.get(Payment, pid)
+                if p:
+                    session.delete(p)
+                    deleted += 1
+            session.commit()
+        return {"deleted": deleted}
+
     # ------------------------------------------------------------------
     # 3.  Aliya La-Torah
     # ------------------------------------------------------------------
@@ -278,6 +337,18 @@ class SynagogueService:
                 "total": len(aliyot),
                 "aliyot": [a.model_dump() for a in aliyot],
             }
+
+    async def bulk_delete_aliyot(self, ids: list[str]) -> dict:
+        """Permanently delete multiple aliya records."""
+        deleted = 0
+        with get_session() as session:
+            for aid in ids:
+                a = session.get(Aliya, aid)
+                if a:
+                    session.delete(a)
+                    deleted += 1
+            session.commit()
+        return {"deleted": deleted}
 
     async def get_aliyot_for_parasha(self, parasha: str) -> dict:
         """Return all Aliyot assigned for a specific Parasha."""
@@ -399,6 +470,18 @@ class SynagogueService:
             ).first()
             return place.model_dump() if place else None
 
+    async def bulk_delete_places(self, ids: list[str]) -> dict:
+        """Permanently delete multiple seat records."""
+        deleted = 0
+        with get_session() as session:
+            for pid in ids:
+                p = session.get(Place, pid)
+                if p:
+                    session.delete(p)
+                    deleted += 1
+            session.commit()
+        return {"deleted": deleted}
+
     # ------------------------------------------------------------------
     # 5.  Azkarot (yahrzeit / memorial)
     # ------------------------------------------------------------------
@@ -495,6 +578,18 @@ class SynagogueService:
             session.delete(a)
             session.commit()
             return True
+
+    async def bulk_delete_azkarot(self, ids: list[str]) -> dict:
+        """Permanently delete multiple azkara records."""
+        deleted = 0
+        with get_session() as session:
+            for aid in ids:
+                a = session.get(Azkara, aid)
+                if a:
+                    session.delete(a)
+                    deleted += 1
+            session.commit()
+        return {"deleted": deleted}
 
     # ------------------------------------------------------------------
     # 6.  Smachot (lifecycle celebrations)
@@ -605,6 +700,18 @@ class SynagogueService:
             session.delete(s)
             session.commit()
             return True
+
+    async def bulk_delete_smachot(self, ids: list[str]) -> dict:
+        """Permanently delete multiple simcha records."""
+        deleted = 0
+        with get_session() as session:
+            for sid in ids:
+                s = session.get(Simcha, sid)
+                if s:
+                    session.delete(s)
+                    deleted += 1
+            session.commit()
+        return {"deleted": deleted}
 
     # ------------------------------------------------------------------
     # 7.  Hebrew ↔ Gregorian calendar utilities
