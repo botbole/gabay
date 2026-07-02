@@ -14,6 +14,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./gabay.db"
     DATABASE_ECHO: bool = False   # set True to log every SQL statement
 
+    # Zmanim / Shabbat times (Hebcal API) — defaults to the Haifa horizon
+    ZMANIM_GEONAME_ID: int = 294801
+    ZMANIM_CITY_NAME: str = "חיפה"
+
     # LLM provider settings
     LLM_PROVIDER: str = "openai"          # "openai" | "azure" | "ollama"
     LLM_MODEL: str = "gpt-4o"

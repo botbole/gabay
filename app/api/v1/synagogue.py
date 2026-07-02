@@ -848,6 +848,28 @@ async def get_calendar_month_view(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
+@router.get("/calendar/day-times", response_model=APIResponse)
+async def get_calendar_day_times(
+    date: str = Query(..., description="Gregorian date (YYYY-MM-DD)"),
+):
+    """
+    Return halachic day times (dawn, sunrise, sunset, etc.) plus Shabbat
+    candle-lighting / havdalah times for one Gregorian date, calculated for
+    the Haifa horizon via the Hebcal API.
+    """
+    try:
+        data = await synagogue_service.get_calendar_day_times(date)
+        if data is None:
+            raise HTTPException(status_code=400, detail=f"תאריך לא תקין: {date}")
+        return APIResponse(data=data)
+    except HTTPException:
+        raise
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"שגיאה בפנייה לשירות הזמנים: {exc}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
 # ===========================================================================
 # Bulk import – congregants
 # ===========================================================================

@@ -407,6 +407,7 @@ export interface CalendarDay {
   holiday_en: string | null;
   holiday_he: string | null;
   is_rosh_chodesh: boolean;
+  parasha_he: string | null;
   azkarot: Azkara[];
   smachot: Simcha[];
 }
@@ -435,9 +436,26 @@ export interface HebrewDateInfo {
   gregorian: string;
 }
 
+export interface DayTimes {
+  gregorian_date: string;
+  city: string;
+  alot_hashachar: string | null;
+  sunrise: string | null;
+  chatzot: string | null;
+  mincha_gedola: string | null;
+  plag_hamincha: string | null;
+  sunset: string | null;
+  tzeit_hakochavim: string | null;
+  candle_lighting: string | null;
+  havdalah: string | null;
+  parasha_he: string | null;
+}
+
 export const calendarApi = {
   gregorianToHebrew: (date: string) =>
     request<HebrewDateInfo>(`/synagogue/calendar/gregorian-to-hebrew?date=${date}`),
   monthView: (year: number, month: number) =>
     request<CalendarMonth>(`/synagogue/calendar/month-view?year=${year}&month=${month}`),
+  dayTimes: (date: string) =>
+    request<DayTimes>(`/synagogue/calendar/day-times?date=${date}`),
 };

@@ -121,15 +121,15 @@ export function Import() {
   return (
     <div className="p-6 space-y-6 max-w-3xl" dir="rtl">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">ייבוא מתפללים</h1>
-        <p className="text-sm text-gray-500 mt-1">ייבוא מרובה של מתפללים מקובץ CSV או מטופס Google</p>
+        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">ייבוא מתפללים</h1>
+        <p className="text-sm text-slate-500 mt-1">ייבוא מרובה של מתפללים מקובץ CSV או מטופס Google</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-blue-100 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
         {(['csv', 'sheets'] as const).map(tab => (
           <button key={tab} onClick={() => { setActiveTab(tab); reset(); }}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === tab ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}>
             {tab === 'csv' ? '📄 קובץ CSV' : '📊 Google Sheets'}
           </button>
         ))}

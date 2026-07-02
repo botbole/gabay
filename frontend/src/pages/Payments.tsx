@@ -142,8 +142,8 @@ export function Payments() {
     <div className="p-6 space-y-4" dir="rtl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">תשלומים</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">תשלומים</h1>
+          <p className="text-sm text-slate-500 mt-1">
             סה״כ נגבה: <span className="font-semibold text-emerald-600">₪{(data?.total_amount ?? 0).toLocaleString()}</span>
           </p>
         </div>
@@ -153,13 +153,13 @@ export function Payments() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-blue-100 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
         {(['all', 'pending'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              activeTab === tab ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             {tab === 'all' ? 'כל התשלומים' : `ממתינים (${pendingData?.total_pending ?? 0})`}
@@ -169,7 +169,7 @@ export function Payments() {
 
       {/* Bulk bar */}
       {checkedIds.size > 0 && activeTab === 'all' && (
-        <div className="flex items-center gap-3 bg-blue-700 text-white rounded-xl px-4 py-2.5">
+        <div className="flex items-center gap-3 bg-[#2E3A59] text-white rounded-xl px-4 py-2.5">
           <span className="text-sm font-semibold">{checkedIds.size} נבחרו</span>
           <div className="flex gap-2 mr-auto">
             <Button size="sm" variant="danger" loading={bulkDeleteMutation.isPending}
@@ -182,7 +182,7 @@ export function Payments() {
       )}
 
       {activeTab === 'all' && (
-        <Card className="border-blue-100">
+        <Card className="border-slate-200">
           <CardHeader>
             <div className="flex items-center gap-3">
               <CardTitle>רשומות תשלומים</CardTitle>
@@ -200,28 +200,33 @@ export function Payments() {
           </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
-              <div className="px-5 py-8 text-center text-sm text-gray-400">טוען...</div>
+              <div className="px-5 py-10 text-center text-sm text-slate-400">טוען...</div>
             ) : !payments.length ? (
-              <div className="px-5 py-8 text-center text-sm text-gray-400">לא נמצאו תשלומים.</div>
+              <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+                <div className="bg-slate-50 p-5 rounded-full mb-3">
+                  <PlusCircle className="w-8 h-8 text-slate-300" />
+                </div>
+                <p className="text-sm font-medium text-slate-600">לא נמצאו תשלומים.</p>
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-right">
                   <thead>
-                    <tr className="border-b border-blue-50 bg-blue-50">
+                    <tr className="border-b border-slate-100 bg-slate-50">
                       <th className="px-3 py-3 w-10">
                         <input type="checkbox" checked={allChecked} onChange={toggleAll}
                           className="rounded border-gray-300 cursor-pointer" />
                       </th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500">תאריך</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500">מתפלל</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500">סכום</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500">מטרה</th>
-                      <th className="px-4 py-3 text-xs font-semibold text-gray-500">הערות</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-500">תאריך</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-500">מתפלל</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-500">סכום</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-500">מטרה</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-500">הערות</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-blue-50">
+                  <tbody className="divide-y divide-slate-100">
                     {payments.map(p => (
-                      <tr key={p.id} className={`hover:bg-blue-50 transition-colors ${checkedIds.has(p.id) ? 'bg-blue-50' : ''}`}>
+                      <tr key={p.id} className={`hover:bg-slate-50 transition-colors ${checkedIds.has(p.id) ? 'bg-slate-50' : ''}`}>
                         <td className="px-3 py-3">
                           <input type="checkbox" checked={checkedIds.has(p.id)} onChange={() => toggle(p.id)}
                             className="rounded border-gray-300 cursor-pointer" />

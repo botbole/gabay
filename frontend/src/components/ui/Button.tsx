@@ -5,7 +5,7 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type Size = 'sm' | 'md' | 'lg';
 
 const variantClasses: Record<Variant, string> = {
-  primary: 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm',
+  primary: 'bg-[#2E3A59] text-white hover:bg-[#1e263b] shadow-sm',
   secondary: 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 shadow-sm',
   ghost: 'text-gray-600 hover:bg-gray-100',
   danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
@@ -28,7 +28,7 @@ export function Button({ variant = 'primary', size = 'md', loading, className, c
     <button
       disabled={disabled || loading}
       className={clsx(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed',
+        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[#2E3A59] focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed',
         variantClasses[variant],
         sizeClasses[size],
         className,

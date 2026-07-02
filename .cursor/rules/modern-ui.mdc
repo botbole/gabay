@@ -1,0 +1,56 @@
+---
+description: Modern UI & UX Standards for Gabay (Synagogue Management)
+globs: frontend/**/*.{tsx,css}
+alwaysApply: false
+---
+
+# Modern UI & UX Standards for Gabay
+
+Apply these standards to all frontend development to ensure a premium, modern, and accessible experience for synagogue management.
+
+## 🎨 Visual Language
+- **Cleanliness**: Prioritize white space. Avoid cluttered layouts.
+- **Colors**: 
+  - Primary: Deep Indigo (`#2E3A59`) for stability and tradition.
+  - Secondary: Muted Gold (`#C5A059`) for accents and spiritual elegance.
+  - Background: Light Gray/White (`#F8FAFC`).
+- **Surfaces**: Use soft card layouts with `rounded-xl` or `rounded-2xl`, subtle borders (`border-slate-200`), and `shadow-sm`.
+- **Rounding**: Consistent radius for buttons (`rounded-lg`) and cards (`rounded-xl`).
+
+## 🇮🇱 RTL & Hebrew Support
+- **Direction**: Always use `dir="rtl"` and ensure proper text alignment (`text-right`).
+- **Typography**: Use clean, modern sans-serif fonts. Prefer `system-ui` or `Assistant` if available.
+- **Spacing**: Ensure padding/margin accounts for RTL (e.g., `pr-4` instead of `pl-4` for start-of-line spacing).
+
+## 🧩 Component Standards (Tailwind v4)
+- **Buttons**: Use the custom `Button` component. Primary actions should be prominent; secondary should be `ghost` or `outline`.
+- **Inputs**: Large, clear focus states with `ring-offset-2`. Use `Input` and `DatePickerField` components.
+- **Tables**: Use clean, borderless tables with subtle row separators and hover states.
+
+## ⚡ UX Principles
+- **Feedback**: Every action must have a visual response (hover, loading, success/error toasts).
+- **Empty States**: Design beautiful "no data" views with Lucide icons.
+- **Responsiveness**: Mobile-first. Ensure all forms and dashboards are usable on tablets and phones.
+
+## ✅ Example Code Pattern
+```tsx
+// ❌ BAD: Cluttered, no consistency
+<div style={{padding: '10px'}}>
+  <button onClick={save}>שמור</button>
+  <input type="text" />
+</div>
+
+// ✅ GOOD: Using design system
+<Card className="p-6">
+  <CardHeader>
+    <CardTitle>פרטי מתפלל</CardTitle>
+  </CardHeader>
+  <CardContent className="space-y-4">
+    <Input label="שם מלא" placeholder="ישראל ישראלי" />
+    <div className="flex justify-end gap-3">
+      <Button variant="ghost">ביטול</Button>
+      <Button variant="primary">שמור שינויים</Button>
+    </div>
+  </CardContent>
+</Card>
+```

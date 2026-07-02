@@ -7,12 +7,15 @@ import {
   paymentsApi,
   type Aliya,
   type AliyaCreate,
+  type CalendarDay,
+  type CalendarMonth,
 } from '../api/client';
 import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input, Select } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
+import { CalendarDatePicker } from '../components/ui/CalendarDatePicker';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -31,14 +34,6 @@ const ALIYA_TYPE_LABELS: Record<string, string> = Object.fromEntries(
   ALIYA_TYPES.map(t => [t.value, t.label])
 );
 
-const PARASHIYOT = [
-  'בראשית','נח','לך לך','וירא','חיי שרה','תולדות','ויצא','וישלח','וישב','מקץ','ויגש','ויחי',
-  'שמות','וארא','בא','בשלח','יתרו','משפטים','תרומה','תצוה','כי תשא','ויקהל','פקודי',
-  'ויקרא','צו','שמיני','תזריע','מצורע','אחרי מות','קדושים','אמור','בהר','בחוקותי',
-  'במדבר','נשא','בהעלותך','שלח','קרח','חקת','בלק','פינחס','מטות','מסעי',
-  'דברים','ואתחנן','עקב','ראה','שופטים','כי תצא','כי תבוא','נצבים','וילך','האזינו','וזאת הברכה',
-];
-
 const MINHAG_OPTIONS = [
   { value: '', label: 'לא צוין' },
   { value: 'ashkenaz', label: 'אשכנז' },
@@ -48,6 +43,10 @@ const MINHAG_OPTIONS = [
 ];
 
 // ─── Add Aliya Modal ──────────────────────────────────────────────────────────
+
+const WEEKDAY_HE: Record<number, string> = {
+  0: 'יום שני', 1: 'יום שלישי', 2: 'יום רביעי', 3: 'יום חמישי', 4: 'יום שישי', 5: 'שבת קודש', 6: 'יום ראשון',
+};
 
 function AddAliyaModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
@@ -60,8 +59,8 @@ function AddAliyaModal({ open, onClose }: { open: boolean; onClose: () => void }
     donation_amount: 0,
     notes: '',
   });
-  const [customParasha, setCustomParasha] = useState('');
-  const [parashaMode, setParashaMode] = useState<'list' | 'custom'>('list');
+  const [selectedDay, setSelectedDay] = useState<CalendarDay | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const { data: congregantsData } = useQuery({
     queryKey: ['congregants'],
@@ -69,13 +68,7 @@ function AddAliyaModal({ open, onClose }: { open: boolean; onClose: () => void }
   });
 
   const mutation = useMutation({
-    mutationFn: () => {
-      const payload = {
-        ...form,
-        parasha: parashaMode === 'custom' ? customParasha : form.parasha,
-      };
-      return aliyotApi.create(payload);
-    },
+    mutationFn: () => aliyotApi.create(form),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['aliyot'] });
       onClose();
@@ -85,8 +78,8 @@ function AddAliyaModal({ open, onClose }: { open: boolean; onClose: () => void }
 
   const resetForm = () => {
     setForm({ congregant_id: '', parasha: '', aliya_type: 'kohen', date_str: new Date().toISOString().slice(0, 10), minhag: '', donation_amount: 0, notes: '' });
-    setCustomParasha('');
-    setParashaMode('list');
+    setSelectedDay(null);
+    setShowDatePicker(false);
   };
 
   const set = (field: keyof AliyaCreate) =>
@@ -95,10 +88,25 @@ function AddAliyaModal({ open, onClose }: { open: boolean; onClose: () => void }
       setForm(prev => ({ ...prev, [field]: val }));
     };
 
-  const selectedParasha = parashaMode === 'custom' ? customParasha : form.parasha;
-  const canSubmit = !!form.congregant_id && !!selectedParasha && !!form.aliya_type;
+  const dayIdentification = (day: CalendarDay, monthData: CalendarMonth) => {
+    // שבת - פרשת השבוע. חג/צום (גם באמצע שבוע, שני/חמישי) - שם החג של אותו יום עצמו.
+    // יום חול רגיל - אין לו "שם", מזהים אותו לפי התאריך העברי שלו.
+    if (day.is_shabbat && day.parasha_he) return day.parasha_he;
+    if (day.holiday_he) return day.holiday_he;
+    if (day.is_shabbat) return 'שבת קודש';
+    return `${WEEKDAY_HE[day.day_of_week] ?? ''} ${day.hebrew_day_str} ${monthData.month_name_hebrew} ${monthData.hebrew_year_str}`.trim();
+  };
+
+  const handleSelectDay = (day: CalendarDay, monthData: CalendarMonth) => {
+    setSelectedDay(day);
+    setForm(prev => ({ ...prev, date_str: day.gregorian_date, parasha: dayIdentification(day, monthData) }));
+    setShowDatePicker(false);
+  };
+
+  const canSubmit = !!form.congregant_id && !!form.parasha && !!form.date_str && !!form.aliya_type;
 
   return (
+    <>
     <Modal open={open} onClose={() => { onClose(); resetForm(); }} title="הוספת עלייה לתורה" size="lg">
       <div className="space-y-4" dir="rtl">
         <Select label="מתפלל *" value={form.congregant_id} onChange={set('congregant_id')}>
@@ -116,34 +124,31 @@ function AddAliyaModal({ open, onClose }: { open: boolean; onClose: () => void }
               <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </Select>
-          <Input label="תאריך" type="date" value={form.date_str} onChange={set('date_str')} />
-        </div>
-
-        {/* Parasha */}
-        <div>
-          <div className="flex gap-2 mb-2">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">תאריך *</label>
             <button
               type="button"
-              onClick={() => setParashaMode('list')}
-              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${parashaMode === 'list' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+              onClick={() => setShowDatePicker(true)}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
             >
-              רשימה
-            </button>
-            <button
-              type="button"
-              onClick={() => setParashaMode('custom')}
-              className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${parashaMode === 'custom' ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-            >
-              הזן ידנית
+              <span className="text-gray-800">{form.date_str || 'בחר תאריך...'}</span>
+              <Calendar className="h-4 w-4 text-gray-400" />
             </button>
           </div>
-          {parashaMode === 'list' ? (
-            <Select label="פרשה *" value={form.parasha} onChange={set('parasha')}>
-              <option value="">בחר פרשה...</option>
-              {PARASHIYOT.map(p => <option key={p} value={p}>{p}</option>)}
-            </Select>
-          ) : (
-            <Input label="פרשה *" value={customParasha} onChange={e => setCustomParasha(e.target.value)} placeholder="שם הפרשה..." />
+        </div>
+
+        {/* Parasha (auto-derived from the selected date, editable) */}
+        <div>
+          <Input
+            label="פרשה / זיהוי היום *"
+            value={form.parasha}
+            onChange={set('parasha')}
+            placeholder="נבחר אוטומטית מהלוח, ניתן לערוך ידנית"
+          />
+          {selectedDay && (
+            <p className="text-xs text-gray-400 mt-1">
+              {WEEKDAY_HE[selectedDay.day_of_week] ?? ''}
+            </p>
           )}
         </div>
 
@@ -181,6 +186,10 @@ function AddAliyaModal({ open, onClose }: { open: boolean; onClose: () => void }
         </div>
       </div>
     </Modal>
+    <Modal open={showDatePicker} onClose={() => setShowDatePicker(false)} title="בחר תאריך עלייה" size="md">
+      <CalendarDatePicker value={form.date_str} onSelect={handleSelectDay} />
+    </Modal>
+    </>
   );
 }
 
@@ -193,19 +202,19 @@ function AliyaRow({ a, congregantName, checked, onToggle }: {
   onToggle: () => void;
 }) {
   return (
-    <tr className={`hover:bg-blue-50 transition-colors ${checked ? 'bg-blue-50' : ''}`}>
+    <tr className={`hover:bg-slate-50 transition-colors ${checked ? 'bg-slate-50' : ''}`}>
       <td className="px-3 py-3">
         <input type="checkbox" checked={checked} onChange={onToggle}
           className="rounded border-gray-300 cursor-pointer" />
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-blue-500 shrink-0" />
+          <BookOpen className="h-4 w-4 text-[#2E3A59] shrink-0" />
           <span className="text-sm font-medium text-gray-900">{a.parasha}</span>
         </div>
       </td>
       <td className="px-4 py-3">
-        <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+        <span className="inline-block text-xs font-medium px-2 py-0.5 rounded-full bg-[#2E3A59]/10 text-[#2E3A59]">
           {ALIYA_TYPE_LABELS[a.aliya_type] ?? a.aliya_type}
         </span>
       </td>
@@ -259,13 +268,13 @@ function CongregantHistoryPanel({ congregantId, congregantName, onClose }: {
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-blue-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-blue-700">{data?.total_aliyot ?? 0}</p>
-                <p className="text-xs text-gray-500 mt-0.5">סה״כ עליות</p>
+              <div className="rounded-2xl p-4 text-white shadow-sm bg-gradient-to-br from-[#2E3A59] to-[#3d4f7a] text-center">
+                <p className="text-3xl font-bold tracking-tight">{data?.total_aliyot ?? 0}</p>
+                <p className="text-xs text-white/70 mt-0.5">סה״כ עליות</p>
               </div>
-              <div className="bg-green-50 rounded-xl p-3 text-center">
-                <p className="text-2xl font-bold text-green-700">₪{aliyaPayments.reduce((s, p) => s + p.amount, 0).toLocaleString()}</p>
-                <p className="text-xs text-gray-500 mt-0.5">סה״כ נדבות</p>
+              <div className="rounded-2xl p-4 text-white shadow-sm bg-gradient-to-br from-emerald-600 to-emerald-500 text-center">
+                <p className="text-3xl font-bold tracking-tight">₪{aliyaPayments.reduce((s, p) => s + p.amount, 0).toLocaleString()}</p>
+                <p className="text-xs text-white/70 mt-0.5">סה״כ נדבות</p>
               </div>
             </div>
             <div className="overflow-x-auto">
@@ -370,8 +379,8 @@ export function Aliyot() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">עליות לתורה</h1>
-          <p className="text-sm text-gray-500 mt-1">{data?.total ?? 0} עליות רשומות</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">עליות לתורה</h1>
+          <p className="text-sm text-slate-500 mt-1">{data?.total ?? 0} עליות רשומות</p>
         </div>
         <Button onClick={() => setShowAdd(true)}>
           <Plus className="h-4 w-4" /> הוסף עלייה
@@ -380,42 +389,52 @@ export function Aliyot() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="border-blue-100">
-          <CardContent className="py-4 text-center">
-            <p className="text-2xl font-bold text-blue-700">{data?.total ?? 0}</p>
-            <p className="text-xs text-gray-500 mt-0.5">סה״כ עליות</p>
-          </CardContent>
-        </Card>
-        <Card className="border-green-100">
-          <CardContent className="py-4 text-center">
-            <p className="text-2xl font-bold text-green-700">₪{totalDonations.toLocaleString()}</p>
-            <p className="text-xs text-gray-500 mt-0.5">נדבות</p>
-          </CardContent>
-        </Card>
-        <Card className="border-purple-100">
-          <CardContent className="py-4 text-center">
-            <p className="text-2xl font-bold text-purple-700">{uniqueParashot.length}</p>
-            <p className="text-xs text-gray-500 mt-0.5">פרשיות</p>
-          </CardContent>
-        </Card>
-        <Card className="border-orange-100">
-          <CardContent className="py-4 text-center">
-            <p className="text-2xl font-bold text-orange-700">
-              {new Set(allAliyot.map(a => a.congregant_id)).size}
-            </p>
-            <p className="text-xs text-gray-500 mt-0.5">מתפללים</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl p-5 text-white shadow-md bg-gradient-to-br from-[#2E3A59] to-[#3d4f7a] flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <BookOpen className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-white/70">סה״כ עליות</p>
+            <p className="text-3xl font-bold tracking-tight">{data?.total ?? 0}</p>
+          </div>
+        </div>
+        <div className="rounded-2xl p-5 text-white shadow-md bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <DollarSign className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-white/70">נדבות</p>
+            <p className="text-3xl font-bold tracking-tight">₪{totalDonations.toLocaleString()}</p>
+          </div>
+        </div>
+        <div className="rounded-2xl p-5 text-white shadow-md bg-gradient-to-br from-[#C5A059] to-[#d4b070] flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <Calendar className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-white/70">פרשיות</p>
+            <p className="text-3xl font-bold tracking-tight">{uniqueParashot.length}</p>
+          </div>
+        </div>
+        <div className="rounded-2xl p-5 text-white shadow-md bg-gradient-to-br from-amber-500 to-amber-400 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <User className="h-6 w-6 text-white" />
+          </div>
+          <div>
+            <p className="text-sm text-white/70">מתפללים</p>
+            <p className="text-3xl font-bold tracking-tight">{new Set(allAliyot.map(a => a.congregant_id)).size}</p>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
-      <Card className="border-blue-100">
+      <Card className="border-slate-200">
         <CardContent className="py-3">
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-48">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
-                className="w-full pr-9 pl-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pr-9 pl-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E3A59]"
                 placeholder="חיפוש לפי פרשה, מתפלל..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -439,7 +458,7 @@ export function Aliyot() {
 
       {/* Bulk bar */}
       {checkedIds.size > 0 && (
-        <div className="flex items-center gap-3 bg-blue-700 text-white rounded-xl px-4 py-2.5">
+        <div className="flex items-center gap-3 bg-[#2E3A59] text-white rounded-xl px-4 py-2.5">
           <span className="text-sm font-semibold">{checkedIds.size} נבחרו</span>
           <div className="flex gap-2 mr-auto">
             <Button size="sm" variant="danger" loading={bulkDeleteMutation.isPending}
@@ -452,7 +471,7 @@ export function Aliyot() {
       )}
 
       {/* Table */}
-      <Card className="border-blue-100">
+      <Card className="border-slate-200">
         <CardHeader>
           <div className="flex items-center justify-between">
             <span className="font-semibold text-gray-800">רשימת עליות</span>
@@ -463,10 +482,12 @@ export function Aliyot() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="px-5 py-8 text-center text-sm text-gray-400">טוען...</div>
+            <div className="px-5 py-10 text-center text-sm text-slate-400">טוען...</div>
           ) : filtered.length === 0 ? (
             <div className="px-5 py-12 text-center">
-              <BookOpen className="h-10 w-10 text-blue-200 mx-auto mb-3" />
+              <div className="bg-slate-50 p-5 rounded-full w-fit mx-auto mb-3">
+                <BookOpen className="h-10 w-10 text-slate-300" />
+              </div>
               <p className="text-gray-500 font-medium">
                 {search || filterParasha || filterType ? 'לא נמצאו תוצאות לחיפוש.' : 'אין עליות רשומות עדיין.'}
               </p>
@@ -480,20 +501,20 @@ export function Aliyot() {
             <div className="overflow-x-auto">
               <table className="w-full text-right">
                 <thead>
-                  <tr className="border-b border-blue-50 bg-blue-50">
+                  <tr className="border-b border-slate-100 bg-slate-50">
                     <th className="px-3 py-3 w-10">
                       <input type="checkbox" checked={allChecked} onChange={toggleAll}
                         className="rounded border-gray-300 cursor-pointer" />
                     </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">פרשה</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">עלייה</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">מתפלל</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">תאריך</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">נדבה</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">מנהג</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">פרשה</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">עלייה</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">מתפלל</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">תאריך</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">נדבה</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">מנהג</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-blue-50">
+                <tbody className="divide-y divide-slate-100">
                   {filtered.map(a => (
                     <AliyaRow
                       key={a.id}
@@ -512,9 +533,9 @@ export function Aliyot() {
 
       {/* Congregant stats section */}
       {allAliyot.length > 0 && (
-        <Card className="border-blue-100">
+        <Card className="border-slate-200">
           <CardHeader>
-            <span className="font-semibold text-gray-800">עליות לפי מתפלל</span>
+            <span className="font-semibold text-slate-800">עליות לפי מתפלל</span>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -532,14 +553,17 @@ export function Aliyot() {
                   <button
                     key={cid}
                     onClick={() => setHistoryFor({ id: cid, name: congregantMap[cid] ?? cid })}
-                    className="flex items-center justify-between bg-gray-50 hover:bg-blue-50 rounded-xl px-4 py-3 border border-gray-100 hover:border-blue-200 transition-colors text-right w-full"
+                    className="flex items-center gap-3 bg-slate-50 hover:bg-[#2E3A59]/5 rounded-xl px-4 py-3 border border-slate-100 hover:border-[#2E3A59]/20 transition-colors text-right w-full"
                   >
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{congregantMap[cid] ?? '—'}</p>
-                      <p className="text-xs text-gray-500">{stats.count} עליות</p>
+                    <div className="w-8 h-8 rounded-full bg-[#2E3A59]/10 flex items-center justify-center shrink-0">
+                      <span className="text-xs font-bold text-[#2E3A59]">{(congregantMap[cid] ?? '—')[0]}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800">{congregantMap[cid] ?? '—'}</p>
+                      <p className="text-xs text-slate-500">{stats.count} עליות</p>
                     </div>
                     {stats.total > 0 && (
-                      <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded-full">
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
                         ₪{stats.total.toLocaleString()}
                       </span>
                     )}

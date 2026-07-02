@@ -21,7 +21,7 @@ function SeatTile({ place, onClick }: { place: Place; onClick: () => void }) {
         'w-10 h-10 rounded-lg text-xs font-semibold border-2 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-1',
         occupied
           ? 'bg-red-100 border-red-300 text-red-700 hover:bg-red-200 focus:ring-red-400'
-          : 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100 focus:ring-blue-400',
+          : 'bg-slate-50 border-slate-300 text-slate-600 hover:bg-[#2E3A59]/5 hover:border-[#2E3A59]/40 focus:ring-[#2E3A59]',
       )}
     >
       {place.row}{place.place_number}
@@ -83,6 +83,7 @@ function SeatDetailModal({ place, onClose }: { place: Place; onClose: () => void
   const qc = useQueryClient();
   const { data: congregantsData } = useQuery({ queryKey: ['congregants'], queryFn: () => congregantsApi.list() });
   const [assignId, setAssignId] = useState(place.congregant_id ?? '');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const assignMutation = useMutation({
     mutationFn: () => seatingApi.assign(place.id, assignId),
@@ -90,6 +91,10 @@ function SeatDetailModal({ place, onClose }: { place: Place; onClose: () => void
   });
   const unassignMutation = useMutation({
     mutationFn: () => seatingApi.unassign(place.id),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['places'] }); onClose(); },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: () => seatingApi.bulkDelete([place.id]),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['places'] }); onClose(); },
   });
 
@@ -112,12 +117,33 @@ function SeatDetailModal({ place, onClose }: { place: Place; onClose: () => void
           <option value="">— לא משויך —</option>
           {congregantsData?.congregants.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
         </Select>
+
+        {/* Delete seat */}
+        {confirmDelete ? (
+          <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700 space-y-2">
+            <p className="font-semibold">למחוק את המושב לצמיתות?</p>
+            <div className="flex gap-2">
+              <Button size="sm" variant="danger" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate()}>
+                <Trash2 className="h-3 w-3" /> כן, מחק
+              </Button>
+              <Button size="sm" variant="secondary" onClick={() => setConfirmDelete(false)}>ביטול</Button>
+            </div>
+          </div>
+        ) : null}
+
         <div className="flex justify-between gap-3 pt-2">
-          {place.congregant_id && (
-            <Button variant="danger" size="sm" loading={unassignMutation.isPending} onClick={() => unassignMutation.mutate()}>
-              <Trash2 className="h-3 w-3" /> הסר שיוך
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {place.congregant_id && (
+              <Button variant="danger" size="sm" loading={unassignMutation.isPending} onClick={() => unassignMutation.mutate()}>
+                <Trash2 className="h-3 w-3" /> הסר שיוך
+              </Button>
+            )}
+            {!confirmDelete && (
+              <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(true)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                <Trash2 className="h-3 w-3" /> מחק מושב
+              </Button>
+            )}
+          </div>
           <div className="flex gap-3 mr-auto">
             <Button variant="secondary" onClick={onClose}>ביטול</Button>
             <Button loading={assignMutation.isPending} disabled={!assignId} onClick={() => assignMutation.mutate()}>שייך</Button>
@@ -136,7 +162,7 @@ interface SectionDef { name: string; rows: RowDef[]; }
 function MapBuilderModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
   const [sections, setSections] = useState<SectionDef[]>([
-    { name: 'ראשי', rows: [{ rowLabel: 'א', count: 10 }] },
+    { name: '', rows: [{ rowLabel: 'א', count: 10 }] },
   ]);
   const [annualFee, setAnnualFee] = useState(0);
   const [isBuilding, setIsBuilding] = useState(false);
@@ -295,14 +321,14 @@ function MapBuilderModal({ open, onClose }: { open: boolean; onClose: () => void
             </Button>
 
             {/* Summary */}
-            <div className="bg-blue-100 rounded-xl p-4 text-sm text-blue-800">
+            <div className="bg-[#2E3A59]/10 rounded-xl p-4 text-sm text-[#2E3A59]">
               <p className="font-semibold mb-1">סיכום</p>
               {sections.map((sec, si) => (
                 <p key={si}>
                   אגף <strong>{sec.name || '?'}</strong>: {sec.rows.length} שורות, {sec.rows.reduce((a, r) => a + r.count, 0)} מושבים
                 </p>
               ))}
-              <p className="font-bold mt-2 text-blue-900">סה״כ: {totalSeats} מושבים ייוצרו</p>
+              <p className="font-bold mt-2 text-[#2E3A59]">סה״כ: {totalSeats} מושבים ייוצרו</p>
             </div>
 
             {progress && (
@@ -347,6 +373,8 @@ export function Seating() {
   const [selected, setSelected] = useState<Place | null>(null);
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
+  const [deletingSection, setDeletingSection] = useState<string | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['places', sectionFilter, onlyFree],
@@ -391,27 +419,51 @@ export function Seating() {
     },
   });
 
+  const deleteSectionMutation = useMutation({
+    mutationFn: (section: string) => {
+      const ids = places.filter(p => p.section === section).map(p => p.id);
+      return seatingApi.bulkDelete(ids);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['places'] });
+      setDeletingSection(null);
+    },
+  });
+
+  const deleteAllMutation = useMutation({
+    mutationFn: () => seatingApi.bulkDelete(places.map(p => p.id)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['places'] });
+      setConfirmDeleteAll(false);
+    },
+  });
+
   return (
     <div className="p-6 space-y-4" dir="rtl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">מפת מושבים</h1>
-          <p className="text-sm text-gray-500 mt-1">
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">מפת מושבים</h1>
+          <p className="text-sm text-slate-500 mt-1">
             {data?.total ?? 0} מושבים · <span className="text-red-600">{occupied} תפוסים</span> · <span className="text-emerald-600">{free} פנויים</span>
           </p>
         </div>
         <div className="flex gap-2">
           {/* View toggle */}
-          <div className="flex gap-1 bg-blue-100 rounded-xl p-1">
+          <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
             <button onClick={() => setViewMode('map')} title="מפה"
-              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'map' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'map' ? 'bg-white shadow-sm text-[#2E3A59]' : 'text-slate-500 hover:text-slate-700'}`}>
               <Map className="h-4 w-4" />
             </button>
             <button onClick={() => setViewMode('list')} title="רשימה"
-              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-[#2E3A59]' : 'text-slate-500 hover:text-slate-700'}`}>
               <LayoutList className="h-4 w-4" />
             </button>
           </div>
+          {places.length > 0 && (
+            <Button variant="ghost" onClick={() => setConfirmDeleteAll(true)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+              <Trash2 className="h-4 w-4" /> מחק כל המפה
+            </Button>
+          )}
           <Button variant="secondary" onClick={() => setShowBuilder(true)}>
             <Building2 className="h-4 w-4" /> בנה מפה
           </Button>
@@ -421,9 +473,23 @@ export function Seating() {
         </div>
       </div>
 
+      {/* Delete all confirm bar */}
+      {confirmDeleteAll && (
+        <div className="flex items-center gap-3 bg-red-600 text-white rounded-xl px-4 py-2.5">
+          <span className="text-sm font-semibold">למחוק את כל {places.length} המושבים לצמיתות?</span>
+          <div className="flex gap-2 mr-auto">
+            <Button size="sm" variant="danger" loading={deleteAllMutation.isPending} onClick={() => deleteAllMutation.mutate()}
+              className="bg-white text-red-600 hover:bg-red-50">
+              <Trash2 className="h-3.5 w-3.5" /> כן, מחק הכל
+            </Button>
+            <button onClick={() => setConfirmDeleteAll(false)} className="text-white/80 hover:text-white text-sm px-2">ביטול</button>
+          </div>
+        </div>
+      )}
+
       {/* Bulk bar (list mode only) */}
       {checkedIds.size > 0 && viewMode === 'list' && (
-        <div className="flex items-center gap-3 bg-blue-700 text-white rounded-xl px-4 py-2.5">
+        <div className="flex items-center gap-3 bg-[#2E3A59] text-white rounded-xl px-4 py-2.5">
           <span className="text-sm font-semibold">{checkedIds.size} נבחרו</span>
           <div className="flex gap-2 mr-auto">
             <Button size="sm" variant="danger" loading={bulkDeleteMutation.isPending}
@@ -436,7 +502,7 @@ export function Seating() {
       )}
 
       {/* Legend + filters */}
-      <Card className="border-blue-100">
+      <Card className="border-slate-200">
         <CardContent className="flex items-center gap-6 py-3">
           {viewMode === 'map' && (
             <>
@@ -479,8 +545,28 @@ export function Seating() {
       ) : viewMode === 'map' ? (
         // Map view
         Object.entries(grouped).map(([section, rows]) => (
-          <Card key={section} className="border-blue-100">
-            <CardHeader><CardTitle>אגף {section}</CardTitle></CardHeader>
+          <Card key={section} className="border-slate-200">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>אגף {section}</CardTitle>
+                {deletingSection === section ? (
+                  <div className="flex items-center gap-2 text-sm text-red-600">
+                    <span>למחוק את האגף?</span>
+                    <Button size="sm" variant="danger" loading={deleteSectionMutation.isPending}
+                      onClick={() => deleteSectionMutation.mutate(section)}>
+                      <Trash2 className="h-3 w-3" /> כן
+                    </Button>
+                    <button onClick={() => setDeletingSection(null)} className="text-gray-400 hover:text-gray-600 text-xs px-1">ביטול</button>
+                  </div>
+                ) : (
+                  <button onClick={() => setDeletingSection(section)}
+                    className="text-slate-400 hover:text-red-500 transition-colors p-1 rounded-lg hover:bg-red-50"
+                    title={`מחק את אגף ${section}`}>
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </CardHeader>
             <CardContent className="space-y-3">
               {Object.entries(rows).sort().map(([row, seats]) => (
                 <div key={row} className="flex items-center gap-3">
@@ -497,26 +583,26 @@ export function Seating() {
         ))
       ) : (
         // List view with checkboxes
-        <Card className="border-blue-100">
+        <Card className="border-slate-200">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-right">
                 <thead>
-                  <tr className="border-b border-blue-50 bg-blue-50">
+                  <tr className="border-b border-slate-100 bg-slate-50">
                     <th className="px-3 py-3 w-10">
                       <input type="checkbox" checked={allChecked} onChange={toggleAll}
                         className="rounded border-gray-300 cursor-pointer" />
                     </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500">אגף</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500">שורה</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500">מספר</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500">סטטוס</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500">דמי מקום</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500">אגף</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500">שורה</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500">מספר</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500">סטטוס</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500">דמי מקום</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-blue-50">
+                <tbody className="divide-y divide-slate-100">
                   {places.map(p => (
-                    <tr key={p.id} className={`hover:bg-blue-50 transition-colors ${checkedIds.has(p.id) ? 'bg-blue-50' : ''}`}>
+                    <tr key={p.id} className={`hover:bg-slate-50 transition-colors ${checkedIds.has(p.id) ? 'bg-slate-50' : ''}`}>
                       <td className="px-3 py-3">
                         <input type="checkbox" checked={checkedIds.has(p.id)} onChange={() => toggle(p.id)}
                           className="rounded border-gray-300 cursor-pointer" />

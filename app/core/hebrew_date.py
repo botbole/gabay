@@ -19,6 +19,7 @@ from typing import Optional
 
 from pyluach import dates as _dates
 from pyluach import hebrewcal as _hebrewcal
+from pyluach import parshios as _parshios
 
 # ---------------------------------------------------------------------------
 # Month-name maps  (pyluach internal numbering: Nisan=1 … Elul=6, Tishrei=7 …)
@@ -230,42 +231,30 @@ def to_hebrew_year_str(year: int) -> str:
     return result
 
 
-# ---------------------------------------------------------------------------
-# Holiday name mapping (pyluach English → Hebrew)
-# ---------------------------------------------------------------------------
-
-_HOLIDAY_HE: dict[str, str] = {
-    "Rosh Hashana": "ראש השנה",
-    "Yom Kippur": "יום כיפור",
-    "Sukkos": "סוכות",
-    "Chol Hamoed Sukkos": "חול המועד סוכות",
-    "Hoshana Raba": "הושענא רבה",
-    "Shmini Atzeres": "שמיני עצרת",
-    "Simchas Torah": "שמחת תורה",
-    "Chanukah": "חנוכה",
-    "Tu Bishvat": 'ט"ו בשבט',
-    "Purim Katan": "פורים קטן",
-    "Purim": "פורים",
-    "Shushan Purim": "שושן פורים",
-    "Pesach": "פסח",
-    "Chol Hamoed Pesach": "חול המועד פסח",
-    "Pesach Sheni": "פסח שני",
-    "Lag Baomer": 'ל"ג בעומר',
-    "Shavuos": "שבועות",
-    "Tu Beav": 'ט"ו באב',
-    "Rosh Chodesh": "ראש חודש",
-}
+def _parasha_info(hd: "_dates.HebrewDate") -> str | None:
+    """Return the Hebrew name of the parasha read on the Shabbat on/following
+    the given date (works for any day of the week), or None if that Shabbat
+    has no regular reading (e.g. it falls on Yom Tov)."""
+    try:
+        return _parshios.getparsha_string(hd, israel=True, hebrew=True)
+    except Exception:
+        return None
 
 
 def _holiday_info(hd: "_dates.HebrewDate") -> tuple[str | None, str | None]:
-    """Return (english_name, hebrew_name) for a date's holiday, or (None, None)."""
+    """Return (english_name, hebrew_name) for a date's holiday, or (None, None).
+
+    Multi-day festivals (Pesach, Sukkot) are prefixed with the day number
+    (e.g. "ג׳ פסח") so a specific Chol HaMoed day can be told apart from
+    the rest of the festival.
+    """
     try:
-        eng = hd.holiday(israel=False)
+        eng = hd.holiday(israel=True, prefix_day=True)
+        heb = hd.holiday(israel=True, hebrew=True, prefix_day=True)
     except Exception:
-        eng = None
+        eng = heb = None
     if not eng:
         return None, None
-    heb = _HOLIDAY_HE.get(eng, eng)
     return eng, heb
 
 
@@ -349,6 +338,7 @@ def get_month_view(year: int, month: int) -> dict:
             is_shabbat = py_weekday == 5
             holiday_en, holiday_he = _holiday_info(hd)
             is_rosh_chodesh = (hd.day == 1) and not holiday_en
+            parasha_he = _parasha_info(hd)
 
             days.append({
                 "hebrew_day": hd.day,
@@ -362,6 +352,7 @@ def get_month_view(year: int, month: int) -> dict:
                 "holiday_en": holiday_en,
                 "holiday_he": holiday_he if holiday_he else ("ראש חודש" if is_rosh_chodesh else None),
                 "is_rosh_chodesh": is_rosh_chodesh,
+                "parasha_he": parasha_he,
                 "azkarot": [],
                 "smachot": [],
             })

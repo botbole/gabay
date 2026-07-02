@@ -213,7 +213,7 @@ function SimchaRow({
 }) {
   const info = yearInfo(s);
   return (
-    <tr className={`hover:bg-blue-50 transition-colors ${checked ? 'bg-blue-50' : ''}`}>
+    <tr className={`hover:bg-slate-50 transition-colors ${checked ? 'bg-slate-50' : ''}`}>
       <td className="px-3 py-3">
         <input type="checkbox" checked={checked} onChange={onToggle}
           className="rounded border-gray-300 cursor-pointer" />
@@ -385,8 +385,8 @@ export function Smachot() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">שמחות</h1>
-          <p className="text-sm text-gray-500 mt-1">{listData?.total ?? 0} שמחות רשומות</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">שמחות</h1>
+          <p className="text-sm text-slate-500 mt-1">{listData?.total ?? 0} שמחות רשומות</p>
         </div>
         <Button onClick={() => setShowAdd(true)}>
           <Plus className="h-4 w-4" /> הוסף שמחה
@@ -431,7 +431,7 @@ export function Smachot() {
 
       {/* Bulk bar */}
       {checkedIds.size > 0 && (
-        <div className="flex items-center gap-3 bg-blue-700 text-white rounded-xl px-4 py-2.5">
+        <div className="flex items-center gap-3 bg-[#2E3A59] text-white rounded-xl px-4 py-2.5">
           <span className="text-sm font-semibold">{checkedIds.size} נבחרו</span>
           <div className="flex gap-2 mr-auto">
             <Button size="sm" variant="danger" loading={bulkDeleteMutation.isPending}
@@ -444,13 +444,13 @@ export function Smachot() {
       )}
 
       {/* Full list */}
-      <Card className="border-blue-100">
+      <Card className="border-slate-200">
         <CardHeader>
           <div className="flex items-center gap-3">
             <div className="relative flex-1">
               <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
-                className="w-full pr-9 pl-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pr-9 pl-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#2E3A59]"
                 placeholder="חיפוש לפי מתפלל, תיאור..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -470,29 +470,32 @@ export function Smachot() {
         </CardHeader>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="px-5 py-8 text-center text-sm text-gray-400">טוען...</div>
+            <div className="px-5 py-10 text-center text-sm text-slate-400">טוען...</div>
           ) : filtered.length === 0 ? (
-            <div className="px-5 py-8 text-center text-sm text-gray-400">
-              {search || filterType ? 'לא נמצאו תוצאות.' : 'אין שמחות רשומות עדיין.'}
+            <div className="flex flex-col items-center justify-center py-12 text-center px-4">
+              <div className="bg-slate-50 p-5 rounded-full mb-3">
+                <PartyPopper className="w-8 h-8 text-slate-300" />
+              </div>
+              <p className="text-sm font-medium text-slate-600">{search || filterType ? 'לא נמצאו תוצאות.' : 'אין שמחות רשומות עדיין.'}</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-right">
                 <thead>
-                  <tr className="border-b border-blue-50 bg-blue-50">
+                  <tr className="border-b border-slate-100 bg-slate-50">
                     <th className="px-3 py-3 w-10">
                       <input type="checkbox" checked={allChecked} onChange={toggleAll}
                         className="rounded border-gray-300 cursor-pointer" />
                     </th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">סוג שמחה</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">מתפלל</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">תאריך עברי</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">תאריך לועזי</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">פרשה</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">סוג שמחה</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">מתפלל</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">תאריך עברי</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">תאריך לועזי</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">פרשה</th>
                     <th className="px-4 py-3"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-blue-50">
+                <tbody className="divide-y divide-slate-100">
                   {filtered.map(s => (
                     <SimchaRow
                       key={s.id}

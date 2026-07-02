@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronRight, ChevronLeft, Flame, PartyPopper, Star, CalendarDays } from 'lucide-react';
-import { calendarApi, congregantsApi, type CalendarDay, type CalendarMonth } from '../api/client';
+import { ChevronRight, ChevronLeft, Flame, PartyPopper, Star, CalendarDays, Sunrise, Sunset, Moon, Clock } from 'lucide-react';
+import { calendarApi, congregantsApi, type CalendarDay, type CalendarMonth, type DayTimes } from '../api/client';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -66,28 +66,28 @@ function DayCell({
   let cellBg = 'bg-white hover:bg-blue-50';
   if (day.is_shabbat) cellBg = 'bg-indigo-50 hover:bg-indigo-100';
   if (hasHoliday && !day.is_shabbat) cellBg = 'bg-amber-50 hover:bg-amber-100';
-  if (isSelected) cellBg = 'bg-blue-100 hover:bg-blue-200';
+  if (isSelected) cellBg = 'bg-[#2E3A59]/10 hover:bg-[#2E3A59]/15';
 
   return (
     <button
       onClick={onClick}
       className={`relative w-full min-h-[80px] p-1.5 rounded-lg border transition-colors text-right ${cellBg} ${
-        isToday ? 'ring-2 ring-blue-500' : 'border-gray-100'
-      } ${isSelected ? 'border-blue-400' : ''}`}
+        isToday ? 'ring-2 ring-[#2E3A59]' : 'border-gray-100'
+      } ${isSelected ? 'border-[#2E3A59]/40' : ''}`}
     >
       {/* Date number */}
       <div className="flex items-start justify-between mb-0.5">
         <div className="flex flex-col items-start">
           {showGregorian ? (
             <>
-              <span className={`text-sm font-bold leading-none ${isToday ? 'text-blue-600' : day.is_shabbat ? 'text-indigo-700' : 'text-gray-800'}`}>
+              <span className={`text-sm font-bold leading-none ${isToday ? 'text-[#2E3A59]' : day.is_shabbat ? 'text-indigo-700' : 'text-gray-800'}`}>
                 {gregDateLabel(day.gregorian_date)}
               </span>
               <span className="text-[10px] text-gray-400 mt-0.5">{day.hebrew_day_str}</span>
             </>
           ) : (
             <>
-              <span className={`text-sm font-bold leading-none ${isToday ? 'text-blue-600' : day.is_shabbat ? 'text-indigo-700' : 'text-gray-800'}`}>
+              <span className={`text-sm font-bold leading-none ${isToday ? 'text-[#2E3A59]' : day.is_shabbat ? 'text-indigo-700' : 'text-gray-800'}`}>
                 {day.hebrew_day_str}
               </span>
               <span className="text-[10px] text-gray-400 mt-0.5">{gregDateLabel(day.gregorian_date)}</span>
@@ -95,7 +95,7 @@ function DayCell({
           )}
         </div>
         {isToday && (
-          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-0.5 shrink-0" />
+          <span className="w-1.5 h-1.5 rounded-full bg-[#2E3A59] mt-0.5 shrink-0" />
         )}
       </div>
 
@@ -110,8 +110,10 @@ function DayCell({
           ראש חודש
         </div>
       )}
-      {day.is_shabbat && !day.holiday_he && (
-        <div className="text-[9px] font-medium text-indigo-600 mt-0.5 leading-tight">שבת</div>
+      {day.is_shabbat && (
+        <div className="text-[9px] font-medium text-indigo-600 mt-0.5 leading-tight truncate">
+          {day.parasha_he ? `פרשת ${day.parasha_he}` : 'שבת'}
+        </div>
       )}
 
       {/* Event dots */}
@@ -129,6 +131,56 @@ function DayCell({
         </div>
       )}
     </button>
+  );
+}
+
+// ─── Day Times (zmanim) ────────────────────────────────────────────────────────
+
+function DayTimesSection({ date }: { date: string }) {
+  const { data: times, isLoading } = useQuery({
+    queryKey: ['day-times', date],
+    queryFn: () => calendarApi.dayTimes(date),
+    staleTime: 1000 * 60 * 60,
+  });
+
+  if (isLoading) {
+    return <p className="text-xs text-gray-400 text-center py-1">טוען זמני היום...</p>;
+  }
+  if (!times) return null;
+
+  const rows: { icon: JSX.Element; label: string; value: string }[] = [
+    times.alot_hashachar && { icon: <Clock className="h-3.5 w-3.5 text-gray-400" />, label: 'עלות השחר', value: times.alot_hashachar },
+    times.sunrise && { icon: <Sunrise className="h-3.5 w-3.5 text-amber-500" />, label: 'הנץ החמה', value: times.sunrise },
+    times.chatzot && { icon: <Clock className="h-3.5 w-3.5 text-gray-400" />, label: 'חצות היום', value: times.chatzot },
+    times.plag_hamincha && { icon: <Clock className="h-3.5 w-3.5 text-gray-400" />, label: 'פלג המנחה', value: times.plag_hamincha },
+    times.sunset && { icon: <Sunset className="h-3.5 w-3.5 text-orange-500" />, label: 'שקיעה', value: times.sunset },
+    times.tzeit_hakochavim && { icon: <Moon className="h-3.5 w-3.5 text-indigo-400" />, label: 'צאת הכוכבים', value: times.tzeit_hakochavim },
+  ].filter(Boolean) as { icon: JSX.Element; label: string; value: string }[];
+
+  return (
+    <div className="rounded-lg bg-[#2E3A59]/5 border border-[#2E3A59]/10 px-3 py-2">
+      <p className="text-xs font-semibold text-[#2E3A59] mb-1.5">זמני היום · {times.city}</p>
+      <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-gray-600">
+        {rows.map(r => (
+          <div key={r.label} className="flex items-center gap-1">
+            {r.icon}
+            <span>{r.label}: {r.value}</span>
+          </div>
+        ))}
+      </div>
+      {times.candle_lighting && (
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-pink-700 pt-1.5 mt-1.5 border-t border-[#2E3A59]/10">
+          <Flame className="h-3.5 w-3.5 text-pink-500" />
+          הדלקת נרות: {times.candle_lighting}
+        </div>
+      )}
+      {times.havdalah && (
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-700 pt-1.5 mt-1.5 border-t border-[#2E3A59]/10">
+          <Moon className="h-3.5 w-3.5 text-indigo-500" />
+          מוצאי שבת · הבדלה: {times.havdalah}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -159,6 +211,8 @@ function DayDetail({
         </p>
       </div>
 
+      <DayTimesSection date={day.gregorian_date} />
+
       {!hasContent && (
         <p className="text-sm text-gray-400 text-center py-4">אין אירועים ביום זה</p>
       )}
@@ -181,7 +235,10 @@ function DayDetail({
       )}
       {day.is_shabbat && (
         <div className="flex items-center gap-2 rounded-lg bg-indigo-50 border border-indigo-200 px-3 py-2">
-          <span className="text-indigo-600 font-bold text-sm">שבת קודש</span>
+          <div>
+            <p className="text-indigo-600 font-bold text-sm">שבת קודש</p>
+            {day.parasha_he && <p className="text-xs text-indigo-500">פרשת {day.parasha_he}</p>}
+          </div>
         </div>
       )}
 
@@ -390,7 +447,7 @@ function Legend() {
         שמחה
       </div>
       <div className="flex items-center gap-1.5">
-        <div className="w-2 h-2 rounded-full bg-blue-500" />
+        <div className="w-2 h-2 rounded-full bg-[#2E3A59]" />
         היום
       </div>
     </div>
@@ -464,22 +521,22 @@ export function Calendar() {
       {/* Page header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">לוח עברי</h1>
-          <p className="text-sm text-gray-500 mt-1">שבתות, חגים ואירועי הקהילה</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">לוח עברי</h1>
+          <p className="text-sm text-slate-500 mt-1">שבתות, חגים ואירועי הקהילה</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={goToToday}
-            className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition-colors"
+            className="px-3 py-1.5 text-sm rounded-lg border border-[#2E3A59] text-[#2E3A59] hover:bg-[#2E3A59]/5 transition-colors font-medium"
           >
             היום
           </button>
           {/* Hebrew / Gregorian toggle */}
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+          <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
             <button
               onClick={() => setShowGregorian(false)}
               className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-                !showGregorian ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                !showGregorian ? 'bg-white text-[#2E3A59] shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               עברי
@@ -487,7 +544,7 @@ export function Calendar() {
             <button
               onClick={() => setShowGregorian(true)}
               className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-                showGregorian ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                showGregorian ? 'bg-white text-[#2E3A59] shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
               לועזי

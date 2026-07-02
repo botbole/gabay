@@ -31,6 +31,7 @@ from app.core.hebrew_date import (
     upcoming_occurrences,
     get_month_view,
 )
+from app.core.zmanim import get_day_times
 from app.models.db_models import (
     Aliya,
     Azkara,
@@ -807,6 +808,13 @@ class SynagogueService:
             day["smachot"] = sm_by_day.get(key, [])
 
         return data
+
+    async def get_calendar_day_times(self, date_str: str) -> dict | None:
+        """Return sunrise/sunset zmanim and Shabbat candle-lighting/havdalah for one day."""
+        d = parse_gregorian_iso(date_str)
+        if d is None:
+            return None
+        return await get_day_times(d)
 
 
 synagogue_service = SynagogueService()
