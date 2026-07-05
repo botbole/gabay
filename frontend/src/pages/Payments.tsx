@@ -7,6 +7,8 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input, Select } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
+import { PageHeader } from '../components/ui/PageHeader';
+import { EmptyState } from '../components/ui/EmptyState';
 
 const purposeLabel: Record<string, string> = {
   aliya: 'עלייה לתורה',
@@ -140,17 +142,15 @@ export function Payments() {
 
   return (
     <div className="p-6 space-y-4" dir="rtl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">תשלומים</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            סה״כ נגבה: <span className="font-semibold text-emerald-600">₪{(data?.total_amount ?? 0).toLocaleString()}</span>
-          </p>
-        </div>
-        <Button onClick={() => setShowAdd(true)}>
-          <PlusCircle className="h-4 w-4" /> רשום תשלום
-        </Button>
-      </div>
+      <PageHeader
+        title="תשלומים"
+        subtitle={<>סה״כ נגבה: <span className="font-semibold text-emerald-600">₪{(data?.total_amount ?? 0).toLocaleString()}</span></>}
+        action={
+          <Button onClick={() => setShowAdd(true)}>
+            <PlusCircle className="h-4 w-4" /> רשום תשלום
+          </Button>
+        }
+      />
 
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
@@ -158,9 +158,10 @@ export function Payments() {
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              activeTab === tab ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
-            }`}
+            className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150"
+            style={activeTab === tab
+              ? { backgroundColor: 'var(--color-indigo)', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }
+              : { color: '#64748b' }}
           >
             {tab === 'all' ? 'כל התשלומים' : `ממתינים (${pendingData?.total_pending ?? 0})`}
           </button>
@@ -202,12 +203,11 @@ export function Payments() {
             {isLoading ? (
               <div className="px-5 py-10 text-center text-sm text-slate-400">טוען...</div>
             ) : !payments.length ? (
-              <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-                <div className="bg-slate-50 p-5 rounded-full mb-3">
-                  <PlusCircle className="w-8 h-8 text-slate-300" />
-                </div>
-                <p className="text-sm font-medium text-slate-600">לא נמצאו תשלומים.</p>
-              </div>
+              <EmptyState
+                icon={PlusCircle}
+                title="לא נמצאו תשלומים"
+                description="הוסף תשלום ראשון בעזרת הכפתור למעלה"
+              />
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-right">

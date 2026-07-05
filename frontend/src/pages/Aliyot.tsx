@@ -16,6 +16,8 @@ import { Badge } from '../components/ui/Badge';
 import { Input, Select } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { CalendarDatePicker } from '../components/ui/CalendarDatePicker';
+import { PageHeader } from '../components/ui/PageHeader';
+import { EmptyState } from '../components/ui/EmptyState';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -376,16 +378,15 @@ export function Aliyot() {
 
   return (
     <div className="p-6 space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">עליות לתורה</h1>
-          <p className="text-sm text-slate-500 mt-1">{data?.total ?? 0} עליות רשומות</p>
-        </div>
-        <Button onClick={() => setShowAdd(true)}>
-          <Plus className="h-4 w-4" /> הוסף עלייה
-        </Button>
-      </div>
+      <PageHeader
+        title="עליות לתורה"
+        subtitle={`${data?.total ?? 0} עליות רשומות`}
+        action={
+          <Button onClick={() => setShowAdd(true)}>
+            <Plus className="h-4 w-4" /> הוסף עלייה
+          </Button>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -484,19 +485,16 @@ export function Aliyot() {
           {isLoading ? (
             <div className="px-5 py-10 text-center text-sm text-slate-400">טוען...</div>
           ) : filtered.length === 0 ? (
-            <div className="px-5 py-12 text-center">
-              <div className="bg-slate-50 p-5 rounded-full w-fit mx-auto mb-3">
-                <BookOpen className="h-10 w-10 text-slate-300" />
-              </div>
-              <p className="text-gray-500 font-medium">
-                {search || filterParasha || filterType ? 'לא נמצאו תוצאות לחיפוש.' : 'אין עליות רשומות עדיין.'}
-              </p>
-              {!search && !filterParasha && !filterType && (
-                <Button className="mt-4" onClick={() => setShowAdd(true)}>
+            <EmptyState
+              icon={BookOpen}
+              title={search || filterParasha || filterType ? 'לא נמצאו תוצאות' : 'אין עליות רשומות עדיין'}
+              description={search ? `לא נמצאו תוצאות עבור "${search}"` : 'הוסף עלייה ראשונה בעזרת הכפתור למעלה'}
+              action={!search && !filterParasha && !filterType ? (
+                <Button onClick={() => setShowAdd(true)}>
                   <Plus className="h-4 w-4" /> הוסף עלייה ראשונה
                 </Button>
-              )}
-            </div>
+              ) : undefined}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-right">

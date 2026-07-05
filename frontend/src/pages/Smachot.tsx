@@ -13,6 +13,8 @@ import { Badge } from '../components/ui/Badge';
 import { Input, Select } from '../components/ui/Input';
 import { DatePickerField } from '../components/ui/DatePickerField';
 import { Modal } from '../components/ui/Modal';
+import { PageHeader } from '../components/ui/PageHeader';
+import { EmptyState } from '../components/ui/EmptyState';
 
 // ─── Hebrew helpers ──────────────────────────────────────────────────────────
 
@@ -382,16 +384,15 @@ export function Smachot() {
 
   return (
     <div className="p-6 space-y-6" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">שמחות</h1>
-          <p className="text-sm text-slate-500 mt-1">{listData?.total ?? 0} שמחות רשומות</p>
-        </div>
-        <Button onClick={() => setShowAdd(true)}>
-          <Plus className="h-4 w-4" /> הוסף שמחה
-        </Button>
-      </div>
+      <PageHeader
+        title="שמחות"
+        subtitle={`${listData?.total ?? 0} שמחות רשומות`}
+        action={
+          <Button onClick={() => setShowAdd(true)}>
+            <Plus className="h-4 w-4" /> הוסף שמחה
+          </Button>
+        }
+      />
 
       {/* Upcoming section */}
       {upcoming.length > 0 && (
@@ -472,12 +473,11 @@ export function Smachot() {
           {isLoading ? (
             <div className="px-5 py-10 text-center text-sm text-slate-400">טוען...</div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-              <div className="bg-slate-50 p-5 rounded-full mb-3">
-                <PartyPopper className="w-8 h-8 text-slate-300" />
-              </div>
-              <p className="text-sm font-medium text-slate-600">{search || filterType ? 'לא נמצאו תוצאות.' : 'אין שמחות רשומות עדיין.'}</p>
-            </div>
+            <EmptyState
+              icon={PartyPopper}
+              title={search || filterType ? 'לא נמצאו תוצאות' : 'אין שמחות רשומות עדיין'}
+              description={search ? `לא נמצאו תוצאות עבור "${search}"` : 'הוסף שמחה ראשונה בעזרת הכפתור למעלה'}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-right">

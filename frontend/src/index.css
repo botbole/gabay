@@ -2,16 +2,25 @@
 
 @layer base {
   :root {
-    --background: 210 60% 97%;
-    --foreground: 222 47% 11%;
-    --primary: 210 80% 45%;
-    --primary-foreground: 0 0% 100%;
-    --muted: 210 50% 93%;
-    --muted-foreground: 215 16% 47%;
-    --border: 210 40% 86%;
-    --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
-    --destructive: 0 84% 60%;
+    /* Brand palette */
+    --color-indigo:      #2E3A59;
+    --color-indigo-dark: #1e263b;
+    --color-indigo-soft: #3d4f78;
+    --color-gold:        #C5A059;
+    --color-gold-light:  #d4b577;
+    --color-bg:          #F8FAFC;
+
+    /* Semantic tokens (HSL for Tailwind compat) */
+    --background:        214 32% 98%;   /* #F8FAFC */
+    --foreground:        222 47% 11%;   /* near-black */
+    --primary:           222 33% 26%;   /* #2E3A59 indigo */
+    --primary-foreground:0 0% 100%;
+    --muted:             214 32% 94%;
+    --muted-foreground:  215 16% 47%;
+    --border:            214 20% 88%;
+    --card:              0 0% 100%;
+    --card-foreground:   222 47% 11%;
+    --destructive:       0 84% 60%;
   }
 
   * {
@@ -23,8 +32,26 @@
   }
 
   body {
-    background-color: hsl(210, 55%, 96%);
+    background-color: var(--color-bg);
     color: hsl(var(--foreground));
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    font-family: 'Heebo', 'Segoe UI', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Smooth scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
   }
 }

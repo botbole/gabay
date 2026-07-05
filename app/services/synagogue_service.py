@@ -562,9 +562,15 @@ class SynagogueService:
         """
         with get_session() as session:
             azkarot = session.exec(select(Azkara)).all()
+            congregant_map = {
+                c.id: f"{c.first_name} {c.last_name}"
+                for c in session.exec(select(Congregant)).all()
+            }
 
         events = [a.model_dump() for a in azkarot]
         upcoming = upcoming_occurrences(events, days_ahead=days_ahead)
+        for item in upcoming:
+            item["congregant_name"] = congregant_map.get(item.get("congregant_id"), "")
         return {
             "days_ahead": days_ahead,
             "total": len(upcoming),
@@ -683,9 +689,15 @@ class SynagogueService:
             if occasion_type:
                 stmt = stmt.where(Simcha.occasion_type == occasion_type)
             smachot = session.exec(stmt).all()
+            congregant_map = {
+                c.id: f"{c.first_name} {c.last_name}"
+                for c in session.exec(select(Congregant)).all()
+            }
 
         events = [s.model_dump() for s in smachot]
         upcoming = upcoming_occurrences(events, days_ahead=days_ahead)
+        for item in upcoming:
+            item["congregant_name"] = congregant_map.get(item.get("congregant_id"), "")
         return {
             "days_ahead": days_ahead,
             "occasion_type": occasion_type,

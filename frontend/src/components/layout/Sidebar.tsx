@@ -14,37 +14,42 @@ import {
 } from 'lucide-react';
 
 const nav = [
-  { to: '/chat', label: 'עוזר גבאי AI', icon: MessageCircle },
-  { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
-  { to: '/congregants', label: 'מתפללים', icon: Users },
-  { to: '/payments', label: 'תשלומים', icon: CreditCard },
-  { to: '/seating', label: 'מפת מושבים', icon: Armchair },
-  { to: '/aliyot', label: 'עליות לתורה', icon: BookOpen },
-  { to: '/azkarot', label: 'אזכרות', icon: Star },
-  { to: '/smachot', label: 'שמחות', icon: Heart },
-  { to: '/calendar', label: 'לוח עברי', icon: Calendar },
-  { to: '/import', label: 'ייבוא מתפללים', icon: Upload },
+  { to: '/chat',        label: 'עוזר גבאי AI',      icon: MessageCircle },
+  { to: '/',            label: 'לוח בקרה',           icon: LayoutDashboard, end: true },
+  { to: '/congregants', label: 'מתפללים',            icon: Users },
+  { to: '/payments',    label: 'תשלומים',            icon: CreditCard },
+  { to: '/seating',     label: 'מפת מושבים',         icon: Armchair },
+  { to: '/aliyot',      label: 'עליות לתורה',        icon: BookOpen },
+  { to: '/azkarot',     label: 'אזכרות',             icon: Star },
+  { to: '/smachot',     label: 'שמחות',              icon: Heart },
+  { to: '/calendar',    label: 'לוח עברי',           icon: Calendar },
+  { to: '/import',      label: 'ייבוא מתפללים',      icon: Upload },
 ];
 
 export function Sidebar() {
   return (
-    <aside className="w-64 shrink-0 bg-white border-l border-blue-100 flex flex-col h-screen sticky top-0 shadow-sm">
+    <aside
+      className="w-60 shrink-0 flex flex-col h-screen sticky top-0 shadow-xl"
+      style={{ backgroundColor: 'var(--color-indigo)' }}
+    >
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-blue-100">
+      <div className="px-5 py-6 border-b border-white/10">
         <div className="flex items-center gap-3">
-          {/* Logo placeholder – replace src with your actual logo */}
-          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm overflow-hidden">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-lg shrink-0 overflow-hidden shadow-md"
+            style={{ backgroundColor: 'var(--color-gold)' }}
+          >
             <img
               src="/logo.png"
               alt="לוגו"
               className="w-full h-full object-cover"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
-            <span className="absolute">ג</span>
+            <span>ג</span>
           </div>
           <div>
-            <p className="font-bold text-gray-900 leading-tight">גבאי</p>
-            <p className="text-xs text-blue-400">מערכת ניהול בית כנסת</p>
+            <p className="font-bold text-white text-base leading-tight">גבאי</p>
+            <p className="text-xs text-white/50 leading-tight">ניהול בית כנסת</p>
           </div>
         </div>
       </div>
@@ -58,11 +63,14 @@ export function Sidebar() {
             end={end}
             className={({ isActive }) =>
               clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
                 isActive
-                  ? 'bg-blue-100 text-blue-700 font-semibold'
-                  : 'text-gray-600 hover:bg-blue-50 hover:text-blue-700',
+                  ? 'text-white font-semibold shadow-sm'
+                  : 'text-white/65 hover:text-white hover:bg-white/10',
               )
+            }
+            style={({ isActive }) =>
+              isActive ? { backgroundColor: 'var(--color-gold)' } : undefined
             }
           >
             <Icon className="h-4 w-4 shrink-0" />
@@ -72,8 +80,8 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-blue-100">
-        <p className="text-xs text-gray-400 text-center">© 2026 מערכת גבאי</p>
+      <div className="px-5 py-4 border-t border-white/10">
+        <p className="text-xs text-white/30 text-center">© 2026 מערכת גבאי</p>
       </div>
     </aside>
   );

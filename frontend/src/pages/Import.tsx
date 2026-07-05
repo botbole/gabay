@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input } from '../components/ui/Input';
+import { PageHeader } from '../components/ui/PageHeader';
 
 const CSV_TEMPLATE = `first_name,last_name,father_name,mother_name,phone,email,address,is_kohen,is_levi,member_type,birth_date,bar_mitzvah_shabbat,azkara_father,azkara_mother,notes
 משה,כהן,אברהם,שרה,050-1111111,moshe@example.com,ירושלים,true,false,regular,15/03/1975,,10/02/1955,,
@@ -120,10 +121,10 @@ export function Import() {
 
   return (
     <div className="p-6 space-y-6 max-w-3xl" dir="rtl">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 tracking-tight">ייבוא מתפללים</h1>
-        <p className="text-sm text-slate-500 mt-1">ייבוא מרובה של מתפללים מקובץ CSV או מטופס Google</p>
-      </div>
+      <PageHeader
+        title="ייבוא מתפללים"
+        subtitle="ייבוא מרובה של מתפללים מקובץ CSV או מטופס Google"
+      />
 
       {/* Tabs */}
       <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">

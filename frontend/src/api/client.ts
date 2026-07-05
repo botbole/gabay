@@ -294,6 +294,7 @@ export const aliyotApi = {
 export interface Azkara {
   id: string;
   congregant_id: string;
+  congregant_name?: string;
   deceased_name: string;
   deceased_hebrew_name: string;
   relation: string;
@@ -320,6 +321,7 @@ export interface AzkaraCreate {
 export interface Simcha {
   id: string;
   congregant_id: string;
+  congregant_name?: string;
   occasion_type: string;
   description: string;
   gregorian_date: string;

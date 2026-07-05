@@ -8,6 +8,8 @@ import { Badge } from '../components/ui/Badge';
 import { Input, Select } from '../components/ui/Input';
 import { DatePickerField } from '../components/ui/DatePickerField';
 import { Modal } from '../components/ui/Modal';
+import { PageHeader } from '../components/ui/PageHeader';
+import { EmptyState } from '../components/ui/EmptyState';
 
 const memberTypeLabel: Record<string, string> = {
   regular: 'קבוע',
@@ -820,32 +822,35 @@ export function Congregants() {
 
   return (
     <div className="p-6 space-y-4" dir="rtl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">מתפללים</h1>
-          <p className="text-sm text-slate-500 mt-1">{data?.total ?? 0} {isArchiveView ? 'בארכיב' : 'חברים רשומים'}</p>
-        </div>
-        {!isArchiveView && (
+      <PageHeader
+        title="מתפללים"
+        subtitle={`${data?.total ?? 0} ${isArchiveView ? 'בארכיב' : 'חברים רשומים'}`}
+        action={!isArchiveView ? (
           <Button onClick={() => setShowAdd(true)}>
             <UserPlus className="h-4 w-4" /> הוסף מתפלל
           </Button>
-        )}
-      </div>
+        ) : undefined}
+      />
 
       {/* View tabs */}
       <div className="flex gap-1 bg-slate-100 rounded-xl p-1 w-fit">
         <button
           onClick={() => { setView('active'); clearSelection(); }}
-          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${view === 'active' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+          className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150"
+          style={view === 'active'
+            ? { backgroundColor: 'var(--color-indigo)', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }
+            : { color: '#64748b' }}
         >
           פעילים
         </button>
         <button
           onClick={() => { setView('archived'); clearSelection(); }}
-          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${view === 'archived' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+          className="flex items-center gap-1 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-150"
+          style={view === 'archived'
+            ? { backgroundColor: 'var(--color-indigo)', color: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }
+            : { color: '#64748b' }}
         >
-          <Archive className="h-3.5 w-3.5 inline ml-1" />
+          <Archive className="h-3.5 w-3.5" />
           ארכיב
         </button>
       </div>
@@ -885,12 +890,11 @@ export function Congregants() {
           {isLoading ? (
             <div className="px-5 py-10 text-center text-sm text-slate-400">טוען...</div>
           ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center px-4">
-              <div className="bg-slate-50 p-5 rounded-full mb-3">
-                <Search className="w-8 h-8 text-slate-300" />
-              </div>
-              <p className="text-sm font-medium text-slate-600">{isArchiveView ? 'אין מתפללים בארכיב.' : 'לא נמצאו מתפללים.'}</p>
-            </div>
+            <EmptyState
+              icon={Search}
+              title={isArchiveView ? 'אין מתפללים בארכיב' : 'לא נמצאו מתפללים'}
+              description={search ? `לא נמצאו תוצאות עבור "${search}"` : undefined}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-right">

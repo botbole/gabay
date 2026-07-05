@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Input, Select } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
+import { PageHeader } from '../components/ui/PageHeader';
 import { clsx } from 'clsx';
 
 // ─── Seat tile ────────────────────────────────────────────────────────────────
@@ -16,7 +17,7 @@ function SeatTile({ place, onClick }: { place: Place; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      title={occupied ? `תפוס · ${place.section} ${place.row}${place.place_number}` : 'פנוי'}
+      title={occupied ? `תפוס · ${place.section} שורה ${place.row} מושב ${place.place_number}` : `פנוי · שורה ${place.row} מושב ${place.place_number}`}
       className={clsx(
         'w-10 h-10 rounded-lg text-xs font-semibold border-2 transition-all hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-1',
         occupied
@@ -24,7 +25,7 @@ function SeatTile({ place, onClick }: { place: Place; onClick: () => void }) {
           : 'bg-slate-50 border-slate-300 text-slate-600 hover:bg-[#2E3A59]/5 hover:border-[#2E3A59]/40 focus:ring-[#2E3A59]',
       )}
     >
-      {place.row}{place.place_number}
+      {place.place_number}
     </button>
   );
 }
@@ -440,48 +441,51 @@ export function Seating() {
 
   return (
     <div className="p-6 space-y-4" dir="rtl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">מפת מושבים</h1>
-          <p className="text-sm text-slate-500 mt-1">
-            {data?.total ?? 0} מושבים · <span className="text-red-600">{occupied} תפוסים</span> · <span className="text-emerald-600">{free} פנויים</span>
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {/* View toggle */}
-          <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-            <button onClick={() => setViewMode('map')} title="מפה"
-              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'map' ? 'bg-white shadow-sm text-[#2E3A59]' : 'text-slate-500 hover:text-slate-700'}`}>
-              <Map className="h-4 w-4" />
-            </button>
-            <button onClick={() => setViewMode('list')} title="רשימה"
-              className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-[#2E3A59]' : 'text-slate-500 hover:text-slate-700'}`}>
-              <LayoutList className="h-4 w-4" />
-            </button>
-          </div>
-          {places.length > 0 && (
-            <Button variant="ghost" onClick={() => setConfirmDeleteAll(true)} className="text-red-500 hover:text-red-700 hover:bg-red-50">
-              <Trash2 className="h-4 w-4" /> מחק כל המפה
+      <PageHeader
+        title="מפת מושבים"
+        subtitle={<>{data?.total ?? 0} מושבים · <span className="text-red-600">{occupied} תפוסים</span> · <span className="text-emerald-600">{free} פנויים</span></>}
+        action={
+          <>
+            <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+              <button onClick={() => setViewMode('map')} title="מפה"
+                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'map' ? 'bg-white shadow-sm text-[#2E3A59]' : 'text-slate-500 hover:text-slate-700'}`}>
+                <Map className="h-4 w-4" />
+              </button>
+              <button onClick={() => setViewMode('list')} title="רשימה"
+                className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-[#2E3A59]' : 'text-slate-500 hover:text-slate-700'}`}>
+                <LayoutList className="h-4 w-4" />
+              </button>
+            </div>
+            {places.length > 0 && (
+              <button
+                onClick={() => setConfirmDeleteAll(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border border-red-200 text-red-600 bg-white hover:bg-red-50 hover:border-red-300 transition-colors"
+              >
+                <Trash2 className="h-4 w-4" /> מחק כל המפה
+              </button>
+            )}
+            <Button variant="secondary" onClick={() => setShowBuilder(true)}>
+              <Building2 className="h-4 w-4" /> בנה מפה
             </Button>
-          )}
-          <Button variant="secondary" onClick={() => setShowBuilder(true)}>
-            <Building2 className="h-4 w-4" /> בנה מפה
-          </Button>
-          <Button onClick={() => setShowAdd(true)}>
-            <PlusCircle className="h-4 w-4" /> מושב בודד
-          </Button>
-        </div>
-      </div>
+            <Button onClick={() => setShowAdd(true)}>
+              <PlusCircle className="h-4 w-4" /> מושב בודד
+            </Button>
+          </>
+        }
+      />
 
       {/* Delete all confirm bar */}
       {confirmDeleteAll && (
         <div className="flex items-center gap-3 bg-red-600 text-white rounded-xl px-4 py-2.5">
           <span className="text-sm font-semibold">למחוק את כל {places.length} המושבים לצמיתות?</span>
           <div className="flex gap-2 mr-auto">
-            <Button size="sm" variant="danger" loading={deleteAllMutation.isPending} onClick={() => deleteAllMutation.mutate()}
-              className="bg-white text-red-600 hover:bg-red-50">
+            <button
+              disabled={deleteAllMutation.isPending}
+              onClick={() => deleteAllMutation.mutate()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg bg-white text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+            >
               <Trash2 className="h-3.5 w-3.5" /> כן, מחק הכל
-            </Button>
+            </button>
             <button onClick={() => setConfirmDeleteAll(false)} className="text-white/80 hover:text-white text-sm px-2">ביטול</button>
           </div>
         </div>

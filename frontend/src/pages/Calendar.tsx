@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, ChevronLeft, Flame, PartyPopper, Star, CalendarDays, Sunrise, Sunset, Moon, Clock } from 'lucide-react';
-import { calendarApi, congregantsApi, type CalendarDay, type CalendarMonth, type DayTimes } from '../api/client';
+import { calendarApi, congregantsApi, type CalendarDay, type CalendarMonth } from '../api/client';
+import { PageHeader } from '../components/ui/PageHeader';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -148,14 +149,14 @@ function DayTimesSection({ date }: { date: string }) {
   }
   if (!times) return null;
 
-  const rows: { icon: JSX.Element; label: string; value: string }[] = [
+  const rows: { icon: ReactElement; label: string; value: string }[] = [
     times.alot_hashachar && { icon: <Clock className="h-3.5 w-3.5 text-gray-400" />, label: 'עלות השחר', value: times.alot_hashachar },
     times.sunrise && { icon: <Sunrise className="h-3.5 w-3.5 text-amber-500" />, label: 'הנץ החמה', value: times.sunrise },
     times.chatzot && { icon: <Clock className="h-3.5 w-3.5 text-gray-400" />, label: 'חצות היום', value: times.chatzot },
     times.plag_hamincha && { icon: <Clock className="h-3.5 w-3.5 text-gray-400" />, label: 'פלג המנחה', value: times.plag_hamincha },
     times.sunset && { icon: <Sunset className="h-3.5 w-3.5 text-orange-500" />, label: 'שקיעה', value: times.sunset },
     times.tzeit_hakochavim && { icon: <Moon className="h-3.5 w-3.5 text-indigo-400" />, label: 'צאת הכוכבים', value: times.tzeit_hakochavim },
-  ].filter(Boolean) as { icon: JSX.Element; label: string; value: string }[];
+  ].filter(Boolean) as { icon: ReactElement; label: string; value: string }[];
 
   return (
     <div className="rounded-lg bg-[#2E3A59]/5 border border-[#2E3A59]/10 px-3 py-2">
@@ -518,40 +519,39 @@ export function Calendar() {
 
   return (
     <div className="p-6 h-full" dir="rtl">
-      {/* Page header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">לוח עברי</h1>
-          <p className="text-sm text-slate-500 mt-1">שבתות, חגים ואירועי הקהילה</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={goToToday}
-            className="px-3 py-1.5 text-sm rounded-lg border border-[#2E3A59] text-[#2E3A59] hover:bg-[#2E3A59]/5 transition-colors font-medium"
-          >
-            היום
-          </button>
-          {/* Hebrew / Gregorian toggle */}
-          <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+      <PageHeader
+        title="לוח עברי"
+        subtitle="שבתות, חגים ואירועי הקהילה"
+        className="mb-4"
+        action={
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowGregorian(false)}
-              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-                !showGregorian ? 'bg-white text-[#2E3A59] shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
+              onClick={goToToday}
+              className="px-3 py-1.5 text-sm rounded-lg border border-[#2E3A59] text-[#2E3A59] hover:bg-[#2E3A59]/5 transition-colors font-medium"
             >
-              עברי
+              היום
             </button>
-            <button
-              onClick={() => setShowGregorian(true)}
-              className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
-                showGregorian ? 'bg-white text-[#2E3A59] shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              לועזי
-            </button>
+            <div className="flex items-center bg-slate-100 rounded-lg p-0.5">
+              <button
+                onClick={() => setShowGregorian(false)}
+                className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+                  !showGregorian ? 'bg-white text-[#2E3A59] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                עברי
+              </button>
+              <button
+                onClick={() => setShowGregorian(true)}
+                className={`px-3 py-1.5 text-sm rounded-md font-medium transition-colors ${
+                  showGregorian ? 'bg-white text-[#2E3A59] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                לועזי
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Loading / Error states */}
       {(isLoading || year === null) && (
