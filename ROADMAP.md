@@ -1,6 +1,6 @@
 # ROADMAP – גבאי
 
-מסמך זה מפרק את הפיתוח ל-3 אבני דרך. הצ'קבוקסים משקפים את המצב בפועל בקוד.
+מסמך זה מפרק את הפיתוח לאבני דרך. הצ'קבוקסים משקפים את המצב בפועל בקוד.
 
 ---
 
@@ -88,7 +88,6 @@
 - [x] בדיקות אינטגרציה – שמחות (סוגים שונים, סינון, מחיקה)
 - [x] בדיקות לוח שנה עברי (המרות תאריכים, next-occurrence, month-view)
 - [x] בדיקות ייבוא CSV (כותרות עבריות/אנגליות, כהן/לוי/ישראל, auto-create, שגיאות)
-- [ ] בדיקות E2E (Playwright) – תרחישי הוספת מתפלל ורישום תשלום מקצה לקצה
 
 ---
 
@@ -263,3 +262,59 @@
 - [ ] Template Messages מאושרות מטא לתזכורות אזכרה (D-7 ו-D-1)
 - [ ] `POST /webhooks/broadcast` – endpoint לגבאי לשליחת עדכון לכלל המתפללים (או לרשימה)
 - [ ] כפתור "שלח תזכורת בוואטסאפ" ממסך האזכרות בממשק הגבאי
+
+---
+
+## Milestone 4 – Platform & Customization · ארכיטקטורת פלטפורמה
+
+יעד: הפיכת Gabay ממערכת סגורה לפלטפורמה גמישה שניתן להתאים לכל בית כנסת – עם יכולת להדליק/לכבות מודולים ולהזריק לוגיקה מותאמת אישית מבלי לגעת ב-Core.
+
+> **רעיון המפתח:** כל בית כנסת מקבל "מניפסט" שמגדיר אילו מודולים פעילים ומהי הזהות הויזואלית שלו. הגבאי מתאים את עצמו אוטומטית.
+
+### Module Registry – Backend
+- [ ] `app/core/registry.py` – רישום דינמי של ראוטרים ושירותים לפי מודולים
+- [ ] `ENABLED_MODULES` ב-`.env` (לדוגמה: `payments,aliyot,seating,whatsapp`)
+- [ ] `main.py` רושם רק ראוטרים של מודולים פעילים
+- [ ] תיעוד: כל מודול חדש מגדיר רישום עצמי (`module_meta.py`) עם שם, ראוטר ותלויות
+
+### Hook System (Event Bus) – Backend
+- [ ] `app/core/hooks.py` – מנגנון `register(event, handler)` + `fire(event, **kwargs)` אסינכרוני
+- [ ] אירועי Core מוגדרים:
+  - `congregant.created`, `congregant.archived`
+  - `payment.recorded`
+  - `aliya.assigned`
+  - `azkara.approaching` (D-7, D-1)
+  - `bulletin.building` (לפני יצירת הלוח השבועי)
+- [ ] כל מודול (ובמיוחד מודולי קסטומיזציה) יכול להירשם לאירועים בזמן הפעלה
+
+### Tenant Configuration – Backend
+- [ ] מודל `TenantConfig` – הגדרות בית הכנסת (שם, לוגו URL, צבע ראשי, צבע משני, שם הרב, כתובת)
+- [ ] endpoint `GET /config` – מחזיר את ה-Manifest לפרונטנד (מודולים פעילים + עיצוב)
+- [ ] endpoint `PATCH /config` – עדכון הגדרות (זמין לגבאי ראשי בלבד)
+
+### Dynamic Theme & Modules – Frontend
+- [ ] `AppConfig` context – נטען ב-init מ-`GET /config`, מכיל מודולים פעילים + צבעים
+- [ ] `Sidebar` מרנדר פריטי ניווט רק למודולים שב-`AppConfig.modules`
+- [ ] CSS variables (`--color-indigo`, `--color-gold`) נקבעות דינמית מה-Manifest בזמן ריצה
+- [ ] לוגו בית הכנסת ב-Sidebar נטען מה-`AppConfig.logo_url`
+
+### Multi-tenancy Foundation (הכנה לענן)
+- [ ] הוספת שדה `tenant_id` לכל המודלים (Congregant, Payment, Aliya, ...)
+- [ ] Middleware שמזריק `tenant_id` לכל שאילתת DB לפי JWT / subdomain
+- [ ] תיעוד ארכיטקטורת tenant: DB-per-tenant (SQLite) לעומת shared DB עם isolation
+
+---
+
+## Milestone 5 – Quality Assurance & UI Automation · הבטחת איכות ואוטומציה
+
+יעד: הבטחת יציבות הממשק וחווית המשתמש (UX) לפני הפצה רחבה, תוך שימוש בבדיקות דפדפן אוטומטיות.
+
+### תשתית E2E
+- [ ] הקמת תשתית Playwright בתיקיית ה-Frontend
+- [ ] כתיבת Smoke Tests למסלולים קריטיים (Login -> Dashboard)
+- [ ] בדיקת תהליכי ליבה מקצה לקצה:
+  - יצירת מתפלל ובדיקה שהוא מופיע בטבלה
+  - רישום תשלום ווידוא עדכון היתרה בדאשבורד
+  - הפקת דוח שנתי ובדיקת הורדת הקובץ
+- [ ] בדיקת רספונסיביות: וודוא שהממשק שמיש במובייל וטאבלט
+- [ ] בדיקת נגישות (Accessibility) בסיסית לאלמנטים המרכזיים
