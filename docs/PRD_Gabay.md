@@ -1,199 +1,312 @@
-# אפיון מוצר – גבאי (Gabay)
+﻿# Product Requirements Document – Gabay
 
-## 1. סקירה כללית
+## 1. Overview
 
-**גבאי** הוא מערכת ניהול בית כנסת המיועדת לגבאים ומנהלי קהילות. המערכת מאפשרת ניהול מתפללים, תשלומים, עליות לתורה, מקומות ישיבה, אזכרות ושמחות – הכול ממשק אחד, בעברית, עם תמיכה מלאה בלוח השנה העברי.  
-ממשק הצ'אט המובנה, המופעל על ידי LLM, מאפשר לגבאי לבצע כל פעולה בשפה טבעית ללא צורך בניווט בתפריטים.
-
----
-
-## 2. קהל יעד
-
-### משתמש עיקרי – הגבאי
-- מנהל יומיומי של בית הכנסת: גבאי ראשי או סגנו
-- בדרך כלל בעל ידע טכנולוגי בסיסי עד בינוני
-- עובד בעברית; מכיר היטב את לוח השנה העברי ומינוחי בית כנסת
-- זקוק למידע מהיר בזמן תפילה (מי נכח, מי מקבל עלייה, מי ביום יארצייט)
-
-### משתמשים משניים
-- **מנהל כספים קהילתי** – מעקב תשלומים ותרומות
-- **רב / חזן** – בדיקת עליות לתורה ואזכרות לפרשת השבוע
+**Gabay** is a synagogue management system designed for gabbaim (synagogue administrators) and community managers. The system enables management of congregants, payments, Torah aliyot, seating assignments, yahrzeits (memorial anniversaries), and joyous events — all from a single interface, in Hebrew, with full Hebrew calendar support.  
+The built-in chat interface, powered by an LLM, allows the gabbai to perform any operation in natural language without navigating menus.
 
 ---
 
-## 3. בעיה שהמוצר פותר
+## 2. Target Audience
 
-גבאים מנהלים כיום את פרטי הקהילה בגיליונות אקסל, פנקסים ידניים, או מספר קבצים מקבילים. הדבר מוביל ל:
-- מידע מפוצל ולא מעודכן
-- קושי בחיפוש מהיר במהלך תפילה
-- אין תזכורות אוטומטיות לאזכרות ושמחות
-- חישובי תאריכים עבריים ידניים ומועדים לטעויות
+### Primary User – The Gabbai
+- Day-to-day administrator of the synagogue: head gabbai or deputy
+- Typically has basic to intermediate technical proficiency
+- Works in Hebrew; well-versed in the Hebrew calendar and synagogue terminology
+- Requires quick access to information during prayer services (who attended, who receives an aliyah, who has a yahrzeit)
 
----
-
-## 4. פיצ'רים – MVP
-
-### 4.1 ניהול מתפללים
-
-**תיאור:** ספר הקהילה המרכזי.
-
-**יכולות:**
-- הוספה, עריכה ומחיקה (רכה – ארכיון) של מתפלל
-- שדות: שם, שם בעברית, שם האב, שם האם, טלפון, מייל, כתובת, מין, סוג חברות (קבוע / אורח / מזדמן), מעמד (כהן / לוי / ישראל)
-- חיפוש טקסטואלי בשם
-- ייבוא מרובה מקובץ CSV או Google Sheets (כולל תמיכה בכותרות עבריות)
-- ארכוב / שחזור מתפלל מבלי למחוק את ההיסטוריה
-
-**כללים עסקיים:**
-- מתפלל מארכב אינו מוצג בחיפוש רגיל אך היסטוריית הפעילות שלו נשמרת
-- ייבוא CSV ממפה עמודות לפי שם (גמיש לסדר)
+### Secondary Users
+- **Community Finance Manager** – tracking payments and donations
+- **Rabbi / Cantor** – reviewing Torah aliyot and yahrzeits for the weekly portion
 
 ---
 
-### 4.2 לוח שנה עברי
+## 3. Problem Statement
 
-**תיאור:** תצוגת חודש המשלבת תאריכים גרגוריאניים ועבריים עם אירועים קהילתיים.
-
-**יכולות:**
-- תצוגת חודש מלאה עם שני לוחות: גרגוריאני ועברי
-- הדגשת שבתות וחגים
-- המרה דו-כיוונית בין תאריכים (גרגוריאני ↔ עברי)
-- חישוב "מועד הבא" לתאריך עברי נתון (לצורך אזכרות ושמחות)
-- תצוגת אירועי הקהילה בלוח: אזכרות ושמחות המתוכננות לאותו חודש
-
-**פרטי יישום:**
-- ממומש עם ספריית `pyluach` בצד השרת
-- תגובות API כוללות פרטי חג ושבת לכל יום
+Gabbaim currently manage community records in Excel spreadsheets, handwritten notebooks, or multiple parallel files. This leads to:
+- Fragmented and outdated information
+- Difficulty performing quick lookups during prayer services
+- No automatic reminders for yahrzeits and joyous occasions
+- Manual Hebrew date calculations prone to error
 
 ---
 
-### 4.3 תשלומים
+## 4. Features – MVP
 
-**תיאור:** מעקב אחר תשלומי חברות ותרומות.
+### 4.1 Congregant Management
 
-**יכולות:**
-- רישום תשלום לכל מתפלל: סכום, מטבע, מטרה, תאריך, הערות
-- היסטוריית תשלומים למתפלל
-- רשימת "ממתינים לתשלום" – מתפללים שטרם שילמו לפי מטרה
-- מחיקה מרובה
+**Description:** The central community registry.
 
----
+**Capabilities:**
+- Add, edit, and delete (soft delete – archive) congregants
+- Fields: name, Hebrew name, father's name, mother's name, phone, email, address, gender, membership type (regular / guest / occasional), status (Kohen / Levi / Yisrael)
+- Full-text search by name
+- Bulk import from CSV or Google Sheets (including support for Hebrew column headers)
+- Archive / restore a congregant without deleting their history
 
-### 4.4 עליות לתורה (עלייות)
-
-**תיאור:** ניהול חלוקת עליות לפרשות.
-
-**יכולות:**
-- שיוך עלייה למתפלל: פרשה, סוג עלייה (ראשון / שני / ... / מפטיר), תאריך, מנהג, תרומה, הערות
-- תצוגת עליות לפי פרשה
-- היסטוריית עליות למתפלל
-- מחיקה מרובה
+**Business Rules:**
+- An archived congregant does not appear in regular searches, but their activity history is preserved
+- CSV import maps columns by header name (flexible column ordering)
 
 ---
 
-### 4.5 מקומות ישיבה
+### 4.2 Hebrew Calendar
 
-**תיאור:** מפת מקומות בבית הכנסת.
+**Description:** A monthly calendar view combining Gregorian and Hebrew dates with community events.
 
-**יכולות:**
-- הגדרת מקום: מקטע, שורה, מספר מקום, דמי שנתי, מוגדר/חופשי
-- שיוך / ביטול שיוך מקום למתפלל
-- סינון מקומות פנויים / תפוסים / לפי מקטע
-- שאילתת "מהו מקומו של מתפלל X"
+**Capabilities:**
+- Full month view with dual display: Gregorian and Hebrew
+- Highlighting of Shabbat and Jewish holidays
+- Bidirectional date conversion (Gregorian ↔ Hebrew)
+- Calculation of "next occurrence" for a given Hebrew date (for yahrzeits and joyous events)
+- Display of community events on the calendar: yahrzeits and joyous occasions scheduled for that month
 
----
-
-### 4.6 אזכרות (יארצייט)
-
-**תיאור:** ניהול תאריכי יארצייט לבני משפחה של מתפללים.
-
-**יכולות:**
-- הוספת אזכרה: שם הנפטר, קשר משפחתי, תאריך עברי + גרגוריאני, שנת הפטירה, הערות
-- רשימת אזכרות קרובות (X ימים הבאים)
-- סינון לפי מתפלל
+**Implementation Details:**
+- Implemented using the `pyluach` library on the server side
+- API responses include holiday and Shabbat details for each day
 
 ---
 
-### 4.7 שמחות
+### 4.3 Payments
 
-**תיאור:** ניהול אירועי שמחה קהילתיים.
+**Description:** Tracking membership payments and donations.
 
-**יכולות:**
-- הוספת שמחה: סוג (יום הולדת / בר מצווה / בת מצווה / יובל / ברית / חתונה / אחר), תיאור, תאריך עברי + גרגוריאני, פרשה, שנת האירוע, הערות
-- רשימת שמחות קרובות (X ימים הבאים)
-- סינון לפי מתפלל / סוג
+**Capabilities:**
+- Record a payment for any congregant: amount, currency, purpose, date, notes
+- Payment history per congregant
+- "Pending payment" list – congregants who have not yet paid for a given purpose
+- Bulk delete
 
 ---
 
-### 4.8 ממשק LLM בעברית (הגבאי הדיגיטלי)
+### 4.4 Torah Aliyot
 
-**תיאור:** צ'אט בעברית שמאפשר לגבאי לבצע כל פעולה בשפה טבעית.
+**Description:** Managing the distribution of Torah aliyot per parasha.
 
-**יכולות:**
-- שאלות ותשובות: "מי קיבל עלייה ראשונה בפרשת בראשית?", "מה היתרה של אברהם כהן?"
-- ביצוע פעולות: "הוסף תשלום של 500 ש"ח מדוד לוי עבור חברות", "שייך את מקום א-3 לשמעון ישראל"
-- תזכורות: "מי יש לו יארצייט השבוע?"
-- מנגנון: LLM מקבל prompt בעברית + רשימת כלים (JSON Schema); בוחר כלי רלוונטי → קריאה לשירות → תשובה בעברית
+**Capabilities:**
+- Assign an aliyah to a congregant: parasha, aliyah type (First / Second / … / Maftir), date, custom, donation, notes
+- View aliyot by parasha
+- Aliyah history per congregant
+- Bulk delete
 
-**כלי LLM (tools) זמינים:**
-| קטגוריה | כלים |
+---
+
+### 4.5 Seating
+
+**Description:** A seating map of the synagogue.
+
+**Capabilities:**
+- Define a seat: section, row, seat number, annual fee, assigned / unassigned
+- Assign / unassign a seat to a congregant
+- Filter seats by available / occupied / section
+- Query: "What is congregant X's seat?"
+
+---
+
+### 4.6 Yahrzeits (Azkara)
+
+**Description:** Managing yahrzeit dates for congregants' family members.
+
+**Capabilities:**
+- Add a yahrzeit: name of deceased, family relationship, Hebrew + Gregorian date, year of passing, notes
+- List of upcoming yahrzeits (next X days)
+- Filter by congregant
+
+---
+
+### 4.7 Joyous Events (Simchot)
+
+**Description:** Managing community joyous occasions.
+
+**Capabilities:**
+- Add a simcha: type (birthday / bar mitzvah / bat mitzvah / jubilee / brit milah / wedding / other), description, Hebrew + Gregorian date, parasha, year of event, notes
+- List of upcoming simchot (next X days)
+- Filter by congregant / type
+
+---
+
+### 4.8 Hebrew LLM Interface (The Digital Gabbai)
+
+**Description:** A Hebrew-language chat that allows the gabbai to perform any operation in natural language.
+
+**Capabilities:**
+- Questions and answers: "Who received the first aliyah for Parshat Bereishit?", "What is Avraham Cohen's balance?"
+- Performing actions: "Add a payment of 500 NIS from David Levy for membership", "Assign seat A-3 to Shimon Yisrael"
+- Reminders: "Who has a yahrzeit this week?"
+- Mechanism: The LLM receives a Hebrew system prompt + tool list (JSON Schema); selects the relevant tool → calls the service → responds in Hebrew
+
+**Available LLM Tools:**
+| Category | Tools |
 |---|---|
-| מתפללים | חיפוש, הוספה, עדכון, ארכוב |
-| תשלומים | רישום, בדיקת היסטוריה, רשימת ממתינים |
-| עליות | שיוך עלייה, היסטוריה לפי מתפלל / פרשה |
-| מקומות | שאילתה, שיוך, ביטול שיוך |
-| אזכרות | הוספה, רשימה קרובה |
-| שמחות | הוספה, רשימה קרובה |
-| לוח שנה | המרת תאריכים, תצוגת חודש |
+| Congregants | Search, add, update, archive |
+| Payments | Record, view history, pending list |
+| Aliyot | Assign aliyah, history by congregant / parasha |
+| Seating | Query, assign, unassign |
+| Yahrzeits | Add, upcoming list |
+| Simchot | Add, upcoming list |
+| Calendar | Date conversion, monthly view |
 
-**תנאי כשל:** כאשר ה-LLM לא מצליח לזהות כלי מתאים – מחזיר הסבר בעברית ומבקש פרטים נוספים.
+**Failure Condition:** When the LLM cannot identify an appropriate tool — it returns an explanation in Hebrew and requests additional details.
 
 ---
 
-## 5. פיצ'רים מחוץ ל-MVP (עתידי)
+## 5. Future Features (Post-MVP)
 
-| פיצ'ר | נימוק |
+### 5.1 Communications & Weekly Bulletin
+- **Communication Hub:** Sending automatic WhatsApp and email reminders for yahrzeits and simchot
+- **Dynamic Weekly Bulletin (2.5):** Auto-generator for a formatted Shabbat announcement via WhatsApp, email (Google Groups), and basic printing
+- **Designed Weekly Bulletin (2.9):** Canva-style design engine with Auto-Scaling to A4, theme management, and high-quality PDF/image export
+
+### 5.2 Finance & Reports
+- **Extended Financial Management (2.7):** Recording non-donation income and expenses (hall rental, grants)
+- **Annual Report:** Export P&L (income vs. expenses) for the synagogue board
+- **PDF Receipts:** Generation of formatted receipts with the synagogue's logo
+
+### 5.3 Advanced AI
+- **LLM 2.0 (2.5):** RAG support over PDF documents (bylaws, procedures, halachic rulings), complex queries
+- **Smart Aliyah Scheduler (2.8):** Automated assignment suggestions based on frequency, yahrzeit, and Kohen/Levi/Yisrael status
+- **Rules-Based Prayer Timetable (2.6):** Automatic prayer time calculation relative to sunset/sunrise
+
+### 5.4 Community WhatsApp Bot (3.5)
+- **Congregant Interface:** 24/7 self-service for congregants via WhatsApp (no registration, no app required)
+- **Phone-Based Identification:** Congregant is identified by their phone number; the restricted LLM only sees their personal data
+- **Broadcast:** Sending community-wide updates from the gabbai interface
+
+### 5.5 Platform Architecture (4)
+- **Module Registry:** Enable/disable modules per synagogue's needs (`.env`)
+- **Hook System:** Custom logic injection points without modifying the core
+- **Tenant Config:** Dynamic theming (colors, logo) per synagogue
+- **Multi-tenancy:** Data isolation for SaaS deployments with multiple synagogues
+
+### 5.6 Mobile Application – Android & iOS (Milestone 6)
+
+**Vision:** The gabbai manages the community from the palm of his hand — anywhere, at any time, including during prayer services.
+
+**Recommended Approach – React Native:**
+- Reuses 90% of existing logic and the current API layer
+- Single codebase for both platforms (Android + iOS)
+- Full Hebrew RTL interface with Hebrew calendar support
+
+**Key Mobile Features:**
+- Dashboard with community statistics
+- Quick congregant search and profile view
+- One-tap payment and aliyah recording
+- Push notifications for upcoming yahrzeits and simchot (D-7, D-1)
+- Access to the Digital Gabbai chat (LLM)
+- Basic offline mode — read from local cache when disconnected
+
+**Implementation Phases:**
+1. **Phase 1 (MVP Mobile):** Dashboard, congregant search, payment recording, Push notifications
+2. **Phase 2:** LLM chat, aliyot, azkarot, Hebrew calendar
+3. **Phase 3:** Full offline mode, biometrics (Face ID / Fingerprint)
+
+| Feature | Status |
 |---|---|
-| ניהול משתמשים / הרשאות | MVP מניח גבאי יחיד |
-| אפליקציית מובייל | ה-UI הנוכחי אינו מותאם מגע |
-| שליחת תזכורות (SMS / מייל) | תלוי בשירות חיצוני |
-| דוחות וגרפים | BI בשלב מאוחר יותר |
-| ריבוי בתי כנסת (multi-tenant) | ארכיטקטורת SaaS עתידית |
-| תמלול דיבור לטקסט בצ'אט | נגישות מורחבת |
+| User Management / Permissions (JWT) | Milestone 3 |
+| Dynamic Weekly Bulletin | Milestone 2.5 |
+| Designed Weekly Bulletin (Canva-style) | Milestone 2.9 |
+| Financial Management & Annual Reports | Milestone 2.7 |
+| Smart Aliyah Scheduler + Inventory | Milestone 2.8 |
+| Community WhatsApp Bot | Milestone 3.5 |
+| Platform Architecture (SaaS) | Milestone 4 |
+| E2E Tests (Playwright) | Milestone 5 |
+| Mobile Application (Android + iOS) | Milestone 6 |
 
 ---
 
-## 6. ארכיטקטורה טכנית (סיכום)
+## 6. Technical Architecture (Summary)
 
-| שכבה | טכנולוגיה |
+### 6.1 Architecture Overview
+
+The system follows a **Modular Monolith** pattern — one codebase, one deployment, but each feature is a self-contained module.
+
+```mermaid
+graph TD
+    subgraph Frontend [Frontend - React SPA]
+        Shell[App Shell / Layout]
+        ConfigCtx[Config Context]
+        Router[Dynamic Router]
+        Sidebar[Dynamic Sidebar]
+        Pages[Module Pages]
+        Shell --> ConfigCtx
+        ConfigCtx -->|Enable/Disable| Sidebar
+        ConfigCtx -->|Register Routes| Router
+        Router --> Pages
+    end
+    subgraph Backend [Backend - FastAPI]
+        Main[main.py Entry Point]
+        Registry[Module Registry]
+        Bus[Event Bus - Hooks]
+        subgraph Core [app/core/]
+            DB[Database Engine]
+            Auth[Auth - JWT]
+            Config[Tenant Config]
+        end
+        subgraph Modules [app/modules/]
+            direction LR
+            M_Cong[congregants]
+            M_Pay[payments]
+            M_Aliya[aliyot]
+            M_Seat[seating]
+            M_Cal[calendar]
+            M_LLM[llm]
+        end
+        Main --> Registry
+        Registry -->|Scan and Load| Modules
+        Modules --> DB
+        Modules -.->|Fire Events| Bus
+        Bus -.->|Notify Listeners| Modules
+        Config -->|JSON Manifest| Frontend
+    end
+    subgraph Mobile [Future - React Native]
+        App[Gabay Mobile App]
+        Push[Push Notifications]
+        App -->|REST API| Backend
+        Push -->|FCM / APNs| App
+    end
+```
+
+### 6.2 Modular Platform Principles
+
+Every feature is a self-contained module in `app/modules/`. The platform is designed for commercial tiering, multi-tenant SaaS, and custom deployments.
+
+| Principle | Description |
+|---|---|
+| **Pluggable Architecture** | Every feature (Payments, Aliyot, etc.) lives in `app/modules/` and can be enabled or disabled independently. |
+| **Dynamic Discovery** | `ModuleRegistry` loads routers and LLM tools based on the `ENABLED_MODULES` environment variable. |
+| **Event-Driven Communication** | Modules communicate via an internal Hook System (Event Bus) — zero coupling between features. |
+| **Soft Relationships** | Cross-module DB references use string IDs, not hard Foreign Keys, so modules can be removed without schema breakage. |
+| **Tenant Manifest** | A `GET /config` endpoint provides the frontend with active modules and per-synagogue branding. |
+
+### 6.2 Technology Stack
+
+| Layer | Technology |
 |---|---|
 | Backend | Python 3.11+, FastAPI, Uvicorn |
-| ORM / DB | SQLModel + SQLite (ניתן להחלפה ל-PostgreSQL) |
-| לוח שנה עברי | pyluach |
-| LLM | OpenAI API (גמיש: Azure / Ollama) |
+| ORM / DB | SQLModel + SQLite (switchable to PostgreSQL) |
+| Hebrew Calendar | pyluach |
+| LLM | OpenAI API (flexible: Azure / Ollama) |
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS |
-| State management | TanStack Query (React Query) |
+| State Management | TanStack Query (React Query) |
 | Routing | React Router 7 |
 
-**תקשורת:** REST API תחת `/api/v1/`. כל תגובה עטופה ב-`{ success, message, data }`.  
-**Dev proxy:** Vite מפנה `/api` → `http://localhost:8080`.
-
 ---
 
-## 7. מדדי הצלחה (MVP)
+## 7. Success Metrics (MVP)
 
-| מדד | יעד |
+| Metric | Target |
 |---|---|
-| זמן הוספת מתפלל חדש | פחות מ-60 שניות |
-| זמן מציאת יארצייט קרוב | פחות מ-10 שניות |
-| שאילתת צ'אט לתשובה | פחות מ-5 שניות |
-| ייבוא 100 מתפללים מ-CSV | פחות מ-30 שניות |
+| Time to add a new congregant | Less than 60 seconds |
+| Time to find an upcoming yahrzeit | Less than 10 seconds |
+| Chat query to response | Less than 5 seconds |
+| Import 100 congregants from CSV | Less than 30 seconds |
 
 ---
 
-## 8. נושאים פתוחים
+## 8. Open Issues
 
-1. **מטבעות:** האם יש צורך בתמיכה בדולר/אירו בנוסף לשקל? כרגע השדה גמיש.
-2. **גיבוי נתונים:** המשתמש אחראי לגיבוי קובץ `gabay.db` – האם יש צורך ב-export מובנה?
-3. **אימות:** MVP ללא אימות משתמשים. האם נדרש סיסמה בסיסית?
-4. **שפת UI:** הממשק כרגע מעורב (עברית/אנגלית). האם לאחד לעברית מלאה?
+1. **Currencies:** Is multi-currency support needed (USD/EUR in addition to NIS)? The field is currently flexible.
+2. **Data Backup:** Planned for Milestone 3 – a CSV export endpoint and manual backup documentation for `gabay.db`.
+3. **Authentication:** Planned for Milestone 3 – full JWT + Login page implementation.
+4. **UI Language:** The interface has been fully localized to Hebrew (RTL) – all headings, buttons, and menus are in Hebrew.
+

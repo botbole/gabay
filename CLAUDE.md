@@ -34,12 +34,19 @@ npm run preview    # serve production build locally
 
 ### Backend (`app/`)
 
-Layered FastAPI application:
+Modular FastAPI application (Milestone 1.5):
 
-- **`app/api/v1/`** — Route handlers (`synagogue.py`, `llm.py`); thin, delegate to services
-- **`app/services/`** — Business logic (`synagogue_service.py`, `llm_service.py`)
-- **`app/models/db_models.py`** — SQLModel table definitions (Congregant, Payment, Aliya, Place, Azkara, Simcha)
-- **`app/core/`** — Cross-cutting concerns: `config.py` (pydantic-settings), `db.py` (SQLite via SQLModel/SQLAlchemy), `llm.py` (OpenAI client factory), `hebrew_date.py` (pyluach wrappers)
+- **`app/modules/`** — One sub-package per domain. Each has `models.py`, `service.py`, `api.py`, `module.py`.
+  - `congregants/`, `payments/`, `aliyot/`, `seating/`, `azkarot/`, `smachot/`, `calendar/`, `llm/`
+- **`app/core/registry.py`** — `ModuleRegistry` + `ModuleDefinition`; `main.py` registers all modules here.
+- **`app/core/hooks.py`** — Async event bus (`hooks.register`, `hooks.fire`) for inter-module communication.
+- **`app/core/tenant.py`** — `TenantConfig` SQLModel table (name, logo, colours, enabled_modules).
+- **`app/core/`** — Cross-cutting: `config.py` (pydantic-settings + `ENABLED_MODULES`), `db.py`, `llm.py`, `hebrew_date.py`
+- **`app/api/v1/config.py`** — `GET/PATCH /api/v1/config` – tenant configuration endpoint.
+- **`app/models/db_models.py`** — Backward-compat shim; re-exports all models from their modules.
+- **`app/services/synagogue_service.py`** — Backward-compat facade; delegates to module services.
+
+**Loading order in `main.py`:** imports all `module.py` files → each registers itself with the global `registry` → `main.py` mounts only the modules listed in `settings.ENABLED_MODULES`.
 
 All API responses use a shared envelope: `{ success: bool, message: str, data: ... }` defined in `app/models/base.py`.
 
@@ -92,7 +99,17 @@ All settings are defined in `app/core/config.py` (Pydantic Settings).
 
 All UI changes must follow the **Modern Gabay Design System**:
 - **Style:** Modern, clean, and spiritual. Use `rounded-xl` for cards and `rounded-lg` for buttons.
-- **Colors:** Primary: Deep Indigo (`#2E3A59`), Secondary: Muted Gold (`#C5A059`), Background: `#F8FAFC`.
-- **RTL:** Full support for Hebrew (RTL). Use `dir="rtl"` and `text-right`.
-- **Components:** Always use components from `frontend/src/components/ui/`. Avoid raw HTML elements.
+- **Colors:** Primary: Deep Indigo (`#2E3A59`), Secondary: Muted Gold (`#C5A059`), Background: `#F8FAFC`. These are defined as CSS variables: `var(--color-indigo)`, `var(--color-gold)`, `var(--color-bg)` in `frontend/src/index.css`.
+- **Font:** Heebo (loaded from Google Fonts in `frontend/index.html`). Applied globally via CSS.
+- **RTL:** Full support for Hebrew (RTL). The root `<html>` element has `dir="rtl"` and `lang="he"`.
+- **Components:** Always use components from `frontend/src/components/ui/`. Avoid raw HTML elements. Key shared components:
+  - **`PageHeader`** (`components/ui/PageHeader.tsx`) — Use at the top of every page. Accepts `title`, `subtitle`, `action`.
+  - **`EmptyState`** (`components/ui/EmptyState.tsx`) — Use whenever a list or table has no data. Accepts `icon`, `title`, `description`, `action`.
+  - **`Header`** (`components/layout/Header.tsx`) — Top bar showing current page title and Hebrew/Gregorian date. Already included in `Layout.tsx`.
 - **Feedback:** Use loading states and success/error notifications for all actions.
+
+## Key Architecture Decisions
+
+- **Hook System (active – Milestone 1.5):** `app/core/hooks.py` provides an async pub/sub event bus. Services fire events (e.g., `aliya.assigned_with_donation`) and other modules can subscribe without tight coupling. Example: aliyot module fires an event; payments module auto-records the pledge.
+- **Module Registry (active – Milestone 1.5):** Every feature is a self-contained module under `app/modules/`. New features must follow the same pattern. Avoid imports between modules except via lazy imports or hooks.
+- **Testing convention:** After completing each milestone, add integration tests under `tests/` using `pytest` + `httpx.AsyncClient` with the in-memory SQLite fixture from `tests/conftest.py`. E2E tests (Playwright) are deferred to Milestone 5.

@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     ZMANIM_GEONAME_ID: int = 294801
     ZMANIM_CITY_NAME: str = "חיפה"
 
+    # Modules enabled at startup (can be overridden per-tenant via TenantConfig)
+    ENABLED_MODULES: list[str] = [
+        "congregants", "payments", "aliyot", "seating",
+        "azkarot", "smachot", "calendar", "llm",
+    ]
+
     # LLM provider settings
     LLM_PROVIDER: str = "openai"          # "openai" | "azure" | "ollama"
     LLM_MODEL: str = "gpt-4o"

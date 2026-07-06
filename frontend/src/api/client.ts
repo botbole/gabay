@@ -461,3 +461,42 @@ export const calendarApi = {
   dayTimes: (date: string) =>
     request<DayTimes>(`/synagogue/calendar/day-times?date=${date}`),
 };
+
+// ─── Tenant Config ───────────────────────────────────────────────────────────
+
+export interface ModuleManifestItem {
+  module_id: string;
+  display_name: string;
+  icon: string;
+  nav_path: string;
+}
+
+export interface TenantConfig {
+  id: number;
+  synagogue_name: string;
+  logo_url: string;
+  color_primary: string;
+  color_secondary: string;
+  color_bg: string;
+  enabled_modules: string;
+  enabled_modules_list: string[];
+  modules_manifest: ModuleManifestItem[];
+}
+
+export interface TenantConfigUpdate {
+  synagogue_name?: string;
+  logo_url?: string;
+  color_primary?: string;
+  color_secondary?: string;
+  color_bg?: string;
+  enabled_modules?: string[];
+}
+
+export const configApi = {
+  get: () => request<TenantConfig>('/config'),
+  update: (data: TenantConfigUpdate) =>
+    request<TenantConfig>('/config', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+};

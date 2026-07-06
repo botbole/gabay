@@ -1,0 +1,42 @@
+﻿# Python virtual environment
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Test caches
+.pytest_cache/
+
+# Frontend build output
+frontend/dist/
+
+# Node modules
+frontend/node_modules/
+node_modules/
+
+# Lock files
+package-lock.json
+frontend/package-lock.json
+
+# Runtime logs
+server_out.txt
+server_err.txt
+
+# SQLite database (binary)
+gabay.db
+
+# Claude / Cursor internals
+.claude/
+.cursor/skills/
+.cursor/rules/
+
+# Docs (use @docs/PRD_GABAY.md explicitly when needed)
+docs/
+
+# Static assets
+frontend/src/assets/
+
+# TypeScript build info
+*.tsbuildinfo

@@ -1,0 +1,31 @@
+﻿# Gabay Project Rules
+
+## Communication
+- Always respond in English unless the user explicitly writes in Hebrew or asks for a Hebrew response.
+- Keep explanations concise and professional.
+
+## Architecture Quick Reference
+- Backend flow: app/api/v1/ -> app/services/ -> app/models/db_models.py
+- Frontend API: all calls go through frontend/src/api/client.ts only -- never fetch directly
+- Response envelope: always { success, message, data }
+- Hebrew dates: use app/core/hebrew_date.py (pyluach wrapper) -- never reimplement
+
+## Development Standards
+- UI components: use PageHeader and EmptyState from components/ui/ for every new page
+- RTL: dir=rtl is set globally on <html> -- never override it
+- Colors: use CSS vars var(--color-indigo), var(--color-gold), var(--color-bg) -- never hardcode hex values
+- Soft deletes only: use the archived flag on Congregant -- never hard-delete
+- State management: TanStack Query for all server state -- no Redux, Zustand, or Context for data fetching
+
+## Backend
+- Follow the layered FastAPI architecture and use SQLModel for database interactions.
+- Use hebrew_date.py for all Hebrew calendar logic.
+- Bulk operations use POST .../bulk-delete with a list of IDs.
+
+## Do NOT
+- Do not create global client-side state stores -- TanStack Query only
+- Do not add new API route handlers without a matching service method in synagogue_service.py
+- Do not use raw HTML elements (div, button, input) when a shared components/ui/ component exists
+- Do not reimplement Hebrew calendar or date conversion logic
+- Do not hard-delete congregants -- always archive
+- Do not add obvious or narrating code comments

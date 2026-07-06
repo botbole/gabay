@@ -1,832 +1,181 @@
 """
-Synagogue business-logic layer – backed by a real SQLite database.
+Backward-compatibility shim.
 
-All data is persisted to gabay.db.
-
-Sections
---------
-1.  Congregant (Mispallel) Management
-2.  Payments & Donations
-3.  Aliya La-Torah
-4.  Places (sanctuary seating)
-5.  Azkarot (yahrzeit / memorial)
-6.  Smachot (lifecycle celebrations)
-7.  Hebrew ↔ Gregorian calendar utilities
+Business logic now lives in individual module services under app/modules/.
+This facade re-exports a SynagogueService that delegates to each module's service.
 """
 
 from __future__ import annotations
 
-from datetime import date
 from typing import Optional
 
-from sqlmodel import select
-
-from app.core.db import get_session
-from app.core.hebrew_date import (
-    gregorian_to_hebrew,
-    hebrew_to_gregorian,
-    hebrew_month_list,
-    get_next_occurrence,
-    parse_gregorian_iso,
-    upcoming_occurrences,
-    get_month_view,
-)
-from app.core.zmanim import get_day_times
-from app.models.db_models import (
-    Aliya,
-    Azkara,
-    Congregant,
-    Payment,
-    Place,
-    Simcha,
-)
+from app.modules.congregants.service import congregant_service
+from app.modules.payments.service import payment_service
+from app.modules.aliyot.service import aliyot_service
+from app.modules.seating.service import seating_service
+from app.modules.azkarot.service import azkara_service
+from app.modules.smachot.service import simcha_service
+from app.modules.calendar.service import calendar_service
 
 
 class SynagogueService:
-
-    # ------------------------------------------------------------------
-    # Meta
-    # ------------------------------------------------------------------
+    """Facade that delegates every call to the relevant module service."""
 
     async def get_info(self) -> dict:
         return {
             "name": "Gabay Synagogue",
             "operations": [
-                "congregant_management",
-                "payments",
-                "aliyot_latora",
-                "places",
-                "azkarot",
-                "smachot",
-                "hebrew_calendar",
+                "congregant_management", "payments", "aliyot_latora",
+                "places", "azkarot", "smachot", "hebrew_calendar",
             ],
             "storage": "SQLite (gabay.db)",
         }
 
-    # ------------------------------------------------------------------
-    # 1.  Congregant (Mispallel) Management
-    # ------------------------------------------------------------------
-
-    async def add_congregant(
-        self,
-        first_name: str,
-        last_name: str,
-        hebrew_name: str = "",
-        father_name: str = "",
-        mother_name: str = "",
-        phone: str = "",
-        email: str = "",
-        address: str = "",
-        is_kohen: bool = False,
-        is_levi: bool = False,
-        member_type: str = "regular",
-        notes: str = "",
-        join_date: str = "",
-    ) -> dict:
-        """Register a new congregant and persist to the database."""
-        congregant = Congregant(
-            first_name=first_name,
-            last_name=last_name,
-            hebrew_name=hebrew_name,
-            father_name=father_name,
-            mother_name=mother_name,
-            phone=phone,
-            email=email,
-            address=address,
-            is_kohen=is_kohen,
-            is_levi=is_levi,
-            member_type=member_type,
-            notes=notes,
-            join_date=join_date or date.today().isoformat(),
-        )
-        with get_session() as session:
-            session.add(congregant)
-            session.commit()
-            session.refresh(congregant)
-            return congregant.model_dump()
+    # ── Congregants ──────────────────────────────────────────────────────
+    async def add_congregant(self, **kwargs) -> dict:
+        return await congregant_service.add_congregant(**kwargs)
 
     async def get_congregant(self, congregant_id: str) -> dict | None:
-        """Retrieve a congregant by ID."""
-        with get_session() as session:
-            congregant = session.get(Congregant, congregant_id)
-            return congregant.model_dump() if congregant else None
+        return await congregant_service.get_congregant(congregant_id)
 
     async def find_congregant_by_name(self, name: str) -> dict | None:
-        """
-        Find a congregant by full or partial name (case-insensitive).
-        Tries exact full-name match first, then partial match.
-        Returns the first match or None.
-        """
-        with get_session() as session:
-            all_c = session.exec(select(Congregant)).all()
-        name_lower = name.strip().lower()
-        # Exact full-name match
-        for c in all_c:
-            full = f"{c.first_name} {c.last_name}".lower()
-            if full == name_lower:
-                return c.model_dump()
-        # Partial match – either first_name or last_name contains the query
-        for c in all_c:
-            if (name_lower in c.first_name.lower() or
-                    name_lower in c.last_name.lower() or
-                    name_lower in f"{c.first_name} {c.last_name}".lower()):
-                return c.model_dump()
-        return None
+        return await congregant_service.find_congregant_by_name(name)
 
     async def update_congregant(self, congregant_id: str, updates: dict) -> dict | None:
-        """Update specific fields of an existing congregant."""
-        with get_session() as session:
-            congregant = session.get(Congregant, congregant_id)
-            if not congregant:
-                return None
-            for field, value in updates.items():
-                setattr(congregant, field, value)
-            session.add(congregant)
-            session.commit()
-            session.refresh(congregant)
-            return congregant.model_dump()
+        return await congregant_service.update_congregant(congregant_id, updates)
 
-    async def list_congregants(
-        self,
-        member_type: Optional[str] = None,
-        archived: bool = False,
-    ) -> dict:
-        """Return all registered congregants, optionally filtered by member_type or archived status."""
-        with get_session() as session:
-            stmt = select(Congregant).where(Congregant.is_archived == archived)
-            if member_type:
-                stmt = stmt.where(Congregant.member_type == member_type)
-            congregants = session.exec(stmt).all()
-            return {
-                "total": len(congregants),
-                "congregants": [c.model_dump() for c in congregants],
-            }
+    async def list_congregants(self, member_type=None, archived=False) -> dict:
+        return await congregant_service.list_congregants(
+            member_type=member_type, archived=archived
+        )
 
     async def bulk_delete_congregants(self, ids: list[str]) -> dict:
-        """Permanently delete multiple congregants by ID."""
-        deleted = 0
-        with get_session() as session:
-            for cid in ids:
-                c = session.get(Congregant, cid)
-                if c:
-                    session.delete(c)
-                    deleted += 1
-            session.commit()
-        return {"deleted": deleted}
+        return await congregant_service.bulk_delete_congregants(ids)
 
     async def bulk_archive_congregants(self, ids: list[str]) -> dict:
-        """Move multiple congregants to the archive (soft-delete)."""
-        archived = 0
-        today = date.today().isoformat()
-        with get_session() as session:
-            for cid in ids:
-                c = session.get(Congregant, cid)
-                if c and not c.is_archived:
-                    c.is_archived = True
-                    c.archived_at = today
-                    session.add(c)
-                    archived += 1
-            session.commit()
-        return {"archived": archived}
+        return await congregant_service.bulk_archive_congregants(ids)
 
     async def bulk_restore_congregants(self, ids: list[str]) -> dict:
-        """Restore multiple congregants from the archive."""
-        restored = 0
-        with get_session() as session:
-            for cid in ids:
-                c = session.get(Congregant, cid)
-                if c and c.is_archived:
-                    c.is_archived = False
-                    c.archived_at = ""
-                    session.add(c)
-                    restored += 1
-            session.commit()
-        return {"restored": restored}
+        return await congregant_service.bulk_restore_congregants(ids)
 
-    # ------------------------------------------------------------------
-    # 2.  Payments & Donations
-    # ------------------------------------------------------------------
-
-    async def record_payment(
-        self,
-        congregant_id: str,
-        amount: float,
-        purpose: str,
-        currency: str = "ILS",
-        notes: str = "",
-        payment_date: str = "",
-    ) -> dict:
-        """Record a payment or donation for a congregant."""
-        payment = Payment(
-            congregant_id=congregant_id,
-            amount=amount,
-            purpose=purpose,
-            currency=currency,
-            notes=notes,
-            date=payment_date or date.today().isoformat(),
-        )
-        with get_session() as session:
-            session.add(payment)
-            session.commit()
-            session.refresh(payment)
-            return payment.model_dump()
+    # ── Payments ─────────────────────────────────────────────────────────
+    async def record_payment(self, **kwargs) -> dict:
+        return await payment_service.record_payment(**kwargs)
 
     async def get_payment_history(self, congregant_id: str) -> dict:
-        """Return all payments for a specific congregant."""
-        with get_session() as session:
-            payments = session.exec(
-                select(Payment).where(Payment.congregant_id == congregant_id)
-            ).all()
-            total_paid = sum(p.amount for p in payments)
-            by_purpose: dict[str, float] = {}
-            for p in payments:
-                by_purpose[p.purpose] = by_purpose.get(p.purpose, 0.0) + p.amount
-            return {
-                "congregant_id": congregant_id,
-                "total_paid": total_paid,
-                "by_purpose": by_purpose,
-                "payments": [p.model_dump() for p in payments],
-            }
+        return await payment_service.get_payment_history(congregant_id)
 
     async def get_pending_payments(self) -> dict:
-        """Return all congregants who have no recorded payments."""
-        with get_session() as session:
-            congregants = session.exec(select(Congregant)).all()
-            paid_ids = {
-                p.congregant_id
-                for p in session.exec(select(Payment)).all()
-            }
-            pending = [c for c in congregants if c.id not in paid_ids]
-            return {
-                "total_pending": len(pending),
-                "congregants": [
-                    {"id": c.id, "name": f"{c.first_name} {c.last_name}"}
-                    for c in pending
-                ],
-            }
+        return await payment_service.get_pending_payments()
 
-    async def get_all_payments(self, purpose: Optional[str] = None) -> dict:
-        """Return all payment records, optionally filtered by purpose."""
-        with get_session() as session:
-            stmt = select(Payment)
-            if purpose:
-                stmt = stmt.where(Payment.purpose == purpose)
-            payments = session.exec(stmt).all()
-            return {
-                "total_records": len(payments),
-                "total_amount": sum(p.amount for p in payments),
-                "payments": [p.model_dump() for p in payments],
-            }
+    async def get_all_payments(self, purpose=None) -> dict:
+        return await payment_service.get_all_payments(purpose=purpose)
 
     async def bulk_delete_payments(self, ids: list[str]) -> dict:
-        """Permanently delete multiple payment records."""
-        deleted = 0
-        with get_session() as session:
-            for pid in ids:
-                p = session.get(Payment, pid)
-                if p:
-                    session.delete(p)
-                    deleted += 1
-            session.commit()
-        return {"deleted": deleted}
+        return await payment_service.bulk_delete_payments(ids)
 
-    # ------------------------------------------------------------------
-    # 3.  Aliya La-Torah
-    # ------------------------------------------------------------------
-
-    async def assign_aliya(
-        self,
-        congregant_id: str,
-        parasha: str,
-        aliya_type: str,
-        date_str: str = "",
-        minhag: str = "",
-        donation_amount: float = 0.0,
-        notes: str = "",
-    ) -> dict:
-        """Assign a Torah aliya to a congregant for a given Parasha."""
-        aliya = Aliya(
-            congregant_id=congregant_id,
-            parasha=parasha,
-            aliya_type=aliya_type,
-            date=date_str or date.today().isoformat(),
-            minhag=minhag,
-            donation_amount=donation_amount,
-            notes=notes,
-        )
-        with get_session() as session:
-            # Auto-record a payment if the congregant pledged at the aliya
-            if donation_amount > 0:
-                payment = Payment(
-                    congregant_id=congregant_id,
-                    amount=donation_amount,
-                    purpose="aliya",
-                    date=date_str or date.today().isoformat(),
-                    notes=f"Pledge at aliya: {parasha} – {aliya_type}",
-                )
-                session.add(payment)
-            session.add(aliya)
-            session.commit()
-            session.refresh(aliya)
-            return aliya.model_dump()
+    # ── Aliyot ───────────────────────────────────────────────────────────
+    async def assign_aliya(self, **kwargs) -> dict:
+        return await aliyot_service.assign_aliya(**kwargs)
 
     async def list_aliyot(self) -> dict:
-        """Return all aliyot records, sorted by date descending."""
-        with get_session() as session:
-            aliyot = session.exec(select(Aliya).order_by(Aliya.date.desc())).all()
-            return {
-                "total": len(aliyot),
-                "aliyot": [a.model_dump() for a in aliyot],
-            }
+        return await aliyot_service.list_aliyot()
 
     async def bulk_delete_aliyot(self, ids: list[str]) -> dict:
-        """Permanently delete multiple aliya records."""
-        deleted = 0
-        with get_session() as session:
-            for aid in ids:
-                a = session.get(Aliya, aid)
-                if a:
-                    session.delete(a)
-                    deleted += 1
-            session.commit()
-        return {"deleted": deleted}
+        return await aliyot_service.bulk_delete_aliyot(ids)
 
     async def get_aliyot_for_parasha(self, parasha: str) -> dict:
-        """Return all Aliyot assigned for a specific Parasha."""
-        with get_session() as session:
-            aliyot = session.exec(
-                select(Aliya).where(Aliya.parasha == parasha)
-            ).all()
-            return {
-                "parasha": parasha,
-                "total": len(aliyot),
-                "aliyot": [a.model_dump() for a in aliyot],
-            }
+        return await aliyot_service.get_aliyot_for_parasha(parasha)
 
     async def get_aliya_history(self, congregant_id: str) -> dict:
-        """Return the full Aliya history for a specific congregant."""
-        with get_session() as session:
-            aliyot = session.exec(
-                select(Aliya).where(Aliya.congregant_id == congregant_id)
-            ).all()
-            return {
-                "congregant_id": congregant_id,
-                "total_aliyot": len(aliyot),
-                "aliyot": [a.model_dump() for a in aliyot],
-            }
+        return await aliyot_service.get_aliya_history(congregant_id)
 
-    # ------------------------------------------------------------------
-    # 4.  Places (sanctuary seating)
-    # ------------------------------------------------------------------
+    # ── Places ───────────────────────────────────────────────────────────
+    async def add_place(self, **kwargs) -> dict:
+        return await seating_service.add_place(**kwargs)
 
-    async def add_place(
-        self,
-        section: str,
-        row: str,
-        place_number: int,
-        congregant_id: Optional[str] = None,
-        is_reserved: bool = False,
-        annual_fee: float = 0.0,
-        notes: str = "",
-    ) -> dict:
-        """Add a seat to the sanctuary seating map."""
-        place = Place(
-            section=section,
-            row=row,
-            place_number=place_number,
-            congregant_id=congregant_id,
-            is_reserved=is_reserved,
-            annual_fee=annual_fee,
-            notes=notes,
-        )
-        with get_session() as session:
-            session.add(place)
-            session.commit()
-            session.refresh(place)
-            return place.model_dump()
-
-    async def assign_place(
-        self,
-        place_id: str,
-        congregant_id: str,
-        is_reserved: bool = True,
-        annual_fee: float = 0.0,
-    ) -> dict | None:
-        """Assign an existing seat to a congregant."""
-        with get_session() as session:
-            place = session.get(Place, place_id)
-            if not place:
-                return None
-            place.congregant_id = congregant_id
-            place.is_reserved = is_reserved
-            if annual_fee:
-                place.annual_fee = annual_fee
-            session.add(place)
-            session.commit()
-            session.refresh(place)
-            return place.model_dump()
+    async def assign_place(self, **kwargs) -> dict | None:
+        return await seating_service.assign_place(**kwargs)
 
     async def unassign_place(self, place_id: str) -> dict | None:
-        """Remove the congregant assignment from a seat."""
-        with get_session() as session:
-            place = session.get(Place, place_id)
-            if not place:
-                return None
-            place.congregant_id = None
-            place.is_reserved = False
-            session.add(place)
-            session.commit()
-            session.refresh(place)
-            return place.model_dump()
+        return await seating_service.unassign_place(place_id)
 
     async def get_place(self, place_id: str) -> dict | None:
-        """Retrieve a single seat by ID."""
-        with get_session() as session:
-            place = session.get(Place, place_id)
-            return place.model_dump() if place else None
+        return await seating_service.get_place(place_id)
 
-    async def list_places(
-        self,
-        section: Optional[str] = None,
-        only_free: bool = False,
-    ) -> dict:
-        """List all seats, optionally filtered by section or availability."""
-        with get_session() as session:
-            stmt = select(Place)
-            if section:
-                stmt = stmt.where(Place.section == section)
-            if only_free:
-                stmt = stmt.where(Place.congregant_id == None)  # noqa: E711
-            places = session.exec(stmt).all()
-            return {
-                "total": len(places),
-                "places": [p.model_dump() for p in places],
-            }
+    async def list_places(self, section=None, only_free=False) -> dict:
+        return await seating_service.list_places(
+            section=section, only_free=only_free
+        )
 
     async def get_congregant_place(self, congregant_id: str) -> dict | None:
-        """Return the seat assigned to a specific congregant, or None."""
-        with get_session() as session:
-            place = session.exec(
-                select(Place).where(Place.congregant_id == congregant_id)
-            ).first()
-            return place.model_dump() if place else None
+        return await seating_service.get_congregant_place(congregant_id)
 
     async def bulk_delete_places(self, ids: list[str]) -> dict:
-        """Permanently delete multiple seat records."""
-        deleted = 0
-        with get_session() as session:
-            for pid in ids:
-                p = session.get(Place, pid)
-                if p:
-                    session.delete(p)
-                    deleted += 1
-            session.commit()
-        return {"deleted": deleted}
+        return await seating_service.bulk_delete_places(ids)
 
-    # ------------------------------------------------------------------
-    # 5.  Azkarot (yahrzeit / memorial)
-    # ------------------------------------------------------------------
-
-    async def add_azkara(
-        self,
-        congregant_id: str,
-        deceased_name: str,
-        deceased_hebrew_name: str = "",
-        relation: str = "",
-        gregorian_date: str = "",
-        hebrew_day: int = 0,
-        hebrew_month: int = 0,
-        year_occurred: Optional[int] = None,
-        notes: str = "",
-    ) -> dict:
-        """
-        Add a yahrzeit record.
-
-        If gregorian_date is supplied and hebrew_day/month are zero,
-        the Hebrew date is computed automatically.
-        If only hebrew_day/month are supplied the gregorian_date is left empty.
-        """
-        day, month = hebrew_day, hebrew_month
-        if gregorian_date and (not day or not month):
-            d = parse_gregorian_iso(gregorian_date)
-            if d:
-                heb = gregorian_to_hebrew(d)
-                day = heb["day"]
-                month = heb["month"]
-
-        # Derive year_occurred from gregorian_date if not explicitly supplied
-        if year_occurred is None and gregorian_date:
-            try:
-                year_occurred = int(gregorian_date[:4])
-            except (ValueError, IndexError):
-                pass
-
-        azkara = Azkara(
-            congregant_id=congregant_id,
-            deceased_name=deceased_name,
-            deceased_hebrew_name=deceased_hebrew_name,
-            relation=relation,
-            gregorian_date=gregorian_date,
-            hebrew_day=day,
-            hebrew_month=month,
-            year_occurred=year_occurred,
-            notes=notes,
-        )
-        with get_session() as session:
-            session.add(azkara)
-            session.commit()
-            session.refresh(azkara)
-            return azkara.model_dump()
+    # ── Azkarot ───────────────────────────────────────────────────────────
+    async def add_azkara(self, **kwargs) -> dict:
+        return await azkara_service.add_azkara(**kwargs)
 
     async def get_azkara(self, azkara_id: str) -> dict | None:
-        with get_session() as session:
-            a = session.get(Azkara, azkara_id)
-            return a.model_dump() if a else None
+        return await azkara_service.get_azkara(azkara_id)
 
-    async def list_azkarot(self, congregant_id: Optional[str] = None) -> dict:
-        """Return all yahrzeit records, optionally for a specific congregant."""
-        with get_session() as session:
-            stmt = select(Azkara)
-            if congregant_id:
-                stmt = stmt.where(Azkara.congregant_id == congregant_id)
-            azkarot = session.exec(stmt).all()
-            return {
-                "total": len(azkarot),
-                "azkarot": [a.model_dump() for a in azkarot],
-            }
+    async def list_azkarot(self, congregant_id=None) -> dict:
+        return await azkara_service.list_azkarot(congregant_id=congregant_id)
 
-    async def get_upcoming_azkarot(self, days_ahead: int = 30) -> dict:
-        """
-        Return yahrzeit records whose Hebrew anniversary falls within the
-        next `days_ahead` days (default 30), with the next Gregorian date attached.
-        """
-        with get_session() as session:
-            azkarot = session.exec(select(Azkara)).all()
-            congregant_map = {
-                c.id: f"{c.first_name} {c.last_name}"
-                for c in session.exec(select(Congregant)).all()
-            }
-
-        events = [a.model_dump() for a in azkarot]
-        upcoming = upcoming_occurrences(events, days_ahead=days_ahead)
-        for item in upcoming:
-            item["congregant_name"] = congregant_map.get(item.get("congregant_id"), "")
-        return {
-            "days_ahead": days_ahead,
-            "total": len(upcoming),
-            "azkarot": upcoming,
-        }
+    async def get_upcoming_azkarot(self, days_ahead=30) -> dict:
+        return await azkara_service.get_upcoming_azkarot(days_ahead=days_ahead)
 
     async def delete_azkara(self, azkara_id: str) -> bool:
-        with get_session() as session:
-            a = session.get(Azkara, azkara_id)
-            if not a:
-                return False
-            session.delete(a)
-            session.commit()
-            return True
+        return await azkara_service.delete_azkara(azkara_id)
 
     async def bulk_delete_azkarot(self, ids: list[str]) -> dict:
-        """Permanently delete multiple azkara records."""
-        deleted = 0
-        with get_session() as session:
-            for aid in ids:
-                a = session.get(Azkara, aid)
-                if a:
-                    session.delete(a)
-                    deleted += 1
-            session.commit()
-        return {"deleted": deleted}
+        return await azkara_service.bulk_delete_azkarot(ids)
 
-    # ------------------------------------------------------------------
-    # 6.  Smachot (lifecycle celebrations)
-    # ------------------------------------------------------------------
-
-    async def add_simcha(
-        self,
-        congregant_id: str,
-        occasion_type: str,
-        description: str = "",
-        gregorian_date: str = "",
-        hebrew_day: int = 0,
-        hebrew_month: int = 0,
-        parasha: str = "",
-        year_occurred: Optional[int] = None,
-        notes: str = "",
-    ) -> dict:
-        """
-        Add a simcha record.
-
-        If gregorian_date is supplied and hebrew_day/month are zero,
-        the Hebrew date is computed automatically.
-        """
-        day, month = hebrew_day, hebrew_month
-        if gregorian_date and (not day or not month):
-            d = parse_gregorian_iso(gregorian_date)
-            if d:
-                heb = gregorian_to_hebrew(d)
-                day = heb["day"]
-                month = heb["month"]
-
-        # Derive year_occurred from gregorian_date if not explicitly supplied
-        if year_occurred is None and gregorian_date:
-            try:
-                year_occurred = int(gregorian_date[:4])
-            except (ValueError, IndexError):
-                pass
-
-        simcha = Simcha(
-            congregant_id=congregant_id,
-            occasion_type=occasion_type,
-            description=description,
-            gregorian_date=gregorian_date,
-            hebrew_day=day,
-            hebrew_month=month,
-            parasha=parasha,
-            year_occurred=year_occurred,
-            notes=notes,
-        )
-        with get_session() as session:
-            session.add(simcha)
-            session.commit()
-            session.refresh(simcha)
-            return simcha.model_dump()
+    # ── Smachot ───────────────────────────────────────────────────────────
+    async def add_simcha(self, **kwargs) -> dict:
+        return await simcha_service.add_simcha(**kwargs)
 
     async def get_simcha(self, simcha_id: str) -> dict | None:
-        with get_session() as session:
-            s = session.get(Simcha, simcha_id)
-            return s.model_dump() if s else None
+        return await simcha_service.get_simcha(simcha_id)
 
-    async def list_smachot(
-        self,
-        congregant_id: Optional[str] = None,
-        occasion_type: Optional[str] = None,
-    ) -> dict:
-        """Return all smachot records, optionally filtered."""
-        with get_session() as session:
-            stmt = select(Simcha)
-            if congregant_id:
-                stmt = stmt.where(Simcha.congregant_id == congregant_id)
-            if occasion_type:
-                stmt = stmt.where(Simcha.occasion_type == occasion_type)
-            smachot = session.exec(stmt).all()
-            return {
-                "total": len(smachot),
-                "smachot": [s.model_dump() for s in smachot],
-            }
+    async def list_smachot(self, congregant_id=None, occasion_type=None) -> dict:
+        return await simcha_service.list_smachot(
+            congregant_id=congregant_id, occasion_type=occasion_type
+        )
 
-    async def get_upcoming_smachot(
-        self,
-        days_ahead: int = 30,
-        occasion_type: Optional[str] = None,
-    ) -> dict:
-        """
-        Return smachot whose Hebrew anniversary falls within the next
-        `days_ahead` days, optionally filtered by occasion type.
-        """
-        with get_session() as session:
-            stmt = select(Simcha)
-            if occasion_type:
-                stmt = stmt.where(Simcha.occasion_type == occasion_type)
-            smachot = session.exec(stmt).all()
-            congregant_map = {
-                c.id: f"{c.first_name} {c.last_name}"
-                for c in session.exec(select(Congregant)).all()
-            }
-
-        events = [s.model_dump() for s in smachot]
-        upcoming = upcoming_occurrences(events, days_ahead=days_ahead)
-        for item in upcoming:
-            item["congregant_name"] = congregant_map.get(item.get("congregant_id"), "")
-        return {
-            "days_ahead": days_ahead,
-            "occasion_type": occasion_type,
-            "total": len(upcoming),
-            "smachot": upcoming,
-        }
+    async def get_upcoming_smachot(self, days_ahead=30, occasion_type=None) -> dict:
+        return await simcha_service.get_upcoming_smachot(
+            days_ahead=days_ahead, occasion_type=occasion_type
+        )
 
     async def delete_simcha(self, simcha_id: str) -> bool:
-        with get_session() as session:
-            s = session.get(Simcha, simcha_id)
-            if not s:
-                return False
-            session.delete(s)
-            session.commit()
-            return True
+        return await simcha_service.delete_simcha(simcha_id)
 
     async def bulk_delete_smachot(self, ids: list[str]) -> dict:
-        """Permanently delete multiple simcha records."""
-        deleted = 0
-        with get_session() as session:
-            for sid in ids:
-                s = session.get(Simcha, sid)
-                if s:
-                    session.delete(s)
-                    deleted += 1
-            session.commit()
-        return {"deleted": deleted}
+        return await simcha_service.bulk_delete_smachot(ids)
 
-    # ------------------------------------------------------------------
-    # 7.  Hebrew ↔ Gregorian calendar utilities
-    # ------------------------------------------------------------------
-
+    # ── Calendar ─────────────────────────────────────────────────────────
     async def convert_gregorian_to_hebrew(self, date_str: str) -> dict:
-        """
-        Convert a Gregorian ISO date string to its Hebrew date representation.
-        Returns day, month, year, and formatted strings in Hebrew and English.
-        """
-        d = parse_gregorian_iso(date_str)
-        if not d:
-            return {"error": f"Invalid date format: '{date_str}'. Expected YYYY-MM-DD."}
-        result = gregorian_to_hebrew(d)
-        result["gregorian"] = date_str
-        return result
+        return await calendar_service.convert_gregorian_to_hebrew(date_str)
 
-    async def convert_hebrew_to_gregorian(
-        self,
-        year: int,
-        month: int,
-        day: int,
-    ) -> dict:
-        """
-        Convert a Hebrew date (pyluach month numbering) to its Gregorian equivalent.
-        Returns the ISO date string or an error message.
-        """
-        gd = hebrew_to_gregorian(year, month, day)
-        if not gd:
-            return {
-                "error": f"Invalid or non-existent Hebrew date: {day}/{month}/{year}."
-            }
-        return {
-            "hebrew_year": year,
-            "hebrew_month": month,
-            "hebrew_day": day,
-            "gregorian": gd.isoformat(),
-        }
+    async def convert_hebrew_to_gregorian(self, year: int, month: int, day: int) -> dict:
+        return await calendar_service.convert_hebrew_to_gregorian(year, month, day)
 
-    async def get_next_hebrew_occurrence(
-        self,
-        hebrew_month: int,
-        hebrew_day: int,
-        from_date_str: str = "",
-    ) -> dict:
-        """
-        Return the next Gregorian date on which a recurring Hebrew calendar
-        date (month + day) will fall.
-        """
-        from_date = parse_gregorian_iso(from_date_str) if from_date_str else date.today()
-        next_date = get_next_occurrence(hebrew_month, hebrew_day, from_date)
-        if not next_date:
-            return {"error": "Could not determine next occurrence."}
-        return {
-            "hebrew_month": hebrew_month,
-            "hebrew_day": hebrew_day,
-            "next_gregorian": next_date.isoformat(),
-        }
+    async def get_next_hebrew_occurrence(self, hebrew_month: int, hebrew_day: int, from_date_str="") -> dict:
+        return await calendar_service.get_next_hebrew_occurrence(
+            hebrew_month, hebrew_day, from_date_str
+        )
 
     async def list_hebrew_months(self) -> dict:
-        """Return a reference list of all Hebrew month names."""
-        return {"months": hebrew_month_list()}
+        return await calendar_service.list_hebrew_months()
 
     async def get_calendar_month_view(self, year: int, month: int) -> dict:
-        """
-        Return a full calendar month view with holiday/Shabbat info and
-        all azkarot & smachot events overlaid on matching Hebrew days.
-        """
-        data = get_month_view(year, month)
-        if "error" in data:
-            return data
-
-        with get_session() as session:
-            azkarot = session.exec(select(Azkara)).all()
-            smachot = session.exec(select(Simcha)).all()
-
-        # Build lookup: (hebrew_day, hebrew_month) → list of events
-        az_by_day: dict[tuple[int, int], list[dict]] = {}
-        for a in azkarot:
-            if a.hebrew_day and a.hebrew_month:
-                key = (a.hebrew_day, a.hebrew_month)
-                az_by_day.setdefault(key, []).append(a.model_dump())
-
-        sm_by_day: dict[tuple[int, int], list[dict]] = {}
-        for s in smachot:
-            if s.hebrew_day and s.hebrew_month:
-                key = (s.hebrew_day, s.hebrew_month)
-                sm_by_day.setdefault(key, []).append(s.model_dump())
-
-        for day in data["days"]:
-            key = (day["hebrew_day"], day["hebrew_month"])
-            day["azkarot"] = az_by_day.get(key, [])
-            day["smachot"] = sm_by_day.get(key, [])
-
-        return data
+        return await calendar_service.get_calendar_month_view(year, month)
 
     async def get_calendar_day_times(self, date_str: str) -> dict | None:
-        """Return sunrise/sunset zmanim and Shabbat candle-lighting/havdalah for one day."""
-        d = parse_gregorian_iso(date_str)
-        if d is None:
-            return None
-        return await get_day_times(d)
+        return await calendar_service.get_calendar_day_times(date_str)
 
 
 synagogue_service = SynagogueService()

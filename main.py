@@ -1,11 +1,33 @@
+"""
+Gabay – Synagogue Management System
+
+FastAPI application entry point.
+Modules are loaded dynamically from the Module Registry based on ENABLED_MODULES.
+"""
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.router import api_router
+# ── Import all modules so their models are registered with SQLModel
+# and their definitions are registered with the ModuleRegistry.
+import app.modules.congregants.module  # noqa: F401
+import app.modules.payments.module     # noqa: F401
+import app.modules.aliyot.module       # noqa: F401
+import app.modules.seating.module      # noqa: F401
+import app.modules.azkarot.module      # noqa: F401
+import app.modules.smachot.module      # noqa: F401
+import app.modules.calendar.module     # noqa: F401
+import app.modules.llm.module          # noqa: F401
+
+# ── Import TenantConfig so its table is created by create_db_and_tables()
+import app.core.tenant  # noqa: F401
+
+from app.api.v1.config import router as config_router
 from app.core.config import settings
 from app.core.db import create_db_and_tables
+from app.core.registry import registry
 
 
 @asynccontextmanager
@@ -30,7 +52,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(api_router, prefix="/api/v1")
+# ── Mount config endpoint
+app.include_router(config_router, prefix="/api/v1")
+
+# ── Mount enabled module routers
+for module in registry.get_enabled(settings.ENABLED_MODULES):
+    app.include_router(module.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["health"])

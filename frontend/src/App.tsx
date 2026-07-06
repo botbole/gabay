@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AppConfigProvider } from './contexts/AppConfigContext';
 import { Layout } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
 import { Congregants } from './pages/Congregants';
@@ -24,22 +25,24 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/congregants" element={<Congregants />} />
-            <Route path="/payments" element={<Payments />} />
-            <Route path="/seating" element={<Seating />} />
-            <Route path="/aliyot" element={<Aliyot />} />
-            <Route path="/azkarot" element={<Azkarot />} />
-            <Route path="/smachot" element={<Smachot />} />
-            <Route path="/calendar" element={<Calendar />} />
-            <Route path="/import" element={<Import />} />
-            <Route path="/chat" element={<Chat />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <AppConfigProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route element={<Layout />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/congregants" element={<Congregants />} />
+              <Route path="/payments" element={<Payments />} />
+              <Route path="/seating" element={<Seating />} />
+              <Route path="/aliyot" element={<Aliyot />} />
+              <Route path="/azkarot" element={<Azkarot />} />
+              <Route path="/smachot" element={<Smachot />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/import" element={<Import />} />
+              <Route path="/chat" element={<Chat />} />
+            </Route>
+          </Routes>
+        </BrowserRouter>
+      </AppConfigProvider>
     </QueryClientProvider>
   );
 }
