@@ -33,7 +33,6 @@ gabay.db
 .cursor/rules/
 
 # Docs (use @docs/PRD_GABAY.md explicitly when needed)
-docs/
 
 # Static assets
 frontend/src/assets/
