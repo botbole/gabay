@@ -1,4 +1,4 @@
-﻿# Gabay Architecture Guide
+# Gabay Architecture Guide
 
 This document describes the modular architecture of the Gabay Synagogue Management System.
 
@@ -23,7 +23,7 @@ Android + iOS - Future]
 
         subgraph Core [Core - app/core/]
             DB[(SQLite / PostgreSQL)]
-            Auth[JWT Auth]
+            Auth[JWT Auth - Milestone 3]
             TenantCfg[Tenant Config]
             HebDate[Hebrew Date - pyluach]
         end
@@ -197,10 +197,10 @@ congregants,calendar,bulletin]
 ```
 
 **How the Registry uses `ENABLED_MODULES`:**
-1. `main.py` calls `registry.load_modules()`
-2. Registry scans `app/modules/` for subdirectories
-3. For each module found, checks if its name is in `ENABLED_MODULES`
-4. If enabled: imports its router and LLM tools and registers them
+1. `main.py` imports every `app/modules/<name>/module.py` at startup
+2. Each `module.py` calls `registry.register(ModuleDefinition(...))` — self-registration
+3. `main.py` then calls `registry.get_enabled(settings.ENABLED_MODULES)`
+4. If enabled: the module's router is mounted under `/api/v1`
 5. If disabled: the module is completely skipped — no routes, no AI tools
 
 ---

@@ -132,7 +132,7 @@
   - `app/modules/seating/` – module.py, api.py, service.py, models.py
   - `app/modules/calendar/` – module.py, api.py, service.py
   - `app/modules/llm/` – module.py, api.py, service.py (כלי LLM רשומים לפי מודול)
-- [x] העברת `db_models.py` לתיקיות המודולים המתאימות (קובץ ישן כ-shim)
+- [x] העברת `db_models.py` לתיקיות המודולים המתאימות (קובץ ישן נמחק לחלוטין)
 - [x] החלפת Foreign Keys קשיחים ב-Soft IDs בין מודולים
 - [x] עדכון `main.py` לטעינה דינמית מה-Registry
 - [x] עדכון בדיקות אינטגרציה לארכיטקטורה החדשה (70 טסטים קיימים + 11 טסטים חדשים ל-config, registry ו-hooks)

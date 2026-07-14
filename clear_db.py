@@ -1,6 +1,11 @@
 from sqlmodel import Session, delete
 from app.core.db import engine
-from app.models.db_models import Congregant, Payment, Aliya, Place, Azkara, Simcha
+from app.modules.congregants.models import Congregant
+from app.modules.payments.models import Payment
+from app.modules.aliyot.models import Aliya
+from app.modules.seating.models import Place
+from app.modules.azkarot.models import Azkara
+from app.modules.smachot.models import Simcha
 
 def clear_database():
     with Session(engine) as session:

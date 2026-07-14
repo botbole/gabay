@@ -1,7 +1,7 @@
 import type { ElementType } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users, CreditCard, AlertCircle, Heart, Star, CalendarDays, TrendingUp } from 'lucide-react';
-import { congregantsApi, paymentsApi, eventsApi } from '../api/client';
+import { congregantsApi, paymentsApi, azkarotApi, smachotApi } from '../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -149,12 +149,12 @@ export function Dashboard() {
 
   const { data: azkarotData } = useQuery({
     queryKey: ['upcoming-azkarot'],
-    queryFn: () => eventsApi.upcomingAzkarot(30),
+    queryFn: () => azkarotApi.upcoming(30),
   });
 
   const { data: smachotData } = useQuery({
     queryKey: ['upcoming-smachot'],
-    queryFn: () => eventsApi.upcomingSmachot(30),
+    queryFn: () => smachotApi.upcoming(30),
   });
 
   const totalAmount = paymentsData?.total_amount ?? 0;

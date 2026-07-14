@@ -217,7 +217,6 @@ export const seatingApi = {
       `/synagogue/places${qs ? `?${qs}` : ''}`
     );
   },
-  get: (id: string) => request<Place>(`/synagogue/places/${id}`),
   create: (body: PlaceCreate) =>
     request<Place>('/synagogue/places', { method: 'POST', body: JSON.stringify(body) }),
   assign: (id: string, congregant_id: string, annual_fee?: number) =>
@@ -280,10 +279,6 @@ export const aliyotApi = {
     request<{ congregant_id: string; total_aliyot: number; aliyot: Aliya[] }>(
       `/synagogue/aliyot/${congregant_id}/history`
     ),
-  byParasha: (parasha: string) =>
-    request<{ parasha: string; total: number; aliyot: Aliya[] }>(
-      `/synagogue/aliyot/parasha/${parasha}`
-    ),
   create: (body: AliyaCreate) =>
     request<Aliya>('/synagogue/aliyot', { method: 'POST', body: JSON.stringify(body) }),
   bulkDelete: (ids: string[]) => bulkDelete('/synagogue/aliyot', ids),
@@ -345,16 +340,6 @@ export interface SimchaCreate {
   notes?: string;
 }
 
-export const eventsApi = {
-  upcomingAzkarot: (days = 30) =>
-    request<{ total: number; azkarot: Azkara[] }>(
-      `/synagogue/azkarot/upcoming?days_ahead=${days}`
-    ),
-  upcomingSmachot: (days = 30) =>
-    request<{ total: number; smachot: Simcha[] }>(
-      `/synagogue/smachot/upcoming?days_ahead=${days}`
-    ),
-};
 
 export const azkarotApi = {
   list: (congregant_id?: string) =>
@@ -365,7 +350,6 @@ export const azkarotApi = {
     request<{ total: number; azkarot: Azkara[] }>(
       `/synagogue/azkarot/upcoming?days_ahead=${days}`
     ),
-  get: (id: string) => request<Azkara>(`/synagogue/azkarot/${id}`),
   create: (body: AzkaraCreate) =>
     request<Azkara>('/synagogue/azkarot', { method: 'POST', body: JSON.stringify(body) }),
   delete: (id: string) =>
@@ -387,7 +371,6 @@ export const smachotApi = {
     request<{ total: number; smachot: Simcha[] }>(
       `/synagogue/smachot/upcoming?days_ahead=${days}${occasion_type ? `&occasion_type=${occasion_type}` : ''}`
     ),
-  get: (id: string) => request<Simcha>(`/synagogue/smachot/${id}`),
   create: (body: SimchaCreate) =>
     request<Simcha>('/synagogue/smachot', { method: 'POST', body: JSON.stringify(body) }),
   delete: (id: string) =>
@@ -483,20 +466,6 @@ export interface TenantConfig {
   modules_manifest: ModuleManifestItem[];
 }
 
-export interface TenantConfigUpdate {
-  synagogue_name?: string;
-  logo_url?: string;
-  color_primary?: string;
-  color_secondary?: string;
-  color_bg?: string;
-  enabled_modules?: string[];
-}
-
 export const configApi = {
   get: () => request<TenantConfig>('/config'),
-  update: (data: TenantConfigUpdate) =>
-    request<TenantConfig>('/config', {
-      method: 'PATCH',
-      body: JSON.stringify(data),
-    }),
 };
