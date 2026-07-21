@@ -6,22 +6,23 @@
 
 ## סדר עדיפויות – סיכום
 
-| Milestone | נושא | עדיפות | סטטוס |
+> **עיקרון:** פונקציונליות יומיומית לגבאי קודמת לפריסה ועיצוב. Auth נדרש לפני שיתוף חיצוני ולפני v3.5.
+
+| גרסה | נושא | עדיפות | סטטוס |
 |---|---|---|---|
 | 1 | MVP – ניהול קהילה בסיסי | ✅ הושלם | Done |
 | 2 | Core – לוח שנה + LLM | ✅ הושלם | Done |
 | Infra | בדיקות אינטגרציה | ✅ הושלם | Done |
-| **1.5** | **תשתית מודולרית – Refactoring** | ✅ **הושלם** | Done |
-| **3** | **Production – Auth + Docker** | 🔴 **גבוהה מאוד** | Pending |
-| 2.5 | כספים + תקשורת + LLM 2.0 | 🟠 גבוהה | Pending |
-| 2.6 | לוח זמני תפילות חכם | 🟠 גבוהה | Pending |
-| 2.7 | ניהול פיננסי מלא + דוחות | 🟠 גבוהה | Pending |
-| 3.5 | בוט וואטסאפ קהילתי | 🟡 בינונית | Pending |
-| 2.8 | שיבוץ עליות חכם + מלאי | 🟡 בינונית | Pending |
-| 2.9 | לוח שבועי מעוצב (Canva) | 🟡 בינונית | Pending |
-| 4 | Multi-tenancy + License System | 🟢 SaaS | Pending |
-| 5 | QA + בדיקות E2E | 🟢 יציבות | Pending |
-| **6** | **אפליקציית מובייל – Android + iOS** | 🔵 עתידי | Future |
+| **1.5** | **תשתית מודולרית** | ✅ **הושלם** | Done |
+| **2.1** | **לוח זמני תפילות** | 🔴 הבא | Pending |
+| **2.2** | **תקשורת ולוח שבועי** | 🔴 גבוהה | Pending |
+| **2.3** | **פיננסים מלא** *(ממזג 2.5+2.7)* | 🟠 גבוהה | Pending |
+| **2.4** | **גבאי חכם** *(שיבוץ + מלאי + LLM 2.0)* | 🟠 בינונית-גבוהה | Pending |
+| **3.0** | **Production – Auth + Deploy** | 🔴 לפני שיתוף | Pending |
+| **3.5** | **בוט וואטסאפ** *(תלוי ב-3.0)* | 🟡 קהילתי | Pending |
+| **3.6** | **לוח שבועי מעוצב (Canva)** | 🟡 ליטוש | Pending |
+| **4.0** | **SaaS Platform** | 🟢 מסחרי | Pending |
+| **5.0** | **QA + אפליקציית מובייל** | 🔵 עתידי | Future |
 
 ---
 
@@ -145,125 +146,131 @@
 
 ---
 
-## 🔴 Milestone 3 – Production · אבטחה, אימות ופריסה
+## 🔴 v2.1 – Prayer Schedule · לוח זמני תפילות
 
-> **עדיפות:** גבוהה מאוד – אי אפשר להפיץ את המוצר ללא אימות משתמשים ו-Docker.
+> **עדיפות:** הבא לפיתוח – צורך יומיומי של הגבאי.  
+> **רעיון המפתח:** במקום "מנחה ב-17:30", הגבאי מגדיר "מנחה = 15 דקות לפני שקיעה". המערכת מחשבת אוטומטית.
+
+### Backend
+- [ ] מודל `PrayerRule` – `name`, `day_type`, `anchor` (שקיעה/הנץ/קבוע), `offset_minutes`, `is_active`
+- [ ] `prayer_service.calculate_times(date)` – חישוב זמני תפילה ליום לפי כללים + zmanim
+- [ ] `GET /synagogue/schedule?date=YYYY-MM-DD`
+- [ ] `GET /synagogue/schedule/week?from=YYYY-MM-DD`
+- [ ] CRUD `/synagogue/prayer-rules` (GET / POST / PATCH / DELETE)
+
+### Frontend
+- [ ] טאב "זמני בית הכנסת" בסייד-בר
+- [ ] עורך כללים: הוספה/עריכה/מחיקה, בחירת עוגן מרשימה
+- [ ] תצוגת לוח מחושב ליום ולשבוע – שעה בפועל לצד הכלל
+- [ ] הפרדה ימי חול / שבת / יום טוב
+- [ ] כרטיס "זמני היום" ב-Dashboard
+
+### אינטגרציה
+- [ ] כלי LLM: `get_prayer_times(date)`
+- [ ] שילוב לוח הזמנים בלוח השבועי (v2.2)
+
+---
+
+## 🔴 v2.2 – Communication & Bulletin · תקשורת ולוח שבועי
+
+> **עדיפות:** גבוהה – הגבאי שולח לוח שבועי כל שבוע.
+
+### Backend
+- [ ] מודל `BulletinConfig` – שם בית הכנסת, רב, כתובת, הכרזות חוזרות
+- [ ] `bulletin_service` – אוסף פרשה, זמני שבת, אזכרות ושמחות לשבוע הקרוב
+- [ ] `GET /bulletin?date=YYYY-MM-DD`
+- [ ] 3 פורמטים: טקסט לוואטסאפ, HTML למייל (Google Groups), עמוד הדפסה A4
+- [ ] בחירת קטעים להכלרה/הסרה לפי שבוע
+- [ ] הגדרת שרת SMTP לשליחת תזכורות אוטומטיות במייל
+
+### Frontend
+- [ ] עמוד "לוח שבועי" – תצוגה מקדימה, עריכה, כפתורי העתקה והדפסה
+- [ ] כפתור "שלח בוואטסאפ" ליד כל אזכרה/שמחה (הודעה מובנית)
+- [ ] הגדרות SMTP בממשק
+
+---
+
+## 🟠 v2.3 – Financial Completeness · פיננסים מלא
+
+> **עדיפות:** גבוהה – מאחד את הפן הפיננסי מ-2.5 ואת כל 2.7.
+
+### Backend
+- [ ] ניהול סטטוס תשלום: "התחייבות" (Pledge) לעומת "שולם"
+- [ ] הפקת קבלות PDF מעוצבות (לוגו בית כנסת, פרטי תרומה)
+- [ ] מודל `Expense` – הוצאה (תאריך, סכום, קטגוריה, תיאור, קישור לחשבונית)
+- [ ] מודל `Income` – הכנסה שאינה תרומה (השכרת אולם, מכירת ספרים, מענקים)
+- [ ] CRUD endpoints הוצאות: `GET/POST/PATCH/DELETE /synagogue/expenses`
+- [ ] CRUD endpoints הכנסות: `GET/POST/PATCH/DELETE /synagogue/income`
+- [ ] `GET /synagogue/reports/annual?year=` – דוח P&L מסכם
+- [ ] ייצוא CSV: מתפללים + נתונים פיננסיים
+
+### Frontend
+- [ ] לשונית "התחייבויות/שולם" בדף תשלומים
+- [ ] כפתור "הפק קבלה PDF" בדף תשלומים
+- [ ] לשונית "הוצאות" – טבלה + הוספה/עריכה/מחיקה
+- [ ] לשונית "הכנסות אחרות" – אותו מבנה
+- [ ] לשונית "דוח שנתי" – P&L עם גרף עוגה/עמודות + כפתור ייצוא PDF
+- [ ] כפתור "ייצא CSV" בדף מתפללים
+
+---
+
+## 🟠 v2.4 – Smart Gabai · גבאי חכם
+
+> **עדיפות:** בינונית-גבוהה – חוסך זמן רב בשיבוץ עליות ובניהול מלאי.
+
+### שיבוץ עליות חכם
+- [ ] אלגוריתם הצעה: תדירות עליות, קרבת יארצייט/שמחה, סטטוס כהן/לוי/ישראל
+- [ ] כלי LLM: `suggest_aliyot(parasha, date)`
+- [ ] ווידג'ט "הצעות שיבוץ לשבת הקרובה" ב-Dashboard
+- [ ] כפתור "הצע שיבוץ אוטומטי" בעמוד עליות
+
+### ניהול מלאי
+- [ ] מודל `InventoryItem` – פריט (שם, כמות, קטגוריה: ספרים/ציוד/כלי קודש, הערות)
+- [ ] CRUD endpoints: `GET/POST/PATCH/DELETE /synagogue/inventory`
+- [ ] דף "מלאי" בסייד-בר
+
+### שדרוג LLM (2.0)
+- [ ] Knowledge Base (RAG) – שאלות על בסיס מסמכי PDF (תקנון, נהלים, הלכות)
+- [ ] שאילתות מורכבות: "מי לא עלה לתורה בחצי שנה האחרונה?"
+- [ ] שילוב זמני הלכה בתוך תשובות הצ'אט
+
+---
+
+## 🔴 v3.0 – Production · אבטחה, אימות ופריסה
+
+> **עדיפות:** חובה לפני שיתוף עם כל גורם חיצוני.  
+> **תנאי מוקדם ל-v3.5:** מודל ה-JWT + מודל ה-Scope ב-LLM חייבים להיות מוכנים לפני בוט הוואטסאפ.
 
 ### אימות משתמשים – Backend
 - [ ] מודל `User` במסד הנתונים (שם משתמש, סיסמה מוצפנת עם bcrypt)
-- [ ] endpoint הרשמה / יצירת משתמש ראשוני (`POST /auth/register`)
-- [ ] endpoint התחברות עם החזרת JWT (`POST /auth/login`)
-- [ ] middleware לאימות JWT על כל ה-endpoints
-- [ ] endpoint רענון טוקן (`POST /auth/refresh`)
-- [ ] endpoint התנתקות / ביטול טוקן (`POST /auth/logout`)
+- [ ] `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`
+- [ ] JWT middleware על כל ה-endpoints
 
 ### אימות משתמשים – Frontend
 - [ ] דף התחברות (Login page) בעברית RTL
-- [ ] שמירת JWT ב-`localStorage` / `httpOnly cookie`
-- [ ] Protected Routes – הפניה לדף התחברות עבור משתמש לא מזוהה
-- [ ] `AuthContext` / `useAuth` hook לניהול מצב ההתחברות
-- [ ] הוספת Authorization header לכל קריאות ה-API Client
+- [ ] `AuthContext` / `useAuth`, Protected Routes
+- [ ] Authorization header ב-`api/client.ts`
 - [ ] כפתור התנתקות ב-Sidebar
 
-### הקשחה ואבטחה
-- [ ] Rate limiting על endpoints רגישים (התחברות, LLM chat)
+### הכנה ל-v3.5 (WhatsApp Bot Prep)
+- [ ] מודל LLM Scope: `role=admin` (כל הנתונים) vs `role=congregant, id=X` (מסונן לפי `congregant_id`)
+- [ ] Rate limiting על `/auth/*` ו-`/llm/chat`
+
+### אבטחה ופריסה
 - [ ] Helmet / security headers ב-FastAPI
-- [ ] הגדרת `CORS_ORIGINS` בסביבת production לדומיין הסופי בלבד
-- [ ] אסור להחזיר stack traces בשגיאות production (`DEBUG=False`)
-
-### גיבוי ונתונים
-- [ ] endpoint ייצוא מתפללים ל-CSV (`GET /synagogue/congregants/export/csv`)
-- [ ] תיעוד נוהל גיבוי ידני של קובץ `gabay.db`
-- [ ] migration script למעבר מ-SQLite ל-PostgreSQL בייצור
-
-### פריסה (Deployment)
-- [ ] `Dockerfile` לשרת ה-Backend (עם `ENABLED_MODULES` ENV)
-- [ ] `Dockerfile` לבנייה ו-serve של ה-Frontend (nginx)
-- [ ] `docker-compose.yml` לסביבה מלאה (backend + frontend + db)
-- [ ] הגדרת משתני סביבה לייצור (`.env.production`)
-- [ ] תיעוד פריסה ב-`docs/DEPLOYMENT.md`
+- [ ] `CORS_ORIGINS` לדומיין הסופי בלבד, `DEBUG=False`
+- [ ] `Dockerfile` backend + `Dockerfile` frontend (nginx)
+- [ ] `docker-compose.yml` (backend + frontend + db)
+- [ ] `.env.production` + `docs/DEPLOYMENT.md`
+- [ ] migration script מ-SQLite ל-PostgreSQL
+- [ ] תיעוד נוהל גיבוי ידני של `gabay.db`
 
 ---
 
-## 🟠 Milestone 2.5 – Advanced Gabay · כספים, תקשורת ובינה מלאכותית מתקדמת
+## 🟡 v3.5 – WhatsApp Bot · בוט וואטסאפ קהילתי
 
-יעד: הפיכת המערכת לכלי עבודה שלם המנהל את הקשר עם המתפלל ואת הצד הפיננסי בצורה מקצועית.
-
-### ניהול כספים וקבלות
-- [ ] הפקת קבלות PDF מעוצבות (לוגו בית כנסת, פרטי תרומה)
-- [ ] ניהול סטטוס תשלום: "התחייבות" (Pledge) לעומת "שולם"
-- [ ] דוחות כספיים תקופתיים (אקסל/PDF) לפי מטרה ותאריך
-- [ ] ייצוא רשימת מתפללים ל-CSV (`GET /synagogue/congregants/export/csv`)
-
-### מרכז תקשורת (Communication Hub)
-- [ ] כפתור "שלח בוואטסאפ" מהיר ליד אזכרות ושמחות (הודעה מובנית)
-- [ ] מחולל "הודעה שבועית" (זמני תפילות, פרשה, אירועים) להעתקה והפצה
-- [ ] הגדרת שרת SMTP לשליחת תזכורות אוטומטיות במייל
-
-### לוח שבועי דינמי (Weekly Bulletin)
-- [ ] מודול `bulletin_service` – אוסף פרשה, זמני שבת, אזכרות ושמחות לשבוע הקרוב
-- [ ] 3 פורמטים ליצוא: טקסט לוואטסאפ, HTML למייל (Google Groups), עמוד הדפסה (A4)
-- [ ] עמוד "לוח שבועי" בממשק הגבאי – תצוגה מקדימה, עריכה, כפתורי העתקה והדפסה
-- [ ] מודל `BulletinConfig` – הגדרות קבועות: שם בית הכנסת, רב, כתובת, הכרזות חוזרות
-- [ ] בחירת קטעים להכלרה/הסרה לפי שבוע
-
-### שדרוג הגבאי הדיגיטלי (LLM 2.0)
-- [ ] Knowledge Base (RAG) – תמיכה בשאלות על בסיס מסמכי PDF (תקנון, נהלים, הלכות)
-- [ ] שאילתות מורכבות (למשל: "מי לא עלה לתורה בחצי שנה האחרונה?")
-- [ ] שילוב זמני הלכה (זמני היום) בתוך תשובות הצ'אט
-
----
-
-## 🟠 Milestone 2.6 – Synagogue Schedule · לוח זמנים חכם לבית הכנסת
-
-יעד: מודול ניהול זמני תפילות ושיעורים המבוסס על **כללים** ולא על שעות קבועות.
-
-> **רעיון המפתח:** במקום "מנחה ב-17:30", הגבאי מגדיר "מנחה = 15 דקות לפני שקיעה". המערכת מחשבת אוטומטית.
-
-### מנוע הכללים (Rules Engine) – Backend
-- [ ] מודל `PrayerRule` – `name`, `day_type`, `anchor`, `offset_minutes`, `fixed_time`, `is_active`
-- [ ] `prayer_service.calculate_times(date)` – חישוב זמני תפילה ליום לפי כללים + zmanim
-- [ ] endpoint `GET /synagogue/schedule?date=YYYY-MM-DD`
-- [ ] endpoint `GET /synagogue/schedule/week?from=YYYY-MM-DD`
-- [ ] CRUD endpoints לניהול כללים (`GET/POST/PATCH/DELETE /synagogue/prayer-rules`)
-
-### ממשק ניהול – Frontend
-- [ ] טאב "זמני בית הכנסת" בממשק הגבאי
-- [ ] עורך כללים: הוספה/עריכה/מחיקה עם בחירת עוגן מרשימה
-- [ ] תצוגת לוח מחושב ליום ולשבוע עם שעות בפועל לצד הכלל
-- [ ] הפרדה בין ימי חול / שבת / יום טוב
-
-### אינטגרציה עם מודולים אחרים
-- [ ] שילוב לוח הזמנים בלוח השבועי (Bulletin)
-- [ ] כלי LLM `get_prayer_times(date)`
-- [ ] תצוגת זמנים ב-Dashboard (כרטיס "זמני היום")
-
----
-
-## 🟠 Milestone 2.7 – Financials & Reports · ניהול פיננסי ודוחות
-
-יעד: תמונה כלכלית מלאה לוועד בית הכנסת מעבר לתרומות בלבד.
-
-### Backend
-- [ ] מודל `Expense` – הוצאה (תאריך, סכום, קטגוריה, תיאור, קישור לחשבונית)
-- [ ] מודל `Income` – הכנסה שאינה תרומה (השכרת אולם, מכירת ספרים, מענקים)
-- [ ] CRUD endpoints להוצאות (`GET/POST/PATCH/DELETE /synagogue/expenses`)
-- [ ] CRUD endpoints להכנסות (`GET/POST/PATCH/DELETE /synagogue/income`)
-- [ ] endpoint דוח שנתי: `GET /synagogue/reports/annual?year=` – P&L מסכם
-- [ ] endpoint ייצוא ל-CSV / PDF
-
-### Frontend
-- [ ] טאב "ניהול כלכלי" בדף תשלומים (או דף עצמאי)
-  - לשונית "הוצאות" – טבלת רשומות + הוספה/עריכה/מחיקה
-  - לשונית "הכנסות אחרות" – אותו מבנה
-  - לשונית "דוח שנתי" – תצוגת P&L עם גרף עוגה/עמודות
-- [ ] כפתור "ייצא ל-PDF" לדוח השנתי
-
----
-
-## 🟡 Milestone 3.5 – WhatsApp Bot · בוט וואטסאפ קהילתי
-
-יעד: המוצר משרת גם את המתפללים עצמם – ללא אפליקציה, ללא הרשמה.
+> **תלוי ב-v3.0** – נדרש: JWT Auth + LLM Scope model.  
+> המוצר משרת גם את המתפללים עצמם – ללא אפליקציה, ללא הרשמה.
 
 > **הערות טכניות:**
 > - ה-API הרשמי: **WhatsApp Business Platform (Meta Cloud API)** – חינמי עד 1,000 שיחות/חודש
@@ -271,120 +278,73 @@
 > - זיהוי מתפלל: לפי `Congregant.phone` – אין צורך בהרשמה
 
 ### תשתית WhatsApp – Backend
-- [ ] משתני סביבה: `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_VERIFY_TOKEN`
-- [ ] `app/modules/whatsapp/api.py` עם `GET /webhooks/whatsapp` + `POST /webhooks/whatsapp`
-- [ ] `app/modules/whatsapp/service.py` – שליחה וקבלה דרך Meta Cloud API / Twilio
-- [ ] זיהוי מתפלל לפי מספר טלפון
+- [ ] `app/modules/whatsapp/` – `api.py`, `service.py`
+- [ ] `GET /webhooks/whatsapp` (verify) + `POST /webhooks/whatsapp` (receive)
+- [ ] זיהוי מתפלל לפי `Congregant.phone`
+- [ ] שימוש ב-LLM Scope `role=congregant` (מ-v3.0)
 
 ### Congregant Agent – LLM
-- [ ] פרומפט מוגבל: עונה למתפלל על הנתונים שלו בלבד
-- [ ] כלים: `get_my_payments`, `get_my_aliyot`, `get_my_azkara_reminders`, `get_upcoming_events`, `get_parasha_info`
-- [ ] הגנה מפני Prompt Injection: SQL מסונן לפי `congregant_id` בשרת
+- [ ] כלים מוגבלים: `get_my_payments`, `get_my_aliyot`, `get_my_azkara_reminders`, `get_upcoming_events`, `get_parasha_info`
+- [ ] הגנה מפני Prompt Injection (SQL מסונן לפי `congregant_id` בשרת)
 
-### הודעות יוצאות (Outbound / Broadcast)
+### הודעות יוצאות
 - [ ] Template Messages לתזכורות אזכרה (D-7 ו-D-1)
 - [ ] `POST /webhooks/broadcast` – שליחת עדכון לכלל המתפללים
 - [ ] כפתור "שלח תזכורת בוואטסאפ" ממסך האזכרות
 
 ---
 
-## 🟡 Milestone 2.8 – Smart Aliyot & Inventory · שיבוץ חכם ומלאי
+## 🟡 v3.6 – Visual Bulletin · לוח שבועי מעוצב (Canva-style)
 
-### שיבוץ עליות חכם (Smart Aliya Engine)
-- [ ] אלגוריתם הצעה: מבוסס תדירות עליות, קרבת יארצייט/שמחה, סטטוס כהן/לוי/ישראל
-- [ ] כלי LLM חדש `suggest_aliyot(parasha, date)`
-- [ ] ווידג'ט "הצעות שיבוץ לשבת הקרובה" ב-Dashboard
-- [ ] עמוד עליות: כפתור "הצע שיבוץ אוטומטי"
+> **מבוסס על v2.2** – שכבת עיצוב מעל הלוח השבועי הטקסטואלי.
 
-### ניהול מלאי (Inventory)
-- [ ] מודל `InventoryItem` – פריט (שם, כמות, קטגוריה: ספרים/ציוד/כלי קודש, הערות)
-- [ ] CRUD endpoints (`GET/POST/PATCH/DELETE /synagogue/inventory`)
-- [ ] דף "מלאי" בסייד-בר עם טבלה + הוספה/עריכה
-
----
-
-## 🟡 Milestone 2.9 – Visual Bulletin & Publishing · לוח שבועי מעוצב
-
-יעד: לוח שבועי ברמה מקצועית (Canva-style), התאמה אוטומטית לדף A4.
-
-### מנוע פריסה חכם (Smart Layout Engine)
+### מנוע פריסה חכם
 - [ ] אלגוריתם Auto-Scaling – גודל פונט ומרווחים לדף A4 בודד
 - [ ] Dynamic Content Prioritization – סדר עדיפויות בעומס תוכן
 - [ ] Live Print Preview – תצוגה מקדימה המדמה דף A4
 
-### עיצוב ותבניות (Design & Themes)
+### עיצוב ותבניות
 - [ ] Theme Manager – ערכות נושא (חגים, שמחות, ימי חול)
 - [ ] Background & Overlay Support – העלאת רקעים גרפיים
 - [ ] Rich Text Editor – עורך טקסט עם הדגשות ואייקונים
 
 ### ייצוא והפצה
 - [ ] High-Quality PDF Export – ייצוא וקטורי להדפסה
-- [ ] Image Export (Social Share) – JPG/PNG לוואטסאפ וגוגל גרופס
+- [ ] Image Export (JPG/PNG) – לוואטסאפ וגוגל גרופס
 
 ---
 
-## 🟢 Milestone 4 – SaaS Platform · Multi-tenancy ו-License System
+## 🟢 v4.0 – SaaS Platform · Multi-tenancy ו-License System
 
-יעד: הפיכת Gabay לפלטפורמה מסחרית מלאה עם הפרדת נתונים בין בתי כנסת ומנגנון רישיונות.
-
-> **הערה:** הבסיס המודולרי (Registry, Hooks, Tenant Config) נבנה ב-Milestone 1.5.  
-> מילסטון זה מוסיף את שכבת ה-SaaS מעל אותה תשתית.
+> הבסיס המודולרי (Registry, Hooks, Tenant Config) נבנה ב-v1.5. גרסה זו מוסיפה את שכבת ה-SaaS.
 
 ### Multi-tenancy – Backend
-- [ ] הוספת שדה `tenant_id` לכל המודלים
-- [ ] Middleware שמזריק `tenant_id` לכל שאילתת DB לפי JWT / subdomain
+- [ ] שדה `tenant_id` לכל המודלים
+- [ ] Middleware שמזריק `tenant_id` לפי JWT / subdomain
 - [ ] תמיכה ב-subdomain routing: `synagogue-a.gabay.app` → `tenant_id=a`
-- [ ] תיעוד: DB-per-tenant (SQLite) לעומת shared DB עם Row-Level Security
+- [ ] תיעוד: DB-per-tenant לעומת shared DB עם Row-Level Security
 
 ### License System
 - [ ] מודל `License` – תוכנית (Basic / Premium / Enterprise), תאריך תפוגה, מודולים מורשים
 - [ ] `LicenseService` – אימות רישיון בעת הפעלה + בדיקת מודולים מורשים
-- [ ] Admin endpoint ליצירת רישיונות (`POST /admin/licenses`)
+- [ ] `POST /admin/licenses`
 
 ### Admin Panel
-- [ ] דף ניהול Tenants (Super Admin בלבד)
+- [ ] דף Tenants (Super Admin בלבד)
 - [ ] יצירה, עריכה, השבתה של בית כנסת
 - [ ] ניהול רישיונות ומודולים פעילים לכל Tenant
 
 ---
 
-## 🟢 Milestone 5 – Quality Assurance · הבטחת איכות ואוטומציה
+## 🔵 v5.0 – QA + Mobile · איכות ואפליקציית מובייל
 
-יעד: יציבות הממשק לפני הפצה רחבה.
+### E2E (Playwright)
+- [ ] תשתית Playwright בתיקיית ה-Frontend
+- [ ] Smoke Tests: Login → Dashboard
+- [ ] תהליכי ליבה: יצירת מתפלל, רישום תשלום, הפקת דוח שנתי
+- [ ] בדיקת רספונסיביות (מובייל, טאבלט) ונגישות בסיסית
 
-### תשתית E2E
-- [ ] הקמת תשתית Playwright בתיקיית ה-Frontend
-- [ ] כתיבת Smoke Tests למסלולים קריטיים (Login → Dashboard)
-- [ ] בדיקות תהליכי ליבה:
-  - יצירת מתפלל ובדיקה שמופיע בטבלה
-  - רישום תשלום ווידוא עדכון היתרה
-  - הפקת דוח שנתי ובדיקת הורדת הקובץ
-- [ ] בדיקת רספונסיביות: מובייל וטאבלט
-- [ ] בדיקת נגישות (Accessibility) בסיסית
-
----
-
-## 🔵 Milestone 6 – Mobile Application · אפליקציית Android + iOS
-
-יעד: הגבאי מנהל את הקהילה מכף ידו – בכל מקום ובכל זמן, כולל תוך כדי תפילה.
-
-> **גישה:** React Native + Expo – קוד בסיס אחד לשתי פלטפורמות, שימוש חוזר מלא ב-API הקיים.
-
-### Phase 1 – MVP Mobile
-- [ ] התקנת תשתית React Native + Expo
-- [ ] אימות ביומטרי (Face ID / Fingerprint) + JWT
-- [ ] Dashboard עם סטטיסטיקות קהילתיות
-- [ ] חיפוש מהיר של מתפלל ועיון בפרופיל
-- [ ] רישום תשלום ועלייה בלחיצה אחת
-- [ ] התראות Push לאזכרות ושמחות קרובות (D-7, D-1) דרך Firebase
-
-### Phase 2 – Full Feature Parity
-- [ ] גישה לצ'אט עם הגבאי הדיגיטלי (LLM)
-- [ ] ניהול עליות, אזכרות ושמחות
-- [ ] תצוגת לוח שנה עברי
-- [ ] שליחת הודעות וואטסאפ מהאפליקציה
-
-### Phase 3 – Advanced
-- [ ] מצב Offline מלא – קריאה ממטמון מקומי ללא חיבור
-- [ ] סנכרון רקע (Background Sync) כשמתחבר לרשת
-- [ ] פרסום ב-Google Play Store ו-Apple App Store
+### אפליקציית מובייל (React Native + Expo)
+- [ ] **Phase 1:** Dashboard, חיפוש מתפלל, רישום תשלום, Push notifications (Firebase)
+- [ ] **Phase 2:** LLM chat, עליות, אזכרות, לוח שנה עברי
+- [ ] **Phase 3:** מצב Offline מלא, ביומטריה (Face ID / Fingerprint), פרסום ב-Google Play + App Store

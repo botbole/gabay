@@ -152,33 +152,40 @@ Gabbaim currently manage community records in Excel spreadsheets, handwritten no
 
 ## 5. Future Features (Post-MVP)
 
-### 5.1 Communications & Weekly Bulletin
-- **Communication Hub:** Sending automatic WhatsApp and email reminders for yahrzeits and simchot
-- **Dynamic Weekly Bulletin (2.5):** Auto-generator for a formatted Shabbat announcement via WhatsApp, email (Google Groups), and basic printing
-- **Designed Weekly Bulletin (2.9):** Canva-style design engine with Auto-Scaling to A4, theme management, and high-quality PDF/image export
+### 5.1 Prayer Schedule (v2.1)
+- **Rules Engine:** Instead of fixed times, the gabbai defines "Mincha = 15 min before sunset"; the system calculates automatically
+- **Weekly Schedule View:** Displays weekday and Shabbat times with actual hours alongside each rule
+- **Integration:** "Today's Times" dashboard card and LLM tool `get_prayer_times(date)`
 
-### 5.2 Finance & Reports
-- **Extended Financial Management (2.7):** Recording non-donation income and expenses (hall rental, grants)
-- **Annual Report:** Export P&L (income vs. expenses) for the synagogue board
+### 5.2 Communications & Weekly Bulletin (v2.2 / v3.6)
+- **Communication Hub:** WhatsApp send button next to yahrzeits/simchot; automatic email reminders (SMTP)
+- **Dynamic Weekly Bulletin (v2.2):** Auto-generator for a formatted Shabbat announcement via WhatsApp, HTML email, and A4 printing
+- **Designed Weekly Bulletin (v3.6):** Canva-style engine with Auto-Scaling to A4, theme management, and high-quality PDF/image export
+
+### 5.3 Finance & Reports (v2.3)
+- **Pledge vs. Paid:** Payment status management on every donation record
 - **PDF Receipts:** Generation of formatted receipts with the synagogue's logo
+- **Extended Financial Management (v2.3):** Recording non-donation income and expenses (hall rental, grants)
+- **Annual Report:** Export P&L (income vs. expenses) for the synagogue board
 
-### 5.3 Advanced AI
-- **LLM 2.0 (2.5):** RAG support over PDF documents (bylaws, procedures, halachic rulings), complex queries
-- **Smart Aliyah Scheduler (2.8):** Automated assignment suggestions based on frequency, yahrzeit, and Kohen/Levi/Yisrael status
-- **Rules-Based Prayer Timetable (2.6):** Automatic prayer time calculation relative to sunset/sunrise
+### 5.4 Advanced AI (v2.4)
+- **LLM 2.0:** RAG support over PDF documents (bylaws, procedures, halachic rulings), complex queries
+- **Smart Aliyah Scheduler:** Automated assignment suggestions based on frequency, yahrzeit, and Kohen/Levi/Yisrael status
+- **Inventory Management:** Track books, equipment, and sacred items
 
-### 5.4 Community WhatsApp Bot (3.5)
+### 5.5 Community WhatsApp Bot (v3.5)
+> **Depends on v3.0** – requires JWT Auth and LLM Scope model before development.
 - **Congregant Interface:** 24/7 self-service for congregants via WhatsApp (no registration, no app required)
-- **Phone-Based Identification:** Congregant is identified by their phone number; the restricted LLM only sees their personal data
+- **Phone-Based Identification:** Congregant is identified by their phone number; the scoped LLM only sees their personal data
 - **Broadcast:** Sending community-wide updates from the gabbai interface
 
-### 5.5 Platform Architecture (4)
+### 5.6 Platform Architecture (v4.0)
 - **Module Registry:** Enable/disable modules per synagogue's needs (`.env`)
 - **Hook System:** Custom logic injection points without modifying the core
 - **Tenant Config:** Dynamic theming (colors, logo) per synagogue
 - **Multi-tenancy:** Data isolation for SaaS deployments with multiple synagogues
 
-### 5.6 Mobile Application – Android & iOS (Milestone 6)
+### 5.7 Mobile Application – Android & iOS (v5.0)
 
 **Vision:** The gabbai manages the community from the palm of his hand — anywhere, at any time, including during prayer services.
 
@@ -200,17 +207,17 @@ Gabbaim currently manage community records in Excel spreadsheets, handwritten no
 2. **Phase 2:** LLM chat, aliyot, azkarot, Hebrew calendar
 3. **Phase 3:** Full offline mode, biometrics (Face ID / Fingerprint)
 
-| Feature | Status |
+| Feature | Version |
 |---|---|
-| User Management / Permissions (JWT) | Milestone 3 |
-| Dynamic Weekly Bulletin | Milestone 2.5 |
-| Designed Weekly Bulletin (Canva-style) | Milestone 2.9 |
-| Financial Management & Annual Reports | Milestone 2.7 |
-| Smart Aliyah Scheduler + Inventory | Milestone 2.8 |
-| Community WhatsApp Bot | Milestone 3.5 |
-| Platform Architecture (SaaS) | Milestone 4 |
-| E2E Tests (Playwright) | Milestone 5 |
-| Mobile Application (Android + iOS) | Milestone 6 |
+| Rules-based prayer schedule | v2.1 |
+| Communication hub + text weekly bulletin | v2.2 |
+| Full financials + annual reports | v2.3 |
+| Smart aliyah scheduler + inventory + LLM 2.0 | v2.4 |
+| User auth (JWT) + production deployment | v3.0 |
+| Community WhatsApp Bot *(requires v3.0)* | v3.5 |
+| Designed weekly bulletin (Canva-style) | v3.6 |
+| Platform architecture (SaaS) | v4.0 |
+| E2E tests (Playwright) + mobile app | v5.0 |
 
 ---
 
@@ -306,7 +313,7 @@ Every feature is a self-contained module in `app/modules/`. The platform is desi
 ## 8. Open Issues
 
 1. **Currencies:** Is multi-currency support needed (USD/EUR in addition to NIS)? The field is currently flexible.
-2. **Data Backup:** Planned for Milestone 3 – a CSV export endpoint and manual backup documentation for `gabay.db`.
-3. **Authentication:** Planned for Milestone 3 – full JWT + Login page implementation.
+2. **Data Backup:** Planned for v3.0 – a CSV export endpoint and manual backup documentation for `gabay.db`.
+3. **Authentication:** Planned for v3.0 – full JWT + Login page implementation. Prerequisite for WhatsApp Bot (v3.5).
 4. **UI Language:** The interface has been fully localized to Hebrew (RTL) – all headings, buttons, and menus are in Hebrew.
 

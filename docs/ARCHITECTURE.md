@@ -23,7 +23,7 @@ Android + iOS - Future]
 
         subgraph Core [Core - app/core/]
             DB[(SQLite / PostgreSQL)]
-            Auth[JWT Auth - Milestone 3]
+            Auth[JWT Auth - v3.0]
             TenantCfg[Tenant Config]
             HebDate[Hebrew Date - pyluach]
         end
