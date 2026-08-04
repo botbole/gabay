@@ -7,8 +7,10 @@ from typing import Optional
 
 from sqlmodel import select
 
+from app.core.authorization import require_service_operational
 from app.core.db import get_session
 from app.core.hooks import hooks
+from app.modules.auth.models import User
 from app.modules.payments.models import Payment
 
 
@@ -22,7 +24,10 @@ class PaymentService:
         currency: str = "ILS",
         notes: str = "",
         payment_date: str = "",
+        *,
+        actor: User,
     ) -> dict:
+        require_service_operational(actor)
         payment = Payment(
             congregant_id=congregant_id,
             amount=amount,
@@ -84,7 +89,8 @@ class PaymentService:
                 "payments": [p.model_dump() for p in payments],
             }
 
-    async def bulk_delete_payments(self, ids: list[str]) -> dict:
+    async def bulk_delete_payments(self, ids: list[str], *, actor: User) -> dict:
+        require_service_operational(actor)
         deleted = 0
         with get_session() as session:
             for pid in ids:

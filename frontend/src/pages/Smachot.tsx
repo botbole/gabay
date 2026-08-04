@@ -375,7 +375,8 @@ export function Smachot() {
   const toggle = (id: string) => {
     setCheckedIds(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -407,7 +408,7 @@ export function Smachot() {
               <Select
                 value={String(upcomingDays)}
                 onChange={e => setUpcomingDays(Number(e.target.value))}
-                className="w-32 !mt-0"
+                className="w-32 mt-0!"
               >
                 <option value="7">7 ימים</option>
                 <option value="14">14 ימים</option>

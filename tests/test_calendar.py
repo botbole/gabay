@@ -1,5 +1,9 @@
 """Tests for Hebrew ↔ Gregorian calendar utilities."""
 
+import pytest
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")
+
 
 # ── Gregorian → Hebrew ────────────────────────────────────────────────────────
 

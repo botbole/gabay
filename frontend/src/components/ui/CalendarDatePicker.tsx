@@ -35,7 +35,7 @@ function DayCell({
     <button
       type="button"
       onClick={onClick}
-      className={`relative w-full min-h-[64px] p-1.5 rounded-lg border transition-colors text-right ${cellBg} ${
+      className={`relative w-full min-h-16 p-1.5 rounded-lg border transition-colors text-right ${cellBg} ${
         isToday ? 'ring-2 ring-blue-500' : 'border-gray-100'
       } ${isSelected ? 'border-blue-400' : ''}`}
     >
@@ -116,7 +116,7 @@ function CalendarGrid({
                   onClick={() => onSelectDay(day)}
                 />
               ) : (
-                <div key={ci} className="min-h-[64px] rounded-lg bg-gray-50/50" />
+                <div key={ci} className="min-h-16 rounded-lg bg-gray-50/50" />
               )
             )}
           </div>
@@ -149,12 +149,11 @@ export function CalendarDatePicker({
   }, []);
 
   const [monthData, setMonthData] = useState<CalendarMonth | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (year === null || month === null) return;
     let cancelled = false;
-    setLoading(true);
     calendarApi.monthView(year, month).then(data => {
       if (!cancelled) {
         setMonthData(data);
@@ -166,12 +165,14 @@ export function CalendarDatePicker({
 
   const goToPrev = () => {
     if (!monthData) return;
+    setLoading(true);
     setYear(monthData.prev_month.year);
     setMonth(monthData.prev_month.month);
   };
 
   const goToNext = () => {
     if (!monthData) return;
+    setLoading(true);
     setYear(monthData.next_month.year);
     setMonth(monthData.next_month.month);
   };

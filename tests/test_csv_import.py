@@ -2,6 +2,10 @@
 
 import io
 
+import pytest
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")
+
 
 def _csv_file(content: str):
     return ("file", (io.BytesIO(content.encode("utf-8")), "text/csv"))

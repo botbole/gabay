@@ -9,15 +9,27 @@ The built-in chat interface, powered by an LLM, allows the gabbai to perform any
 
 ## 2. Target Audience
 
-### Primary User – The Gabbai
-- Day-to-day administrator of the synagogue: head gabbai or deputy
-- Typically has basic to intermediate technical proficiency
-- Works in Hebrew; well-versed in the Hebrew calendar and synagogue terminology
-- Requires quick access to information during prayer services (who attended, who receives an aliyah, who has a yahrzeit)
+### Admin (System Administrator / מנהל מערכת)
+- Bootstraps the synagogue account and manages web users and role assignments
+- Configures Synagogue settings (`TenantConfig`), enabled modules, integrations, and security
+- Has emergency operational access, but routine synagogue work is normally delegated to a Gabai
+- Only this persona may change protected synagogue/system settings
 
-### Secondary Users
-- **Community Finance Manager** – tracking payments and donations
-- **Rabbi / Cantor** – reviewing Torah aliyot and yahrzeits for the weekly portion
+### Gabai (Gabbai / גבאי)
+- Primary day-to-day operator: head gabbai, deputy, or an authorized finance/community manager
+- Manages congregants, payments, aliyot, seating, yahrzeits, simchot, imports, reports, communications, and operational LLM tools
+- Works in Hebrew and needs quick access during prayer services
+- Cannot manage users or roles and cannot change protected synagogue/system settings
+
+### Congregant (Worshipper / מתפלל)
+- Uses WhatsApp for public information and personal self-service; no registration, app, or login `User` is required
+- Is identified by a verified phone number matched to their `Congregant` record
+- Can read only their own payments, aliyot, reminders, and other explicitly scoped data
+- May make safe self-updates immediately; sensitive identity, financial, yahrzeit, seating, or permission changes become requests requiring Gabai approval
+
+Rabbi/Cantor read-only workflows may be represented by a suitably restricted future role; they are not a separate role in the current three-role target.
+
+This persona model is implemented in the backend role enum. Operational APIs allow `admin` and `gabai`; user administration and protected settings remain `admin`-only.
 
 ---
 
@@ -146,6 +158,8 @@ Gabbaim currently manage community records in Excel spreadsheets, handwritten no
 | Simchot | Add, upcoming list |
 | Calendar | Date conversion, monthly view |
 
+The effective tool list is filtered by the server-side role and scope: Admin receives administrative and operational tools, Gabai receives operational tools, and Congregant receives public and `my_*` tools only. Every tool call is re-authorized in the service/database layer.
+
 **Failure Condition:** When the LLM cannot identify an appropriate tool — it returns an explanation in Hebrew and requests additional details.
 
 ---
@@ -175,8 +189,11 @@ Gabbaim currently manage community records in Excel spreadsheets, handwritten no
 
 ### 5.5 Community WhatsApp Bot (v3.5)
 > **Depends on v3.0** – requires JWT Auth and LLM Scope model before development.
-- **Congregant Interface:** 24/7 self-service for congregants via WhatsApp (no registration, no app required)
-- **Phone-Based Identification:** Congregant is identified by their phone number; the scoped LLM only sees their personal data
+- **Congregant Interface:** 24/7 self-service via WhatsApp, with no registration, app, or login `User`
+- **Phone-Based Identification:** Verified phone → `Congregant` → server-enforced `congregant_id`; unknown or ambiguous senders receive no private data
+- **Immediate Actions:** Public reads, personal reads, and explicitly safe self-updates
+- **Approval Workflow:** Sensitive identity, financial, yahrzeit, seating, or permission changes are sent to a Gabai for approval
+- **Auditability:** Identity resolution, scope, tools, changes, approvals, and outcomes are logged
 - **Broadcast:** Sending community-wide updates from the gabbai interface
 
 ### 5.6 Platform Architecture (v4.0)
@@ -314,6 +331,6 @@ Every feature is a self-contained module in `app/modules/`. The platform is desi
 
 1. **Currencies:** Is multi-currency support needed (USD/EUR in addition to NIS)? The field is currently flexible.
 2. **Data Backup:** Planned for v3.0 – a CSV export endpoint and manual backup documentation for `gabay.db`.
-3. **Authentication:** Planned for v3.0 – full JWT + Login page implementation. Prerequisite for WhatsApp Bot (v3.5).
+3. **Authentication and Authorization:** Backend JWT/session foundations are implemented. Route/service protection, the `gabai` role, frontend login, role-specific UI, and scoped LLM/WhatsApp enforcement remain v3.0 work and are prerequisites for the WhatsApp Bot (v3.5).
 4. **UI Language:** The interface has been fully localized to Hebrew (RTL) – all headings, buttons, and menus are in Hebrew.
 

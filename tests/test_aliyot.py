@@ -1,5 +1,9 @@
 """Tests for Torah Aliya endpoints."""
 
+import pytest
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")
+
 
 # ── Assign Aliya ──────────────────────────────────────────────────────────────
 

@@ -6,12 +6,14 @@ from typing import Optional
 
 from sqlmodel import select
 
+from app.core.authorization import require_service_operational
 from app.core.db import get_session
 from app.core.hebrew_date import (
     gregorian_to_hebrew,
     parse_gregorian_iso,
     upcoming_occurrences,
 )
+from app.modules.auth.models import User
 from app.modules.azkarot.models import Azkara
 
 
@@ -28,7 +30,10 @@ class AzkaraService:
         hebrew_month: int = 0,
         year_occurred: Optional[int] = None,
         notes: str = "",
+        *,
+        actor: User,
     ) -> dict:
+        require_service_operational(actor)
         day, month = hebrew_day, hebrew_month
         if gregorian_date and (not day or not month):
             d = parse_gregorian_iso(gregorian_date)
@@ -94,7 +99,8 @@ class AzkaraService:
             "azkarot": upcoming,
         }
 
-    async def delete_azkara(self, azkara_id: str) -> bool:
+    async def delete_azkara(self, azkara_id: str, *, actor: User) -> bool:
+        require_service_operational(actor)
         with get_session() as session:
             a = session.get(Azkara, azkara_id)
             if not a:
@@ -103,7 +109,8 @@ class AzkaraService:
             session.commit()
             return True
 
-    async def bulk_delete_azkarot(self, ids: list[str]) -> dict:
+    async def bulk_delete_azkarot(self, ids: list[str], *, actor: User) -> dict:
+        require_service_operational(actor)
         deleted = 0
         with get_session() as session:
             for aid in ids:

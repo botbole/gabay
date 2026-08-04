@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.deps import require_operational
 from app.models.base import APIResponse
 from app.modules.calendar.service import calendar_service
 
-router = APIRouter(prefix="/synagogue", tags=["calendar"])
+router = APIRouter(
+    prefix="/synagogue",
+    tags=["calendar"],
+    dependencies=[Depends(require_operational)],
+)
 
 
 @router.get("/info", response_model=APIResponse)

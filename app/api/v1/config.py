@@ -7,26 +7,29 @@ PATCH /api/v1/config – updates TenantConfig fields
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.core.db import get_session
+from app.core.deps import require_admin
 from app.core.registry import registry
 from app.core.tenant import TenantConfig
+from app.core.tenant_service import update_tenant_config
 from app.models.base import APIResponse
+from app.modules.auth.models import User
 
 router = APIRouter(prefix="/config", tags=["config"])
 
 
 class TenantConfigUpdate(BaseModel):
-    synagogue_name: Optional[str] = None
-    logo_url: Optional[str] = None
-    color_primary: Optional[str] = None
-    color_secondary: Optional[str] = None
-    color_bg: Optional[str] = None
-    enabled_modules: Optional[list[str]] = None
+    synagogue_name: str | None = None
+    logo_url: str | None = None
+    color_primary: str | None = None
+    color_secondary: str | None = None
+    color_bg: str | None = None
+    enabled_modules: list[str] | None = None
 
 
 def _config_response(config: TenantConfig) -> dict:
@@ -54,30 +57,14 @@ async def get_config():
 
 
 @router.patch("", response_model=APIResponse)
-async def update_config(req: TenantConfigUpdate):
+async def update_config(
+    req: TenantConfigUpdate,
+    actor: Annotated[User, Depends(require_admin)],
+):
     """Update one or more tenant configuration fields."""
     try:
-        with get_session() as session:
-            config = session.get(TenantConfig, 1)
-            if not config:
-                config = TenantConfig()
-
-            if req.synagogue_name is not None:
-                config.synagogue_name = req.synagogue_name
-            if req.logo_url is not None:
-                config.logo_url = req.logo_url
-            if req.color_primary is not None:
-                config.color_primary = req.color_primary
-            if req.color_secondary is not None:
-                config.color_secondary = req.color_secondary
-            if req.color_bg is not None:
-                config.color_bg = req.color_bg
-            if req.enabled_modules is not None:
-                config.enabled_modules = ",".join(req.enabled_modules)
-
-            session.add(config)
-            session.commit()
-            session.refresh(config)
+        updates = req.model_dump(exclude_none=True)
+        config = update_tenant_config(actor, updates)
         return APIResponse(message="הגדרות עודכנו בהצלחה.", data=_config_response(config))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

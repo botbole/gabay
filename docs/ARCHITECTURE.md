@@ -23,7 +23,7 @@ Android + iOS - Future]
 
         subgraph Core [Core - app/core/]
             DB[(SQLite / PostgreSQL)]
-            Auth[JWT Auth - v3.0]
+            AuthCore[JWT Validation and Auth Dependencies]
             TenantCfg[Tenant Config]
             HebDate[Hebrew Date - pyluach]
         end
@@ -35,12 +35,15 @@ Android + iOS - Future]
             MOD_S[seating]
             MOD_CAL[calendar]
             MOD_LLM[llm - Digital Gabbai]
+            MOD_AUTH[auth - Users and Sessions]
             MOD_WA[whatsapp - Future]
         end
 
         Main --> Registry
         Registry -->|loads enabled modules| Modules
         Modules --> DB
+        MOD_AUTH --> AuthCore
+        AuthCore --> DB
         Modules -.->|fire| Bus
         Bus -.->|notify| Modules
     end
@@ -52,7 +55,7 @@ Android + iOS - Future]
         FCM[Firebase - Push]
     end
 
-    Browser -->|REST /api/v1| Backend
+    Browser -->|Bearer access JWT and refresh cookie| Backend
     Mobile -->|REST /api/v1| Backend
     TenantCfg -->|JSON Manifest| Browser
     TenantCfg -->|JSON Manifest| Mobile
@@ -99,25 +102,34 @@ SQLModel Tables]
 - `api.py` → calls `service.py` only, never DB directly
 - `service.py` → owns its `models.py`, fires events on the Bus
 - Cross-module references are **soft** (plain string ID, no DB foreign key)
+- Authentication is the explicit exception: `User.congregant_id` declares an optional foreign key for a future web account linked to a congregant. WhatsApp identification does not require a `User`.
+
+**Entities and roles are different concepts:**
+- Entities such as `User`, `Congregant`, and `TenantConfig` are persisted business or technical records.
+- A role is a permission label attached to an authenticated actor; it is not a business entity.
+- `TenantConfig` is the technical model presented in the product as **Synagogue settings**. Reading the public branding manifest is allowed before login; changing synagogue settings is an Admin-only operation.
 
 ---
 
-## 3. Request Lifecycle
+## 3. Protected Request Lifecycle
 
-How a single API call flows through the system.
+Authentication uses explicit FastAPI dependencies rather than blanket JWT middleware. Every domain router now requires an operational `admin` or `gabai` actor, protected settings require `admin`, and sensitive service/LLM entry points re-check authorization.
 
 ```mermaid
 sequenceDiagram
     participant C as Client (Browser / Mobile)
-    participant MW as FastAPI Middleware
+    participant A as Auth Dependency
     participant R as Router (api.py)
     participant S as Service (service.py)
     participant DB as Database
     participant Bus as Event Bus
 
-    C->>MW: POST /api/v1/payments
-    MW->>MW: Validate JWT
-    MW->>R: route to record_payment()
+    C->>R: POST /api/v1/payments with Bearer JWT
+    R->>A: Resolve require_roles("admin", "gabai")
+    A->>A: Validate signature, issuer, audience, expiry and token type
+    A->>DB: Load active User
+    DB-->>A: User identity and role
+    A-->>R: Authorized current user
     R->>R: Validate request schema
     R->>S: service.record_payment(...)
     S->>DB: INSERT into payments
@@ -128,9 +140,63 @@ sequenceDiagram
     R-->>C: { success: true, data: {...} }
 ```
 
+Router dependencies establish the permitted role and return `401` or `403`. Services must independently enforce protected-operation and row-level rules because the same service can be reached from REST, the LLM, or WhatsApp. Frontend route visibility and prompt instructions are usability controls, not security boundaries.
+
 ---
 
-## 4. Event Bus (Hook System)
+## 4. Authentication and Session Lifecycle
+
+The backend authentication contract is implemented in `app/modules/auth/`. The frontend login and in-memory access-token lifecycle are added in a later phase. The backend implements all three approved roles below.
+
+**Public endpoint contract:**
+- `GET /health`
+- `GET /api/v1/config` for pre-login branding
+- `POST /api/v1/auth/register` only while no users exist
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+
+After bootstrap, `/auth/register` requires an authenticated administrator. `PATCH /api/v1/config` must also require Admin, while `GET /api/v1/config` remains public for pre-login branding. Current management routers remain open until the API authorization phase is completed.
+
+**Target roles:**
+- `admin` (Admin / מנהל מערכת) — user and role management, Synagogue settings, modules and integrations, security, and emergency operational access.
+- `gabai` (Gabai / גבאי) — full day-to-day operational access, reports, and imports, excluding user administration and protected synagogue/system settings.
+- `congregant` (Congregant / מתפלל) — WhatsApp-only access to public information and explicitly safe actions scoped to their own `congregant_id`.
+
+**Authorization principals:**
+- Admin and Gabai use web authentication: credentials resolve to an active `User`, JWT claims identify the user and role, and router plus service rules authorize the operation.
+- A WhatsApp congregant does not register or log in. A verified sender phone is matched to `Congregant.phone`; the server constructs a `congregant` principal with that record's `congregant_id`.
+- `User.congregant_id` remains optional and supports future account linkage if a congregant portal is introduced. It is not required for WhatsApp self-service.
+
+```mermaid
+sequenceDiagram
+    participant B as Browser
+    participant API as Auth API
+    participant DB as Database
+
+    B->>API: Login with username and password
+    API->>DB: Verify active User and Argon2id password hash
+    API->>DB: Store hash of refresh token and token family
+    API-->>B: Access JWT in response and refresh JWT in HttpOnly cookie
+    B->>API: Refresh with cookie
+    API->>DB: Revoke old refresh session and create rotated session
+    API-->>B: New access JWT and rotated refresh cookie
+    B->>API: Logout
+    API->>DB: Revoke refresh-token family
+    API-->>B: Delete refresh cookie
+```
+
+Only hashes of refresh tokens are persisted. Reuse of a revoked refresh token revokes its complete token family.
+
+### WhatsApp congregant scope
+
+The WhatsApp webhook must verify the provider signature and sender number before identity resolution. Unknown or ambiguous numbers receive no private data. For a verified match, every personal query is filtered by `congregant_id` in the service/database layer, and the LLM receives only public tools plus explicit `my_*` tools.
+
+Public reads and safe self-updates may complete immediately. Sensitive changes—identity details, financial records, yahrzeits, seating, or permissions—create a request for Gabai approval. Identity resolution, selected tool, effective scope, requested change, approval, and outcome are audit logged.
+
+---
+
+## 5. Event Bus (Hook System)
 
 Modules communicate only through events. No direct imports between modules.
 
@@ -163,36 +229,30 @@ Payments, Seating, or WhatsApp
 
 ---
 
-## 5. Deployment Architecture
+## 6. Deployment Architecture
 
-One Docker image, many synagogues — each with its own enabled modules and branding.
+The v3.0 target is a single-tenant deployment on AWS ECS Fargate. Each deployment serves one synagogue; multi-tenancy remains a v4.0 concern. Kubernetes is intentionally not required for v3.0.
 
 ```mermaid
 graph TD
-    Git[Git Repository] -->|CI/CD| Image[Docker Image
-gabay:latest]
+    Git[Git Repository] --> CI[GitHub Actions]
+    CI --> ECR[Amazon ECR]
+    ECR --> Frontend[ECS Fargate Frontend]
+    ECR --> Backend[ECS Fargate Backend]
+    Browser[Web Browser] --> ALB[Application Load Balancer with TLS]
+    ALB --> Frontend
+    Frontend -->|"/api proxy"| Backend
+    Backend --> RDS[(Amazon RDS PostgreSQL)]
+    Secrets[AWS Secrets Manager] --> Backend
 
-    Image -->|docker-compose| DevEnv[Dev Environment
-All modules enabled]
-
-    Image -->|K8s deploy| SynA
-    Image -->|K8s deploy| SynB
-    Image -->|K8s deploy| SynC
-
-    subgraph SynA [Synagogue A - Basic]
-        EnvA[ENABLED_MODULES=
-congregants,payments,calendar]
-    end
-
-    subgraph SynB [Synagogue B - Premium]
-        EnvB[ENABLED_MODULES=
-congregants,payments,
-aliyot,seating,llm,whatsapp]
-    end
-
-    subgraph SynC [Synagogue C - Custom]
-        EnvC[ENABLED_MODULES=
-congregants,calendar,bulletin]
+    subgraph Local [Local Integration]
+        Compose[Docker Compose]
+        LocalFrontend[Frontend Container]
+        LocalBackend[Backend Container]
+        LocalDB[(PostgreSQL Container)]
+        Compose --> LocalFrontend
+        Compose --> LocalBackend
+        Compose --> LocalDB
     end
 ```
 
@@ -205,7 +265,7 @@ congregants,calendar,bulletin]
 
 ---
 
-## 6. Frontend Dynamic Loading
+## 7. Frontend Dynamic Loading
 
 ```mermaid
 sequenceDiagram
@@ -225,9 +285,9 @@ sequenceDiagram
 
 ---
 
-## 7. Database Entity Relationship
+## 8. Database Entity Relationship
 
-All entities are linked to `Congregant` through a **soft ID** (string UUID). There are no cross-module foreign keys.
+Domain entities are linked to `Congregant` through **soft string IDs**. Authentication is the deliberate exception: optional `User.congregant_id` declares a cross-module foreign key for future web-account identity scope. WhatsApp scope is resolved directly from a verified `Congregant.phone`.
 
 ```mermaid
 erDiagram
@@ -294,22 +354,50 @@ erDiagram
         string parasha
     }
 
+    USERS {
+        string id PK
+        string username UK
+        string password_hash
+        string role
+        bool is_active
+        string congregant_id FK
+        datetime created_at
+        datetime updated_at
+    }
+
+    REFRESH_SESSIONS {
+        string id PK
+        string user_id FK
+        string token_hash UK
+        string family_id
+        datetime expires_at
+        datetime revoked_at
+    }
+
     CONGREGANTS ||--o{ PAYMENTS  : "makes"
     CONGREGANTS ||--o{ ALIYOT    : "receives"
     CONGREGANTS ||--o| PLACES    : "assigned to"
     CONGREGANTS ||--o{ AZKAROT   : "commemorates"
     CONGREGANTS ||--o{ SMACHOT   : "celebrates"
+    CONGREGANTS o|--o{ USERS : "may identify"
+    USERS ||--o{ REFRESH_SESSIONS : "owns"
 ```
 
 ---
 
-## 8. Key Design Decisions
+## 9. Key Design Decisions
 
 | Decision | Reason |
 |---|---|
 | Modular Monolith over Microservices | Lower operational complexity. Can migrate to microservices later if needed. |
-| Soft IDs over DB Foreign Keys | Allows modules to be removed or added without DB migrations or cascade errors. |
+| Soft IDs for domain modules | Allows modules to be removed or added without cascade errors; authentication identity scope is the documented exception. |
 | Event Bus over direct imports | Zero coupling — adding a WhatsApp module does not touch the Congregants module. |
-| Single Docker image + ENV toggle | Simple CI/CD pipeline; monetization is config, not separate builds. |
+| FastAPI authorization dependencies | Keeps the public allowlist explicit and role requirements visible at router level. |
+| Defense-in-depth authorization | Router, service, and database layers enforce roles and row scope; UI visibility, WhatsApp orchestration, and LLM prompts never authorize access. |
+| Admin-only Synagogue settings | `TenantConfig` controls tenant-wide branding, modules, and configuration; only Admin may mutate it. |
+| Phone-scoped WhatsApp identity | Verified phone → `Congregant` → server-enforced `congregant_id`, without requiring registration or a `User`. |
+| Rotated refresh sessions | Supports real logout, server-side revocation, and refresh-token reuse detection. |
+| AWS ECS Fargate for v3.0 | Most common cloud ecosystem with managed containers and no Kubernetes operational burden. |
+| Separate frontend and backend images | Supports nginx static delivery while keeping the FastAPI runtime independently deployable. |
 | Dynamic LLM tools | Disabled modules are completely invisible to the AI assistant. |
 | React Native for Mobile | Reuses 90% of existing API layer; single codebase for Android and iOS. |

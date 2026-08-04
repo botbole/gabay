@@ -4,13 +4,19 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from app.core.deps import require_operational
 from app.models.base import APIResponse
+from app.modules.auth.models import User
 from app.modules.payments.service import payment_service
 
-router = APIRouter(prefix="/synagogue", tags=["payments"])
+router = APIRouter(
+    prefix="/synagogue",
+    tags=["payments"],
+    dependencies=[Depends(require_operational)],
+)
 
 
 class BulkIdsRequest(BaseModel):
@@ -27,7 +33,10 @@ class PaymentCreate(BaseModel):
 
 
 @router.post("/payments", response_model=APIResponse, status_code=201)
-async def record_payment(req: PaymentCreate):
+async def record_payment(
+    req: PaymentCreate,
+    actor: User = Depends(require_operational),
+):
     try:
         data = await payment_service.record_payment(
             congregant_id=req.congregant_id,
@@ -36,6 +45,7 @@ async def record_payment(req: PaymentCreate):
             currency=req.currency,
             notes=req.notes,
             payment_date=req.payment_date,
+            actor=actor,
         )
         return APIResponse(message="Payment recorded successfully.", data=data)
     except Exception as exc:
@@ -54,9 +64,12 @@ async def get_all_payments(
 
 
 @router.post("/payments/bulk-delete", response_model=APIResponse)
-async def bulk_delete_payments(req: BulkIdsRequest):
+async def bulk_delete_payments(
+    req: BulkIdsRequest,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await payment_service.bulk_delete_payments(req.ids)
+        data = await payment_service.bulk_delete_payments(req.ids, actor=actor)
         return APIResponse(message=f"{data['deleted']} תשלומים נמחקו.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

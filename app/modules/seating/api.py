@@ -4,13 +4,19 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from app.core.deps import require_operational
 from app.models.base import APIResponse
+from app.modules.auth.models import User
 from app.modules.seating.service import seating_service
 
-router = APIRouter(prefix="/synagogue", tags=["seating"])
+router = APIRouter(
+    prefix="/synagogue",
+    tags=["seating"],
+    dependencies=[Depends(require_operational)],
+)
 
 
 class BulkIdsRequest(BaseModel):
@@ -34,7 +40,10 @@ class PlaceAssign(BaseModel):
 
 
 @router.post("/places", response_model=APIResponse, status_code=201)
-async def add_place(req: PlaceCreate):
+async def add_place(
+    req: PlaceCreate,
+    actor: User = Depends(require_operational),
+):
     try:
         data = await seating_service.add_place(
             section=req.section,
@@ -44,6 +53,7 @@ async def add_place(req: PlaceCreate):
             is_reserved=req.is_reserved,
             annual_fee=req.annual_fee,
             notes=req.notes,
+            actor=actor,
         )
         return APIResponse(message="Place added successfully.", data=data)
     except Exception as exc:
@@ -76,13 +86,18 @@ async def get_place(place_id: str):
 
 
 @router.patch("/places/{place_id}/assign", response_model=APIResponse)
-async def assign_place(place_id: str, req: PlaceAssign):
+async def assign_place(
+    place_id: str,
+    req: PlaceAssign,
+    actor: User = Depends(require_operational),
+):
     try:
         data = await seating_service.assign_place(
             place_id=place_id,
             congregant_id=req.congregant_id,
             is_reserved=req.is_reserved,
             annual_fee=req.annual_fee,
+            actor=actor,
         )
         if data is None:
             raise HTTPException(status_code=404, detail=f"Place '{place_id}' not found.")
@@ -94,9 +109,12 @@ async def assign_place(place_id: str, req: PlaceAssign):
 
 
 @router.patch("/places/{place_id}/unassign", response_model=APIResponse)
-async def unassign_place(place_id: str):
+async def unassign_place(
+    place_id: str,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await seating_service.unassign_place(place_id)
+        data = await seating_service.unassign_place(place_id, actor=actor)
         if data is None:
             raise HTTPException(status_code=404, detail=f"Place '{place_id}' not found.")
         return APIResponse(message="Place unassigned.", data=data)
@@ -107,9 +125,12 @@ async def unassign_place(place_id: str):
 
 
 @router.post("/places/bulk-delete", response_model=APIResponse)
-async def bulk_delete_places(req: BulkIdsRequest):
+async def bulk_delete_places(
+    req: BulkIdsRequest,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await seating_service.bulk_delete_places(req.ids)
+        data = await seating_service.bulk_delete_places(req.ids, actor=actor)
         return APIResponse(message=f"{data['deleted']} מושבים נמחקו.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

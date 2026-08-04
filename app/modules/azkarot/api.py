@@ -4,13 +4,19 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from app.core.deps import require_operational
 from app.models.base import APIResponse
+from app.modules.auth.models import User
 from app.modules.azkarot.service import azkara_service
 
-router = APIRouter(prefix="/synagogue", tags=["azkarot"])
+router = APIRouter(
+    prefix="/synagogue",
+    tags=["azkarot"],
+    dependencies=[Depends(require_operational)],
+)
 
 
 class BulkIdsRequest(BaseModel):
@@ -30,7 +36,10 @@ class AzkaraCreate(BaseModel):
 
 
 @router.post("/azkarot", response_model=APIResponse, status_code=201)
-async def add_azkara(req: AzkaraCreate):
+async def add_azkara(
+    req: AzkaraCreate,
+    actor: User = Depends(require_operational),
+):
     try:
         data = await azkara_service.add_azkara(
             congregant_id=req.congregant_id,
@@ -42,6 +51,7 @@ async def add_azkara(req: AzkaraCreate):
             hebrew_month=req.hebrew_month,
             year_occurred=req.year_occurred,
             notes=req.notes,
+            actor=actor,
         )
         return APIResponse(message="Azkara added successfully.", data=data)
     except Exception as exc:
@@ -84,9 +94,12 @@ async def get_azkara(azkara_id: str):
 
 
 @router.delete("/azkarot/{azkara_id}", response_model=APIResponse)
-async def delete_azkara(azkara_id: str):
+async def delete_azkara(
+    azkara_id: str,
+    actor: User = Depends(require_operational),
+):
     try:
-        deleted = await azkara_service.delete_azkara(azkara_id)
+        deleted = await azkara_service.delete_azkara(azkara_id, actor=actor)
         if not deleted:
             raise HTTPException(status_code=404, detail=f"Azkara '{azkara_id}' not found.")
         return APIResponse(message="Azkara deleted.", data={"id": azkara_id})
@@ -97,9 +110,12 @@ async def delete_azkara(azkara_id: str):
 
 
 @router.post("/azkarot/bulk-delete", response_model=APIResponse)
-async def bulk_delete_azkarot(req: BulkIdsRequest):
+async def bulk_delete_azkarot(
+    req: BulkIdsRequest,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await azkara_service.bulk_delete_azkarot(req.ids)
+        data = await azkara_service.bulk_delete_azkarot(req.ids, actor=actor)
         return APIResponse(message=f"{data['deleted']} אזכרות נמחקו.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

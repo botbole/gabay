@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.core.deps import require_operational
 from app.models.base import APIResponse
 from app.modules.aliyot.service import aliyot_service
+from app.modules.auth.models import User
 
-router = APIRouter(prefix="/synagogue", tags=["aliyot"])
+router = APIRouter(
+    prefix="/synagogue",
+    tags=["aliyot"],
+    dependencies=[Depends(require_operational)],
+)
 
 
 class BulkIdsRequest(BaseModel):
@@ -26,7 +32,10 @@ class AliyaCreate(BaseModel):
 
 
 @router.post("/aliyot", response_model=APIResponse, status_code=201)
-async def assign_aliya(req: AliyaCreate):
+async def assign_aliya(
+    req: AliyaCreate,
+    actor: User = Depends(require_operational),
+):
     try:
         data = await aliyot_service.assign_aliya(
             congregant_id=req.congregant_id,
@@ -36,6 +45,7 @@ async def assign_aliya(req: AliyaCreate):
             minhag=req.minhag,
             donation_amount=req.donation_amount,
             notes=req.notes,
+            actor=actor,
         )
         return APIResponse(message="Aliya assigned successfully.", data=data)
     except Exception as exc:
@@ -70,9 +80,12 @@ async def get_aliya_history(congregant_id: str):
 
 
 @router.post("/aliyot/bulk-delete", response_model=APIResponse)
-async def bulk_delete_aliyot(req: BulkIdsRequest):
+async def bulk_delete_aliyot(
+    req: BulkIdsRequest,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await aliyot_service.bulk_delete_aliyot(req.ids)
+        data = await aliyot_service.bulk_delete_aliyot(req.ids, actor=actor)
         return APIResponse(message=f"{data['deleted']} עליות נמחקו.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

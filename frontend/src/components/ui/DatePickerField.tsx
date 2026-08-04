@@ -234,22 +234,14 @@ export function DatePickerField({
   const btnRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
 
-  // Sync Gregorian view when prop changes
-  useEffect(() => {
+  // ── popup positioning ──────────────────────────────────────────────────────
+  const openPopup = useCallback(() => {
+    if (!btnRef.current) return;
     if (gregorianDate) {
       setViewYear(parseInt(gregorianDate.slice(0, 4)));
       setViewMonth(parseInt(gregorianDate.slice(5, 7)) - 1);
     }
-  }, [gregorianDate]);
-
-  // Sync Hebrew view month when prop changes
-  useEffect(() => {
     if (hebrewMonth) setHViewMonth(parseInt(hebrewMonth));
-  }, [hebrewMonth]);
-
-  // ── popup positioning ──────────────────────────────────────────────────────
-  const openPopup = useCallback(() => {
-    if (!btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
     const popupH = 390;
     const top = window.innerHeight - rect.bottom >= popupH || rect.top < popupH
@@ -263,7 +255,7 @@ export function DatePickerField({
       zIndex: 9999,
     });
     setIsOpen(true);
-  }, []);
+  }, [gregorianDate, hebrewMonth]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -376,7 +368,7 @@ export function DatePickerField({
   // ── display labels (both calendars when available) ─────────────────────────
   const buildDisplays = (): { heb: string | null; greg: string | null } => {
     let heb: string | null = null;
-    let greg: string | null = null;
+    let greg: string;
 
     if (mode === 'gregorian') {
       if (!gregorianDate) return { heb: null, greg: null };

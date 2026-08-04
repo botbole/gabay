@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   DndContext,
@@ -225,15 +225,6 @@ const HEBREW_MONTHS: { value: number; label: string }[] = [
   { value: 13, label: 'אדר ב׳' },
 ];
 
-const DAY_TYPE_BADGE_COLORS: Record<string, string> = {
-  daily:       'bg-slate-100 text-slate-700',
-  shabbat:     'bg-indigo-100 text-indigo-700',
-  yom_tov:     'bg-amber-100 text-amber-700',
-  rosh_hashana: 'bg-orange-100 text-orange-700',
-  yom_kippur:  'bg-red-100 text-red-700',
-  special:     'bg-teal-100 text-teal-700',
-};
-
 function anchorDescription(rule: PrayerRule): string {
   if (rule.anchor === 'fixed') return rule.exact_time ?? '—';
   const base = ANCHOR_LABELS[rule.anchor] ?? rule.anchor;
@@ -287,12 +278,6 @@ function RuleFormModal({ open, onClose, dayType, editRule, onSaved }: RuleFormMo
   });
 
   const [form, setForm] = useState<PrayerRuleCreate>(defaultForm);
-
-  // Reset form to clean defaults every time the modal opens (add mode only)
-  useEffect(() => {
-    if (open) setForm(defaultForm());
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
 
   const set = (k: keyof PrayerRuleCreate, v: unknown) =>
     setForm(f => ({ ...f, [k]: v }));
@@ -684,21 +669,14 @@ function SortableRuleRow({
       </div>
 
       {/* Time display — for lessons: notes (lesson time) takes priority */}
-      <div className="shrink-0 text-center min-w-[72px]">
+      <div className="shrink-0 text-center min-w-18">
         {(() => {
-          let display = '';
-          let isCombined = false;
-          
-          if (isLesson) {
-            if (!rule.no_auto_time && calculatedTime) {
-              display = rule.notes ? `${calculatedTime} (${rule.notes})` : calculatedTime;
-              isCombined = true;
-            } else {
-              display = rule.notes || '';
-            }
-          } else {
-            display = calculatedTime || '';
-          }
+          const isCombined = isLesson && !rule.no_auto_time && !!calculatedTime;
+          const display = isLesson
+            ? isCombined
+              ? rule.notes ? `${calculatedTime} (${rule.notes})` : calculatedTime
+              : rule.notes || ''
+            : calculatedTime || '';
 
           return display ? (
             <span
@@ -749,7 +727,7 @@ function RulesPanel({ dayType }: { dayType: string }) {
   const qc = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [editRule, setEditRule] = useState<PrayerRule | undefined>();
-  const [localRules, setLocalRules] = useState<PrayerRule[]>([]);
+  const [localRuleOverrides, setLocalRuleOverrides] = useState<PrayerRule[] | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -776,9 +754,15 @@ function RulesPanel({ dayType }: { dayType: string }) {
   const { data: nextSatZmanim } = useQuery({ queryKey: ['zmanim', nextSatIso], queryFn: () => calendarApi.dayTimes(nextSatIso), ...zmanimOpts });
   const { data: tuesdayZmanim } = useQuery({ queryKey: ['zmanim', tuesdayIso], queryFn: () => calendarApi.dayTimes(tuesdayIso), ...zmanimOpts });
 
-  useEffect(() => {
-    if (data?.rules) setLocalRules(data.rules);
-  }, [data]);
+  const localRules = localRuleOverrides ?? data?.rules ?? [];
+  const setLocalRules = (
+    next: PrayerRule[] | ((current: PrayerRule[]) => PrayerRule[]),
+  ) => {
+    setLocalRuleOverrides(current => {
+      const rules = current ?? data?.rules ?? [];
+      return typeof next === 'function' ? next(rules) : next;
+    });
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => scheduleApi.deleteRule(id),
@@ -881,6 +865,7 @@ function RulesPanel({ dayType }: { dayType: string }) {
       )}
 
       <RuleFormModal
+        key={addOpen ? 'add-open' : 'add-closed'}
         open={addOpen}
         onClose={() => setAddOpen(false)}
         dayType={dayType}
@@ -1305,7 +1290,7 @@ export function PrayerSchedule() {
   const [generateOpen, setGenerateOpen] = useState(false);
 
   return (
-    <div className="p-6 space-y-6 max-w-screen-xl mx-auto">
+    <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <PageHeader
         title="לוח תפילות ושיעורים"
         subtitle="הגדר כללי תפילה לפי סוג יום וראה זמנים מחושבים אוטומטית"
@@ -1363,7 +1348,7 @@ export function PrayerSchedule() {
                 <SpecialDaysPanel />
               </>
             ) : (
-              <RulesPanel dayType={activeTab} />
+              <RulesPanel key={activeTab} dayType={activeTab} />
             )}
           </CardContent>
         </Card>

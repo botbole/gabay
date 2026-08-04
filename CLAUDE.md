@@ -37,7 +37,7 @@ npm run preview    # serve production build locally
 Modular FastAPI application (Milestone 1.5):
 
 - **`app/modules/`** — One sub-package per domain. Each has `models.py`, `service.py`, `api.py`, `module.py`.
-  - `congregants/`, `payments/`, `aliyot/`, `seating/`, `azkarot/`, `smachot/`, `calendar/`, `llm/`
+  - `auth/`, `congregants/`, `payments/`, `aliyot/`, `seating/`, `azkarot/`, `smachot/`, `calendar/`, `llm/`
 - **`app/core/registry.py`** — `ModuleRegistry` + `ModuleDefinition`; `main.py` registers all modules here.
 - **`app/core/hooks.py`** — Async event bus (`hooks.register`, `hooks.fire`) for inter-module communication.
 - **`app/core/tenant.py`** — `TenantConfig` SQLModel table (name, logo, colours, enabled_modules).
@@ -49,6 +49,19 @@ Modular FastAPI application (Milestone 1.5):
 **Loading order in `main.py`:** imports all `module.py` files → each registers itself with the global `registry` → `main.py` mounts only the modules listed in `settings.ENABLED_MODULES`.
 
 All API responses use a shared envelope: `{ success: bool, message: str, data: ... }` defined in `app/models/base.py`.
+
+### Roles, identities, and authorization
+
+- Persisted entities and permission roles are separate concepts. `User`, `Congregant`, and `TenantConfig` are records; `admin`, `gabai`, and `congregant` are the target role labels for authenticated actors.
+- `TenantConfig` is presented to users as **Synagogue settings**. `GET /api/v1/config` may expose the public pre-login branding manifest; `PATCH /api/v1/config`, module/integration settings, security settings, user management, and role assignment are Admin-only.
+- `admin`: user/role administration, protected Synagogue settings, integrations, security, and emergency operational access.
+- `gabai`: full day-to-day operations, reports, imports, and operational LLM tools, excluding user administration and protected settings.
+- `congregant`: WhatsApp-only public and own-data access. Verified phone → `Congregant` → server-enforced `congregant_id`; no registration or login `User` is required.
+- The backend implements `admin`, `gabai`, and `congregant`; operational routes allow Admin/Gabai, while user administration and protected settings remain Admin-only.
+- `User.congregant_id` is optional future web-account linkage. Do not require it for WhatsApp identification.
+- Enforce authorization in router dependencies **and** service/database operations. Frontend visibility, WhatsApp handlers, LLM prompts, and tool-list filtering are not authorization boundaries.
+- LLM tools must be selected by role/scope and re-authorized when executed. Congregant tools must query only the principal's `congregant_id`, including under prompt injection.
+- Safe self-service updates may execute immediately. Sensitive identity, financial, yahrzeit, seating, or permission changes require Gabai approval and an audit trail.
 
 ### Frontend (`frontend/src/`)
 

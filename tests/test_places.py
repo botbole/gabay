@@ -1,5 +1,9 @@
 """Tests for seating / places endpoints."""
 
+import pytest
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")
+
 
 # ── Create Place ──────────────────────────────────────────────────────────────
 

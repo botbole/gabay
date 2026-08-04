@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, ChevronLeft, Flame, PartyPopper, Star, CalendarDays, Sunrise, Sunset, Moon, Clock } from 'lucide-react';
 import { calendarApi, congregantsApi, type CalendarDay, type CalendarMonth } from '../api/client';
@@ -72,7 +72,7 @@ function DayCell({
   return (
     <button
       onClick={onClick}
-      className={`relative w-full min-h-[80px] p-1.5 rounded-lg border transition-colors text-right ${cellBg} ${
+      className={`relative w-full min-h-20 p-1.5 rounded-lg border transition-colors text-right ${cellBg} ${
         isToday ? 'ring-2 ring-[#2E3A59]' : 'border-gray-100'
       } ${isSelected ? 'border-[#2E3A59]/40' : ''}`}
     >
@@ -357,7 +357,7 @@ function CalendarGrid({
                   onClick={() => onSelectDay(day)}
                 />
               ) : (
-                <div key={ci} className="min-h-[80px] rounded-lg bg-gray-50/50" />
+                <div key={ci} className="min-h-20 rounded-lg bg-gray-50/50" />
               )
             )}
           </div>
@@ -481,17 +481,13 @@ export function Calendar() {
     congregantMap[c.id] = `${c.first_name} ${c.last_name}`;
   });
 
-  useEffect(() => {
-    if (todayHebrew && year === null) {
-      setYear(todayHebrew.year);
-      setMonth(todayHebrew.month);
-    }
-  }, [todayHebrew, year]);
+  const activeYear = year ?? todayHebrew?.year ?? null;
+  const activeMonth = month ?? todayHebrew?.month ?? null;
 
   const { data: monthData, isLoading, error } = useQuery({
-    queryKey: ['calendar-month', year, month],
-    queryFn: () => calendarApi.monthView(year!, month!),
-    enabled: year !== null && month !== null,
+    queryKey: ['calendar-month', activeYear, activeMonth],
+    queryFn: () => calendarApi.monthView(activeYear!, activeMonth!),
+    enabled: activeYear !== null && activeMonth !== null,
     staleTime: 1000 * 60 * 5,
   });
 
@@ -554,7 +550,7 @@ export function Calendar() {
       />
 
       {/* Loading / Error states */}
-      {(isLoading || year === null) && (
+      {(isLoading || activeYear === null) && (
         <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
           טוען לוח...
         </div>
@@ -590,7 +586,7 @@ export function Calendar() {
 
           {/* Day detail panel */}
           <div className="w-64 shrink-0">
-            <div className="bg-white rounded-xl border border-blue-100 shadow-sm h-full min-h-[400px] overflow-y-auto">
+            <div className="bg-white rounded-xl border border-blue-100 shadow-sm h-full min-h-100 overflow-y-auto">
               {selectedDay ? (
                 <DayDetail day={selectedDay} showGregorian={showGregorian} congregantMap={congregantMap} />
               ) : (

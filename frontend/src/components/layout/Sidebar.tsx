@@ -144,11 +144,13 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {allNav.map(({ to, label, icon: Icon, end }) => (
-          <NavLink
-            key={to}
-            to={to}
-            end={end}
+        {allNav.map(item => {
+          const Icon = item.icon;
+          return (
+            <NavLink
+            key={item.to}
+            to={item.to}
+            end={'end' in item ? item.end : false}
             className={({ isActive }) =>
               clsx(
                 'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
@@ -162,9 +164,10 @@ export function Sidebar() {
             }
           >
             <Icon className="h-4 w-4 shrink-0" />
-            {label}
+            {item.label}
           </NavLink>
-        ))}
+          );
+        })}
       </nav>
 
       {/* Footer */}

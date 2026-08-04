@@ -6,9 +6,11 @@ from datetime import date
 
 from sqlmodel import select
 
+from app.core.authorization import require_service_operational
 from app.core.db import get_session
 from app.core.hooks import hooks
 from app.modules.aliyot.models import Aliya
+from app.modules.auth.models import User
 
 
 class AliyotService:
@@ -22,7 +24,10 @@ class AliyotService:
         minhag: str = "",
         donation_amount: float = 0.0,
         notes: str = "",
+        *,
+        actor: User,
     ) -> dict:
+        require_service_operational(actor)
         aliya = Aliya(
             congregant_id=congregant_id,
             parasha=parasha,
@@ -47,6 +52,7 @@ class AliyotService:
                 parasha=parasha,
                 aliya_type=aliya_type,
                 date_str=date_str or date.today().isoformat(),
+                actor=actor,
             )
 
         await hooks.fire("aliya.assigned", aliya=result)
@@ -60,7 +66,8 @@ class AliyotService:
                 "aliyot": [a.model_dump() for a in aliyot],
             }
 
-    async def bulk_delete_aliyot(self, ids: list[str]) -> dict:
+    async def bulk_delete_aliyot(self, ids: list[str], *, actor: User) -> dict:
+        require_service_operational(actor)
         deleted = 0
         with get_session() as session:
             for aid in ids:
@@ -107,6 +114,7 @@ async def _on_aliya_donation(
     parasha: str,
     aliya_type: str,
     date_str: str,
+    actor: User,
 ) -> None:
     from app.modules.payments.service import payment_service
     await payment_service.record_payment(
@@ -115,6 +123,7 @@ async def _on_aliya_donation(
         purpose="aliya",
         payment_date=date_str,
         notes=f"Pledge at aliya: {parasha} – {aliya_type}",
+        actor=actor,
     )
 
 

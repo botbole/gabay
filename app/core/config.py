@@ -1,3 +1,6 @@
+from typing import Literal
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -6,6 +9,8 @@ class Settings(BaseSettings):
 
     APP_NAME: str = "Gabay"
     APP_VERSION: str = "0.1.0"
+    ENVIRONMENT: Literal["development", "test", "production"] = "development"
+    DEBUG: bool = True
 
     # CORS – extend in production
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173"]
@@ -14,6 +19,17 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "sqlite:///./gabay.db"
     DATABASE_ECHO: bool = False   # set True to log every SQL statement
 
+    # Authentication
+    JWT_SECRET: str = "development-only-change-this-secret"
+    JWT_ISSUER: str = "gabay"
+    JWT_AUDIENCE: str = "gabay-web"
+    ACCESS_TOKEN_MINUTES: int = 15
+    REFRESH_TOKEN_DAYS: int = 30
+    REFRESH_COOKIE_NAME: str = "gabay_refresh"
+    REFRESH_COOKIE_SECURE: bool = False
+    REFRESH_COOKIE_SAMESITE: Literal["strict", "lax", "none"] = "strict"
+    REFRESH_COOKIE_PATH: str = "/api/v1/auth"
+
     # Zmanim / Shabbat times (Hebcal API) — defaults to the Haifa horizon
     ZMANIM_GEONAME_ID: int = 294801
     ZMANIM_CITY_NAME: str = "חיפה"
@@ -21,7 +37,7 @@ class Settings(BaseSettings):
     # Modules enabled at startup (can be overridden per-tenant via TenantConfig)
     ENABLED_MODULES: list[str] = [
         "congregants", "payments", "aliyot", "seating",
-        "azkarot", "smachot", "calendar", "llm", "prayer_schedule",
+        "azkarot", "smachot", "calendar", "llm", "prayer_schedule", "auth",
     ]
 
     # LLM provider settings
@@ -48,6 +64,21 @@ class Settings(BaseSettings):
         "השתמש בביטויים כמו \"יישר כוח\", \"בשורות טובות\", \"בעזרת ה׳\" במקום מתאים.\n"
         "6. **קיצור וענייניות** — תשובות קצרות וברורות. אם יש רשימה, הצג אותה בסדר מסודר."
     )
+
+    @model_validator(mode="after")
+    def validate_security_settings(self) -> "Settings":
+        if self.ACCESS_TOKEN_MINUTES <= 0 or self.REFRESH_TOKEN_DAYS <= 0:
+            raise ValueError("Token lifetimes must be positive")
+        if self.REFRESH_COOKIE_SAMESITE == "none" and not self.REFRESH_COOKIE_SECURE:
+            raise ValueError("SameSite=None refresh cookies must be secure")
+        if self.ENVIRONMENT == "production":
+            if len(self.JWT_SECRET) < 32 or self.JWT_SECRET == "development-only-change-this-secret":
+                raise ValueError("Production requires a unique JWT_SECRET of at least 32 characters")
+            if self.DEBUG:
+                raise ValueError("DEBUG must be false in production")
+            if not self.REFRESH_COOKIE_SECURE:
+                raise ValueError("Production refresh cookies must be secure")
+        return self
 
 
 settings = Settings()

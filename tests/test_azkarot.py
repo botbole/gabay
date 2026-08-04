@@ -1,5 +1,9 @@
 """Tests for Azkara (yahrzeit) endpoints."""
 
+import pytest
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")
+
 
 # ── Create Azkara ─────────────────────────────────────────────────────────────
 

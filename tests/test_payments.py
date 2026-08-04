@@ -1,5 +1,9 @@
 """Tests for payment / donation endpoints."""
 
+import pytest
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")
+
 
 # ── Record Payment ────────────────────────────────────────────────────────────
 

@@ -8,13 +8,19 @@ import re
 from typing import Optional
 
 import httpx
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
+from app.core.deps import require_operational
 from app.models.base import APIResponse
+from app.modules.auth.models import User
 from app.modules.congregants.service import congregant_service
 
-router = APIRouter(prefix="/synagogue", tags=["congregants"])
+router = APIRouter(
+    prefix="/synagogue",
+    tags=["congregants"],
+    dependencies=[Depends(require_operational)],
+)
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +96,10 @@ def _parse_date_iso(date_str: str) -> str:
 # ---------------------------------------------------------------------------
 
 @router.post("/congregants", response_model=APIResponse, status_code=201)
-async def create_congregant(req: CongregantCreate):
+async def create_congregant(
+    req: CongregantCreate,
+    actor: User = Depends(require_operational),
+):
     """Register a new congregant. Optionally creates linked Azkara/Simcha records."""
     try:
         data = await congregant_service.add_congregant(
@@ -107,6 +116,7 @@ async def create_congregant(req: CongregantCreate):
             member_type=req.member_type,
             notes=req.notes,
             join_date=req.join_date,
+            actor=actor,
         )
         cid = data["id"]
 
@@ -122,6 +132,7 @@ async def create_congregant(req: CongregantCreate):
                     deceased_name=req.father_name or "אבא",
                     relation="father",
                     gregorian_date=iso,
+                    actor=actor,
                 )
         elif req.azkara_father_hebrew_day and req.azkara_father_hebrew_month:
             await azkara_service.add_azkara(
@@ -130,6 +141,7 @@ async def create_congregant(req: CongregantCreate):
                 relation="father",
                 hebrew_day=req.azkara_father_hebrew_day,
                 hebrew_month=req.azkara_father_hebrew_month,
+                actor=actor,
             )
 
         if req.azkara_mother:
@@ -140,6 +152,7 @@ async def create_congregant(req: CongregantCreate):
                     deceased_name=req.mother_name or "אמא",
                     relation="mother",
                     gregorian_date=iso,
+                    actor=actor,
                 )
         elif req.azkara_mother_hebrew_day and req.azkara_mother_hebrew_month:
             await azkara_service.add_azkara(
@@ -148,6 +161,7 @@ async def create_congregant(req: CongregantCreate):
                 relation="mother",
                 hebrew_day=req.azkara_mother_hebrew_day,
                 hebrew_month=req.azkara_mother_hebrew_month,
+                actor=actor,
             )
 
         if req.birth_date:
@@ -157,6 +171,7 @@ async def create_congregant(req: CongregantCreate):
                     congregant_id=cid,
                     occasion_type="birthday",
                     gregorian_date=iso,
+                    actor=actor,
                 )
         elif req.birth_date_hebrew_day and req.birth_date_hebrew_month:
             await simcha_service.add_simcha(
@@ -164,6 +179,7 @@ async def create_congregant(req: CongregantCreate):
                 occasion_type="birthday",
                 hebrew_day=req.birth_date_hebrew_day,
                 hebrew_month=req.birth_date_hebrew_month,
+                actor=actor,
             )
 
         return APIResponse(message="Congregant created successfully.", data=data)
@@ -186,27 +202,36 @@ async def list_congregants(
 
 
 @router.post("/congregants/bulk-delete", response_model=APIResponse)
-async def bulk_delete_congregants(req: BulkIdsRequest):
+async def bulk_delete_congregants(
+    req: BulkIdsRequest,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await congregant_service.bulk_delete_congregants(req.ids)
+        data = await congregant_service.bulk_delete_congregants(req.ids, actor=actor)
         return APIResponse(message=f"{data['deleted']} מתפללים נמחקו.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.post("/congregants/bulk-archive", response_model=APIResponse)
-async def bulk_archive_congregants(req: BulkIdsRequest):
+async def bulk_archive_congregants(
+    req: BulkIdsRequest,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await congregant_service.bulk_archive_congregants(req.ids)
+        data = await congregant_service.bulk_archive_congregants(req.ids, actor=actor)
         return APIResponse(message=f"{data['archived']} מתפללים הועברו לארכיב.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.post("/congregants/bulk-restore", response_model=APIResponse)
-async def bulk_restore_congregants(req: BulkIdsRequest):
+async def bulk_restore_congregants(
+    req: BulkIdsRequest,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await congregant_service.bulk_restore_congregants(req.ids)
+        data = await congregant_service.bulk_restore_congregants(req.ids, actor=actor)
         return APIResponse(message=f"{data['restored']} מתפללים שוחזרו.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -226,12 +251,20 @@ async def get_congregant(congregant_id: str):
 
 
 @router.patch("/congregants/{congregant_id}", response_model=APIResponse)
-async def update_congregant(congregant_id: str, req: CongregantUpdate):
+async def update_congregant(
+    congregant_id: str,
+    req: CongregantUpdate,
+    actor: User = Depends(require_operational),
+):
     try:
         updates = req.model_dump(exclude_none=True)
         if not updates:
             raise HTTPException(status_code=400, detail="No fields provided for update.")
-        data = await congregant_service.update_congregant(congregant_id, updates)
+        data = await congregant_service.update_congregant(
+            congregant_id,
+            updates,
+            actor=actor,
+        )
         if data is None:
             raise HTTPException(status_code=404, detail=f"Congregant '{congregant_id}' not found.")
         return APIResponse(message="Congregant updated successfully.", data=data)
@@ -313,7 +346,7 @@ async def _rows_from_csv(content: str) -> list[dict]:
     return [_normalise_row(row) for row in reader]
 
 
-async def _import_rows(rows: list[dict]) -> tuple[list, list, list]:
+async def _import_rows(rows: list[dict], actor: User) -> tuple[list, list, list]:
     from app.modules.azkarot.service import azkara_service
     from app.modules.smachot.service import simcha_service
 
@@ -324,7 +357,10 @@ async def _import_rows(rows: list[dict]) -> tuple[list, list, list]:
             skipped.append({"row": i, "reason": "חסר שם פרטי או שם משפחה"})
             continue
         try:
-            result = await congregant_service.add_congregant(**congregant_fields)
+            result = await congregant_service.add_congregant(
+                **congregant_fields,
+                actor=actor,
+            )
             cid = result["id"]
 
             if extra["azkara_father"]:
@@ -333,6 +369,7 @@ async def _import_rows(rows: list[dict]) -> tuple[list, list, list]:
                     deceased_name=congregant_fields.get("father_name") or "אבא",
                     relation="father",
                     gregorian_date=extra["azkara_father"],
+                    actor=actor,
                 )
             if extra["azkara_mother"]:
                 await azkara_service.add_azkara(
@@ -340,18 +377,21 @@ async def _import_rows(rows: list[dict]) -> tuple[list, list, list]:
                     deceased_name=congregant_fields.get("mother_name") or "אמא",
                     relation="mother",
                     gregorian_date=extra["azkara_mother"],
+                    actor=actor,
                 )
             if extra["birth_date"]:
                 await simcha_service.add_simcha(
                     congregant_id=cid,
                     occasion_type="birthday",
                     gregorian_date=extra["birth_date"],
+                    actor=actor,
                 )
             if extra["bar_mitzvah_shabbat"]:
                 await simcha_service.add_simcha(
                     congregant_id=cid,
                     occasion_type="bar_mitzvah",
                     gregorian_date=extra["bar_mitzvah_shabbat"],
+                    actor=actor,
                 )
             created.append(result)
         except Exception as exc:
@@ -369,13 +409,16 @@ class BulkImportURL(BaseModel):
 
 
 @router.post("/congregants/bulk/csv", response_model=APIResponse, status_code=201)
-async def bulk_import_csv(file: UploadFile = File(...)):
+async def bulk_import_csv(
+    file: UploadFile = File(...),
+    actor: User = Depends(require_operational),
+):
     try:
         content = (await file.read()).decode("utf-8-sig")
         rows = await _rows_from_csv(content)
         if not rows:
             raise HTTPException(status_code=400, detail="הקובץ ריק או אינו תקין.")
-        created, skipped, errors = await _import_rows(rows)
+        created, skipped, errors = await _import_rows(rows, actor)
         return APIResponse(
             message=f"ייבוא הושלם: {len(created)} נוצרו, {len(skipped)} דולגו, {len(errors)} שגיאות.",
             data={"created": len(created), "skipped": skipped, "errors": errors, "records": created},
@@ -387,7 +430,10 @@ async def bulk_import_csv(file: UploadFile = File(...)):
 
 
 @router.post("/congregants/bulk/sheets", response_model=APIResponse, status_code=201)
-async def bulk_import_google_sheets(req: BulkImportURL):
+async def bulk_import_google_sheets(
+    req: BulkImportURL,
+    actor: User = Depends(require_operational),
+):
     try:
         async with httpx.AsyncClient(follow_redirects=True, timeout=15) as client:
             response = await client.get(req.url)
@@ -399,7 +445,7 @@ async def bulk_import_google_sheets(req: BulkImportURL):
         rows = await _rows_from_csv(response.text)
         if not rows:
             raise HTTPException(status_code=400, detail="הגיליון ריק או אינו תקין.")
-        created, skipped, errors = await _import_rows(rows)
+        created, skipped, errors = await _import_rows(rows, actor)
         return APIResponse(
             message=f"ייבוא מגיליון הושלם: {len(created)} נוצרו, {len(skipped)} דולגו, {len(errors)} שגיאות.",
             data={"created": len(created), "skipped": skipped, "errors": errors, "records": created},

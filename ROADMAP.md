@@ -249,24 +249,56 @@
 > **אסטרטגיית פריסה מומלצת:** Docker מקומי + שירות Containers מנוהל בענן + PostgreSQL מנוהל. Kubernetes אינו נדרש בשלב זה; הוא ייבחן ב-v4.0 כאשר יהיה צורך ב-SaaS, ריבוי מופעים או High Availability.
 
 ### שלב 0 – החלטות ארכיטקטורה ו-Baseline
-- [ ] הגדרת endpoints ציבוריים בלבד: `/health`, התחברות, refresh ו-bootstrap חד-פעמי
-- [ ] הגדרת Roles: `admin` ו-`congregant` עם `congregant_id` אופציונלי
-- [ ] הרצת ושמירת baseline: כל בדיקות ה-Backend, `npm run lint` ו-`npm run build`
-- [ ] בחירת ספק ענן סופי ושירות Containers מנוהל (Azure Container Apps / AWS ECS Fargate / Google Cloud Run)
+- [x] הגדרת endpoints ציבוריים בלבד: `/health`, `GET /api/v1/config`, התחברות, refresh ו-bootstrap חד-פעמי
+- [x] מודל ה-Roles הקיים בקוד: `admin` ו-`congregant`, עם `congregant_id` אופציונלי ב-`User`
+- [x] הרחבת מודל היעד לשלושה Roles: `admin`, `gabai`, `congregant`
+- [x] הרצת ושמירת baseline: Backend (`92 passed`), Frontend lint ו-production build
+- [x] בחירת ספק ענן סופי: AWS ECS Fargate + Amazon RDS PostgreSQL
+
+#### מודל הרשאות יעד
+
+יש להבחין בין **ישויות עסקיות** (`User`, `Congregant`, `TenantConfig`) לבין **Roles**, שהם תוויות הרשאה של actor מאומת. `TenantConfig` הוא המודל הטכני של "הגדרות בית הכנסת".
+
+- `admin` (מנהל מערכת) – ניהול משתמשים ותפקידים, הגדרות בית הכנסת, מודולים ואינטגרציות, אבטחה וגישה תפעולית לשעת חירום.
+- `gabai` (גבאי) – גישה מלאה לעבודה השוטפת, ללא ניהול משתמשים וללא שינוי הגדרות בית כנסת/מערכת מוגנות.
+- `congregant` (מתפלל) – גישת WhatsApp בלבד למידע ציבורי ולנתונים/פעולות של עצמו. אין צורך ב-`User` או בהרשמה: מספר טלפון מאומת נפתר ל-`Congregant` ול-`congregant_id`; קישור `User.congregant_id` נשמר לפורטל עתידי אפשרי.
+
+| יכולת | `admin` | `gabai` | `congregant` |
+|---|---|---|---|
+| משתמשים ושיוך Roles | מלא | ללא גישה | ללא גישה |
+| הגדרות בית הכנסת (`TenantConfig`) | קריאה ושינוי | קריאה בלבד לפי צורך תפעולי | ללא גישה |
+| מודולים, אינטגרציות ואבטחה | מלא | שימוש בלבד | ללא גישה |
+| מודולים תפעוליים | מלא | מלא | רק פעולות self-service מפורשות |
+| דוחות וייבוא | מלא | מלא | ללא גישה |
+| כלי LLM | כלים מנהליים ותפעוליים | כלים תפעוליים | כלים ציבוריים וכלי `my_*` בלבד |
+| נתונים אישיים | כל הרשומות | כל הרשומות לצורך עבודה | `congregant_id` של עצמו בלבד |
 
 ### שלב 1 – אימות משתמשים מקומי: Backend
-- [ ] מודול `app/modules/auth/` לפי מבנה Registry הקיים
-- [ ] מודל `User`: שם משתמש ייחודי, password hash עם bcrypt, role, active ו-`congregant_id`
-- [ ] מודל `RefreshSession`: hash של refresh token, תפוגה, ביטול ו-token family
-- [ ] Bootstrap חד-פעמי למנהל הראשון; לאחר מכן יצירת משתמשים על ידי Admin בלבד
-- [ ] `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`
-- [ ] Access JWT קצר-חיים + Refresh token מסתובב עם reuse detection וביטול ב-logout
-- [ ] הגדרות `JWT_SECRET`, issuer, audience, זמני תפוגה ו-cookie security ב-`app/core/config.py`
-- [ ] `get_current_user` ו-`require_admin` כ-FastAPI dependencies
-- [ ] הגנה על כל ה-Routers; השארת allowlist ציבורי מפורש בלבד
-- [ ] הגנת service-level לפעולות רגישות שנקראות גם מכלי LLM
-- [ ] Alembic baseline ומיגרציות מפורשות לפני מעבר למסד Production
-- [ ] `tests/test_auth.py` + התאמת fixtures קיימים ל-client מאומת
+- [x] מודול `app/modules/auth/` לפי מבנה Registry הקיים
+- [x] מודל `User`: שם משתמש ייחודי, password hash עם Argon2id, role, active ו-`congregant_id`
+- [x] מודל `RefreshSession`: hash של refresh token, תפוגה, ביטול ו-token family
+- [x] Bootstrap חד-פעמי למנהל הראשון; לאחר מכן יצירת משתמשים על ידי Admin בלבד
+- [x] `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`
+- [x] Access JWT קצר-חיים + Refresh token מסתובב עם reuse detection וביטול ב-logout
+- [x] הגדרות `JWT_SECRET`, issuer, audience, זמני תפוגה ו-cookie security ב-`app/core/config.py`
+- [x] `get_current_user` ו-`require_admin` כ-FastAPI dependencies
+- [x] Alembic baseline ומיגרציות מפורשות לפני מעבר למסד Production
+- [x] `tests/test_auth.py` + התאמת fixtures קיימים ל-client מאומת
+
+#### בדיקות קבלה – שלב 1
+- [x] Bootstrap נסגר לאחר יצירת המשתמש הראשון ורישום נוסף דורש Admin
+- [x] Refresh rotation, reuse detection ו-logout revocation נבדקו אוטומטית
+- [x] Production startup דוחה JWT secret חלש ו-cookie לא מאובטח
+- [x] `alembic upgrade head` מצליח על מסד SQLite ריק
+- [x] כל בדיקות ה-Backend עוברות (`92 passed`)
+
+### שלב 1.5 – הגנת APIs והרשאות Backend
+- [x] הגנה על כל ה-Routers; השארת allowlist ציבורי מפורש בלבד
+- [x] הוספת `gabai` ל-`UserRole` ו-dependency כללי `require_roles(...)`
+- [x] הגבלת ניהול משתמשים ושיוך Roles ל-`admin`
+- [x] הגבלת `PATCH /api/v1/config` ל-`admin`; `GET /api/v1/config` נשאר ציבורי לצורכי מיתוג pre-login בלבד
+- [x] אכיפת הרשאות גם בשכבת Service/DB לפעולות רגישות, לרבות קריאות מכלי LLM ו-WhatsApp
+- [x] בדיקות `401` למשתמש אנונימי ו-`403` למשתמש ללא הרשאה בכל Router
 
 ### שלב 2 – אימות משתמשים מקומי: Frontend
 - [ ] דף התחברות (Login page) בעברית RTL
@@ -276,12 +308,15 @@
 - [ ] מנגנון refresh יחיד, retry פעם אחת בלבד וטיפול אחיד ב-401
 - [ ] כפתור התנתקות ופרטי משתמש ב-Sidebar
 - [ ] ניקוי TanStack Query cache בהתנתקות
+- [ ] הצגת Routes, ניווט ופעולות לפי Role: Admin מקבל מסכי ניהול; Gabai מקבל עבודה תפעולית בלבד
+- [ ] אין להסתמך על הסתרת UI כאמצעי הרשאה; ה-Backend נשאר מקור האמת
 
 ### שלב 3 – Authorization, LLM Scope ו-Rate Limiting
-- [ ] מודל Scope בצד השרת: `role=admin` מול `role=congregant, congregant_id=X`
+- [ ] מודל Scope בצד השרת: `role=admin`, `role=gabai`, או `role=congregant, congregant_id=X`
 - [ ] רשימת כלי LLM נפרדת לפי Scope
 - [ ] סינון `congregant_id` בשכבת Service/DB ולא רק ב-Prompt
-- [ ] בדיקות המוכיחות שמתפלל אינו יכול לקרוא או לשנות נתונים של מתפלל אחר
+- [ ] בדיקות Role matrix: Admin בלבד מנהל משתמשים/הגדרות; Gabai מבצע פעולות שוטפות אך נדחה מהגדרות מוגנות
+- [ ] בדיקות המוכיחות שמתפלל אינו יכול לקרוא או לשנות נתונים של מתפלל אחר, גם באמצעות LLM
 - [ ] Rate limiting נפרד ל-login כושל, refresh ו-`/llm/chat`
 - [ ] תשובת `429` אחידה ללא חשיפת קיום שם משתמש
 
@@ -311,11 +346,11 @@
 - [ ] שמירת SQLite המקורי כ-read-only עד לאחר backup + restore מוצלחים ב-PostgreSQL
 
 ### שלב 7 – תשתית ענן חסכונית
-- [ ] Container Registry פרטי ל-Backend ול-Frontend
-- [ ] שירות Containers מנוהל עם scale-to-zero/scale-down כאשר נתמך
-- [ ] Managed PostgreSQL ברשת פרטית, ללא port ציבורי
-- [ ] Secret Manager עבור JWT, DB credentials ו-LLM API key; אין `.env.production` אמיתי ב-Git
-- [ ] Domain + TLS, reverse proxy/load balancer ו-trusted forwarded headers
+- [ ] Amazon ECR פרטי ל-Backend ול-Frontend
+- [ ] AWS ECS Fargate עבור שירותי ה-Frontend וה-Backend
+- [ ] Amazon RDS PostgreSQL ב-private subnets, ללא port ציבורי
+- [ ] AWS Secrets Manager עבור JWT, DB credentials ו-LLM API key; אין `.env.production` אמיתי ב-Git
+- [ ] Route 53 + ACM TLS + Application Load Balancer ו-trusted forwarded headers
 - [ ] Staging נפרד מ-Production עם DB וסודות נפרדים
 - [ ] `.env.production.example` עם placeholders בלבד
 - [ ] `docs/DEPLOYMENT.md`: provisioning, bootstrap admin, deploy, migrate, rollback ו-troubleshooting
@@ -338,14 +373,17 @@
 - [ ] Runbook לתקלות, שחזור, החלפת secrets ו-rollback
 
 ### Kubernetes – החלטה מפורשת
-- [ ] לא נדרש ל-v3.0: שירות Containers מנוהל נותן יחס עלות/תועלת טוב יותר למופע קטן
+- [x] לא נדרש ל-v3.0: AWS ECS Fargate נותן יחס עלות/תועלת טוב יותר למופע קטן
 - [ ] בחינה מחדש ב-v4.0 עבור multi-tenancy, מספר replicas, autoscaling מורכב ו-High Availability
 - [ ] אם יידרש: Helm chart, Deployments, Services, Ingress, Secrets, migration Job, HPA ו-PDB
 
 ### Definition of Done
 - [ ] ללא JWT כל endpoint רגיש מחזיר `401`; משתמש ללא הרשאה מקבל `403`
+- [ ] `admin`, `gabai` ו-`congregant` עוברים בדיקות קבלה חיוביות ושליליות לפי מטריצת ההרשאות
+- [ ] רק Admin יכול לנהל משתמשים/Roles ולשנות `TenantConfig`, מודולים, אינטגרציות והגדרות אבטחה
+- [ ] Gabai יכול להשלים תהליכים תפעוליים, דוחות וייבוא, אך מקבל `403` בפעולות Admin מוגנות
 - [ ] logout מבטל refresh session ושימוש חוזר ב-refresh token מבטל את ה-token family
-- [ ] Scope של מתפלל נאכף ב-DB גם תחת Prompt Injection
+- [ ] Scope של מתפלל נאכף ב-Service/DB גם תחת Prompt Injection, ללא תלות ב-UI, ב-Prompt או בלוגיקת WhatsApp
 - [ ] CORS, Rate Limit, Security Headers וכיבוי docs נבדקו אוטומטית
 - [ ] Compose מקומי ו-Staging בענן עוברים smoke test מלא
 - [ ] migration, backup ו-restore נוסו בהצלחה על עותק נתונים אמיתי
@@ -361,17 +399,21 @@
 > **הערות טכניות:**
 > - ה-API הרשמי: **WhatsApp Business Platform (Meta Cloud API)** – חינמי עד 1,000 שיחות/חודש
 > - לפיתוח ובדיקות: **Twilio WhatsApp Sandbox** – פועל מיידית
-> - זיהוי מתפלל: לפי `Congregant.phone` – אין צורך בהרשמה
+> - זיהוי מתפלל: אימות מספר הטלפון → התאמה ל-`Congregant.phone` → Scope שרת של `congregant_id`; אין צורך ב-`User` או בהרשמה
 
 ### תשתית WhatsApp – Backend
 - [ ] `app/modules/whatsapp/` – `api.py`, `service.py`
 - [ ] `GET /webhooks/whatsapp` (verify) + `POST /webhooks/whatsapp` (receive)
-- [ ] זיהוי מתפלל לפי `Congregant.phone`
+- [ ] אימות חתימת webhook ומספר שולח לפני התאמה ל-`Congregant.phone`
+- [ ] חסימת מספר לא מזוהה ללא חשיפת מידע והעברת מקרים עמומים לטיפול גבאי
 - [ ] שימוש ב-LLM Scope `role=congregant` (מ-v3.0)
 
 ### Congregant Agent – LLM
 - [ ] כלים מוגבלים: `get_my_payments`, `get_my_aliyot`, `get_my_azkara_reminders`, `get_upcoming_events`, `get_parasha_info`
-- [ ] הגנה מפני Prompt Injection (SQL מסונן לפי `congregant_id` בשרת)
+- [ ] קריאות ציבוריות וקריאות self-service בטוחות (למשל העדפת שפה/תזכורות) יכולות להתבצע מיד
+- [ ] שינויים רגישים בפרטי זהות, כספים, אזכרות, מקומות או הרשאות יוצרים בקשה לאישור Gabai ואינם מתבצעים מיד
+- [ ] הגנה מפני Prompt Injection (שאילתות/Services מסוננים לפי `congregant_id` בשרת)
+- [ ] Audit log לזיהוי, כלי שנבחר, Scope, שינוי, בקשת אישור ותוצאתה
 
 ### הודעות יוצאות
 - [ ] Template Messages לתזכורות אזכרה (D-7 ו-D-1)

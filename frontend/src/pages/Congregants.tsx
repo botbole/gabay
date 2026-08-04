@@ -81,14 +81,6 @@ function isoToDdMmYyyy(iso: string) {
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
 }
-// Convert DD/MM/YYYY → YYYY-MM-DD (for initialising DatePickerField from form state)
-function ddMmYyyyToIso(dmy: string) {
-  if (!dmy) return '';
-  const [d, m, y] = dmy.split('/');
-  if (!d || !m || !y) return '';
-  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-}
-
 // ─── Add congregant modal ─────────────────────────────────────────────────────
 
 function AddCongregantModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -183,7 +175,7 @@ function AddCongregantModal({ open, onClose }: { open: boolean; onClose: () => v
           <Input label="שם האמא" value={form.mother_name ?? ''} onChange={set('mother_name')} placeholder="שרה" />
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">מגדר</label>
-            <div className="flex rounded-lg border border-gray-300 overflow-hidden h-[38px]">
+            <div className="flex rounded-lg border border-gray-300 overflow-hidden h-9.5">
               <button type="button" onClick={() => setForm(p => ({ ...p, gender: 'male' }))}
                 className={`flex-1 text-sm font-medium transition-colors ${form.gender !== 'female' ? 'bg-[#2E3A59] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
                 זכר
@@ -625,7 +617,7 @@ function CongregantDetailModal({
             </div>
 
             {/* ── Tab content ── */}
-            <div className="min-h-[160px]">
+            <div className="min-h-40">
               {activeTab === 'details' && (
                 <div className="space-y-3">
                   <div className="grid grid-cols-2 gap-3 text-sm">
@@ -690,7 +682,7 @@ function CongregantDetailModal({
               <Input label="שם האמא" value={form.mother_name ?? ''} onChange={set('mother_name')} />
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">מגדר</label>
-                <div className="flex rounded-lg border border-gray-300 overflow-hidden h-[38px]">
+                <div className="flex rounded-lg border border-gray-300 overflow-hidden h-9.5">
                   <button type="button" onClick={() => setForm(p => ({ ...p, gender: 'male' }))}
                     className={`flex-1 text-sm font-medium transition-colors ${form.gender !== 'female' ? 'bg-[#2E3A59] text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
                     זכר
@@ -796,7 +788,8 @@ export function Congregants() {
   const toggle = (id: string) => {
     setCheckedIds(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };

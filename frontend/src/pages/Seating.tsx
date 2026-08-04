@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PlusCircle, Building2, Trash2, LayoutList, Map } from 'lucide-react';
+import { PlusCircle, Building2, Trash2, LayoutList, Map as MapIcon } from 'lucide-react';
 import { seatingApi, congregantsApi, type Place, type PlaceCreate } from '../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -387,15 +387,24 @@ export function Seating() {
   const free = places.length - occupied;
 
   const sections = [...new Set(places.map(p => p.section))].sort();
-  const grouped: Record<string, Record<string, Place[]>> = {};
+  const grouped = new Map<string, Map<string, Place[]>>();
   for (const p of places) {
-    if (!grouped[p.section]) grouped[p.section] = {};
-    if (!grouped[p.section][p.row]) grouped[p.section][p.row] = [];
-    grouped[p.section][p.row].push(p);
+    let rows = grouped.get(p.section);
+    if (!rows) {
+      rows = new Map<string, Place[]>();
+      grouped.set(p.section, rows);
+    }
+
+    let seats = rows.get(p.row);
+    if (!seats) {
+      seats = [];
+      rows.set(p.row, seats);
+    }
+    seats.push(p);
   }
-  for (const sec of Object.values(grouped)) {
-    for (const row of Object.values(sec)) {
-      row.sort((a, b) => a.place_number - b.place_number);
+  for (const rows of grouped.values()) {
+    for (const seats of rows.values()) {
+      seats.sort((a, b) => a.place_number - b.place_number);
     }
   }
 
@@ -407,7 +416,8 @@ export function Seating() {
   const toggle = (id: string) => {
     setCheckedIds(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -449,7 +459,7 @@ export function Seating() {
             <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
               <button onClick={() => setViewMode('map')} title="מפה"
                 className={`p-1.5 rounded-lg transition-colors ${viewMode === 'map' ? 'bg-white shadow-sm text-[#2E3A59]' : 'text-slate-500 hover:text-slate-700'}`}>
-                <Map className="h-4 w-4" />
+                <MapIcon className="h-4 w-4" />
               </button>
               <button onClick={() => setViewMode('list')} title="רשימה"
                 className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-white shadow-sm text-[#2E3A59]' : 'text-slate-500 hover:text-slate-700'}`}>
@@ -548,7 +558,7 @@ export function Seating() {
         </Card>
       ) : viewMode === 'map' ? (
         // Map view
-        Object.entries(grouped).map(([section, rows]) => (
+        [...grouped.entries()].map(([section, rows]) => (
           <Card key={section} className="border-slate-200">
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -572,7 +582,9 @@ export function Seating() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {Object.entries(rows).sort().map(([row, seats]) => (
+              {[...rows.entries()]
+                .sort(([left], [right]) => left.localeCompare(right))
+                .map(([row, seats]) => (
                 <div key={row} className="flex items-center gap-3">
                   <span className="w-8 text-xs font-semibold text-gray-400 text-center shrink-0">{row}</span>
                   <div className="flex flex-wrap gap-2">

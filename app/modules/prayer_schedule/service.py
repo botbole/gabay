@@ -9,9 +9,11 @@ from sqlmodel import select
 
 from datetime import timedelta
 
+from app.core.authorization import require_service_operational
 from app.core.db import get_session
 from app.core.hebrew_date import gregorian_to_hebrew
 from app.core.zmanim import get_day_times, get_day_zmanim, get_shabbat_times, get_full_shabbat_info
+from app.modules.auth.models import User
 from app.modules.prayer_schedule.models import PrayerRule, SpecialDay
 
 # ─── Anchor → zmanim key mapping ────────────────────────────────────────────
@@ -139,7 +141,10 @@ class PrayerScheduleService:
         notes: str = "",
         display_order: int = 0,
         is_active: bool = True,
+        *,
+        actor: User,
     ) -> dict:
+        require_service_operational(actor)
         rule = PrayerRule(
             name=name,
             day_type=day_type,
@@ -160,7 +165,8 @@ class PrayerScheduleService:
             session.refresh(rule)
             return rule.model_dump()
 
-    def update_rule(self, rule_id: str, **fields) -> dict:
+    def update_rule(self, rule_id: str, *, actor: User, **fields) -> dict:
+        require_service_operational(actor)
         with get_session() as session:
             rule = session.get(PrayerRule, rule_id)
             if not rule:
@@ -174,7 +180,8 @@ class PrayerScheduleService:
             session.refresh(rule)
             return rule.model_dump()
 
-    def delete_rule(self, rule_id: str) -> dict:
+    def delete_rule(self, rule_id: str, *, actor: User) -> dict:
+        require_service_operational(actor)
         with get_session() as session:
             rule = session.get(PrayerRule, rule_id)
             if not rule:
@@ -183,7 +190,14 @@ class PrayerScheduleService:
             session.commit()
         return {"deleted": rule_id}
 
-    def reorder_rules(self, day_type: str, ordered_ids: list[str]) -> dict:
+    def reorder_rules(
+        self,
+        day_type: str,
+        ordered_ids: list[str],
+        *,
+        actor: User,
+    ) -> dict:
+        require_service_operational(actor)
         with get_session() as session:
             for i, rid in enumerate(ordered_ids):
                 rule = session.get(PrayerRule, rid)
@@ -517,7 +531,10 @@ class PrayerScheduleService:
         hebrew_month: int,
         hebrew_day: int,
         notes: str = "",
+        *,
+        actor: User,
     ) -> dict:
+        require_service_operational(actor)
         sd = SpecialDay(name=name, hebrew_month=hebrew_month, hebrew_day=hebrew_day, notes=notes)
         with get_session() as session:
             session.add(sd)
@@ -525,7 +542,8 @@ class PrayerScheduleService:
             session.refresh(sd)
             return sd.model_dump()
 
-    def delete_special_day(self, day_id: str) -> dict:
+    def delete_special_day(self, day_id: str, *, actor: User) -> dict:
+        require_service_operational(actor)
         with get_session() as session:
             sd = session.get(SpecialDay, day_id)
             if not sd:

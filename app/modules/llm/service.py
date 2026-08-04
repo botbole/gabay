@@ -12,8 +12,10 @@ from typing import Any
 
 from openai.types.chat import ChatCompletionMessageParam
 
+from app.core.authorization import require_service_operational
 from app.core.config import settings
 from app.core.llm import llm_client
+from app.modules.auth.models import User
 
 
 # ---------------------------------------------------------------------------
@@ -348,7 +350,12 @@ async def _resolve_congregant(name: str) -> dict | None:
     return await congregant_service.find_congregant_by_name(name)
 
 
-async def _dispatch_tool(tool_name: str, args: dict) -> Any:  # noqa: PLR0911, PLR0912
+async def _dispatch_tool(
+    tool_name: str,
+    args: dict,
+    actor: User,
+) -> Any:  # noqa: PLR0911, PLR0912
+    require_service_operational(actor)
 
     from app.modules.congregants.service import congregant_service
     from app.modules.payments.service import payment_service
@@ -360,7 +367,7 @@ async def _dispatch_tool(tool_name: str, args: dict) -> Any:  # noqa: PLR0911, P
 
     # ── Congregants ──────────────────────────────────────────────────────
     if tool_name == "add_congregant":
-        return await congregant_service.add_congregant(**args)
+        return await congregant_service.add_congregant(**args, actor=actor)
 
     if tool_name == "get_congregant":
         c = await _resolve_congregant(args["name"])
@@ -370,7 +377,7 @@ async def _dispatch_tool(tool_name: str, args: dict) -> Any:  # noqa: PLR0911, P
         c = await _resolve_congregant(args.pop("name"))
         if not c:
             return {"error": "לא נמצא המתפלל."}
-        return await congregant_service.update_congregant(c["id"], args)
+        return await congregant_service.update_congregant(c["id"], args, actor=actor)
 
     if tool_name == "list_congregants":
         return await congregant_service.list_congregants(member_type=args.get("member_type"))
@@ -387,6 +394,7 @@ async def _dispatch_tool(tool_name: str, args: dict) -> Any:  # noqa: PLR0911, P
             currency=args.get("currency", "ILS"),
             notes=args.get("notes", ""),
             payment_date=args.get("payment_date", ""),
+            actor=actor,
         )
 
     if tool_name == "get_payment_history":
@@ -413,6 +421,7 @@ async def _dispatch_tool(tool_name: str, args: dict) -> Any:  # noqa: PLR0911, P
             date_str=args.get("date_str", ""),
             donation_amount=args.get("donation_amount", 0.0),
             notes=args.get("notes", ""),
+            actor=actor,
         )
 
     if tool_name == "get_aliyot_for_parasha":
@@ -438,6 +447,7 @@ async def _dispatch_tool(tool_name: str, args: dict) -> Any:  # noqa: PLR0911, P
             hebrew_day=args.get("hebrew_day", 0),
             hebrew_month=args.get("hebrew_month", 0),
             notes=args.get("notes", ""),
+            actor=actor,
         )
 
     if tool_name == "get_upcoming_azkarot":
@@ -459,6 +469,7 @@ async def _dispatch_tool(tool_name: str, args: dict) -> Any:  # noqa: PLR0911, P
             hebrew_month=args.get("hebrew_month", 0),
             parasha=args.get("parasha", ""),
             notes=args.get("notes", ""),
+            actor=actor,
         )
 
     if tool_name == "get_upcoming_smachot":
@@ -505,7 +516,10 @@ class LLMService:
         self,
         user_message: str,
         history: list[dict] | None = None,
+        *,
+        actor: User,
     ) -> dict:
+        require_service_operational(actor)
         messages: list[ChatCompletionMessageParam] = [
             {"role": "system", "content": settings.LLM_SYSTEM_PROMPT},
         ]
@@ -542,7 +556,7 @@ class LLMService:
                 except json.JSONDecodeError:
                     args = {}
 
-                result = await _dispatch_tool(tool_name, args)
+                result = await _dispatch_tool(tool_name, args, actor)
                 actions_performed.append({"tool": tool_name, "args": args, "result": result})
 
                 messages.append({

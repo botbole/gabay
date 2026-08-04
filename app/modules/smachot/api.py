@@ -4,13 +4,19 @@ from __future__ import annotations
 
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
+from app.core.deps import require_operational
 from app.models.base import APIResponse
+from app.modules.auth.models import User
 from app.modules.smachot.service import simcha_service
 
-router = APIRouter(prefix="/synagogue", tags=["smachot"])
+router = APIRouter(
+    prefix="/synagogue",
+    tags=["smachot"],
+    dependencies=[Depends(require_operational)],
+)
 
 
 class BulkIdsRequest(BaseModel):
@@ -30,7 +36,10 @@ class SimchaCreate(BaseModel):
 
 
 @router.post("/smachot", response_model=APIResponse, status_code=201)
-async def add_simcha(req: SimchaCreate):
+async def add_simcha(
+    req: SimchaCreate,
+    actor: User = Depends(require_operational),
+):
     try:
         data = await simcha_service.add_simcha(
             congregant_id=req.congregant_id,
@@ -42,6 +51,7 @@ async def add_simcha(req: SimchaCreate):
             parasha=req.parasha,
             year_occurred=req.year_occurred,
             notes=req.notes,
+            actor=actor,
         )
         return APIResponse(message="Simcha added successfully.", data=data)
     except Exception as exc:
@@ -90,9 +100,12 @@ async def get_simcha(simcha_id: str):
 
 
 @router.delete("/smachot/{simcha_id}", response_model=APIResponse)
-async def delete_simcha(simcha_id: str):
+async def delete_simcha(
+    simcha_id: str,
+    actor: User = Depends(require_operational),
+):
     try:
-        deleted = await simcha_service.delete_simcha(simcha_id)
+        deleted = await simcha_service.delete_simcha(simcha_id, actor=actor)
         if not deleted:
             raise HTTPException(status_code=404, detail=f"Simcha '{simcha_id}' not found.")
         return APIResponse(message="Simcha deleted.", data={"id": simcha_id})
@@ -103,9 +116,12 @@ async def delete_simcha(simcha_id: str):
 
 
 @router.post("/smachot/bulk-delete", response_model=APIResponse)
-async def bulk_delete_smachot(req: BulkIdsRequest):
+async def bulk_delete_smachot(
+    req: BulkIdsRequest,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await simcha_service.bulk_delete_smachot(req.ids)
+        data = await simcha_service.bulk_delete_smachot(req.ids, actor=actor)
         return APIResponse(message=f"{data['deleted']} שמחות נמחקו.", data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

@@ -1,5 +1,9 @@
 """Tests for Simcha (lifecycle celebrations) endpoints."""
 
+import pytest
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")
+
 
 # ── Create Simcha ─────────────────────────────────────────────────────────────
 

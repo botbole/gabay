@@ -11,11 +11,11 @@ from sqlmodel import SQLModel, Session, create_engine
 
 from app.core.config import settings
 
-engine = create_engine(
-    settings.DATABASE_URL,
-    echo=settings.DATABASE_ECHO,  # set to False in production
-    connect_args={"check_same_thread": False},  # needed for SQLite only
-)
+_engine_options = {"echo": settings.DATABASE_ECHO}
+if settings.DATABASE_URL.startswith("sqlite"):
+    _engine_options["connect_args"] = {"check_same_thread": False}
+
+engine = create_engine(settings.DATABASE_URL, **_engine_options)
 
 _MIGRATIONS = [
     "ALTER TABLE azkarot ADD COLUMN year_occurred INTEGER",

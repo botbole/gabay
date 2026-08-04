@@ -7,8 +7,10 @@ from typing import Optional
 
 from sqlmodel import select
 
+from app.core.authorization import require_service_operational
 from app.core.db import get_session
 from app.core.hooks import hooks
+from app.modules.auth.models import User
 from app.modules.congregants.models import Congregant
 
 
@@ -29,7 +31,10 @@ class CongregantService:
         member_type: str = "regular",
         notes: str = "",
         join_date: str = "",
+        *,
+        actor: User,
     ) -> dict:
+        require_service_operational(actor)
         congregant = Congregant(
             first_name=first_name,
             last_name=last_name,
@@ -72,7 +77,14 @@ class CongregantService:
                 return c.model_dump()
         return None
 
-    async def update_congregant(self, congregant_id: str, updates: dict) -> dict | None:
+    async def update_congregant(
+        self,
+        congregant_id: str,
+        updates: dict,
+        *,
+        actor: User,
+    ) -> dict | None:
+        require_service_operational(actor)
         with get_session() as session:
             congregant = session.get(Congregant, congregant_id)
             if not congregant:
@@ -101,7 +113,8 @@ class CongregantService:
                 "congregants": [c.model_dump() for c in congregants],
             }
 
-    async def bulk_delete_congregants(self, ids: list[str]) -> dict:
+    async def bulk_delete_congregants(self, ids: list[str], *, actor: User) -> dict:
+        require_service_operational(actor)
         deleted = 0
         with get_session() as session:
             for cid in ids:
@@ -112,7 +125,8 @@ class CongregantService:
             session.commit()
         return {"deleted": deleted}
 
-    async def bulk_archive_congregants(self, ids: list[str]) -> dict:
+    async def bulk_archive_congregants(self, ids: list[str], *, actor: User) -> dict:
+        require_service_operational(actor)
         archived = 0
         today = date.today().isoformat()
         with get_session() as session:
@@ -126,7 +140,8 @@ class CongregantService:
             session.commit()
         return {"archived": archived}
 
-    async def bulk_restore_congregants(self, ids: list[str]) -> dict:
+    async def bulk_restore_congregants(self, ids: list[str], *, actor: User) -> dict:
+        require_service_operational(actor)
         restored = 0
         with get_session() as session:
             for cid in ids:

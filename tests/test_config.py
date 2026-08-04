@@ -8,6 +8,10 @@ Covers:
 - Event Bus (hooks)     – aliya donation → auto-payment (via hooks)
 """
 
+import pytest
+
+pytestmark = pytest.mark.usefixtures("authenticated_client")
+
 
 # ── GET /config ────────────────────────────────────────────────────────────────
 
@@ -114,16 +118,16 @@ async def test_patch_is_partial_other_fields_unchanged(client):
 
 # ── Module Registry ────────────────────────────────────────────────────────────
 
-async def test_all_eight_modules_registered(client):
+async def test_all_modules_registered(client):
     """
-    The registry must contain all 8 core modules after app startup.
-    We verify indirectly: the default manifest has 8 entries.
+    The registry must contain all core modules after app startup.
     """
     r = await client.get("/api/v1/config")
     manifest = r.json()["data"]["modules_manifest"]
     module_ids = {m["module_id"] for m in manifest}
     expected = {"congregants", "payments", "aliyot", "seating",
-                "azkarot", "smachot", "calendar", "llm", "prayer_schedule"}
+                "azkarot", "smachot", "calendar", "llm", "prayer_schedule",
+                "auth"}
     assert expected == module_ids
 
 

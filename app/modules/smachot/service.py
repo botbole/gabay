@@ -6,12 +6,14 @@ from typing import Optional
 
 from sqlmodel import select
 
+from app.core.authorization import require_service_operational
 from app.core.db import get_session
 from app.core.hebrew_date import (
     gregorian_to_hebrew,
     parse_gregorian_iso,
     upcoming_occurrences,
 )
+from app.modules.auth.models import User
 from app.modules.smachot.models import Simcha
 
 
@@ -28,7 +30,10 @@ class SimchaService:
         parasha: str = "",
         year_occurred: Optional[int] = None,
         notes: str = "",
+        *,
+        actor: User,
     ) -> dict:
+        require_service_operational(actor)
         day, month = hebrew_day, hebrew_month
         if gregorian_date and (not day or not month):
             d = parse_gregorian_iso(gregorian_date)
@@ -108,7 +113,8 @@ class SimchaService:
             "smachot": upcoming,
         }
 
-    async def delete_simcha(self, simcha_id: str) -> bool:
+    async def delete_simcha(self, simcha_id: str, *, actor: User) -> bool:
+        require_service_operational(actor)
         with get_session() as session:
             s = session.get(Simcha, simcha_id)
             if not s:
@@ -117,7 +123,8 @@ class SimchaService:
             session.commit()
             return True
 
-    async def bulk_delete_smachot(self, ids: list[str]) -> dict:
+    async def bulk_delete_smachot(self, ids: list[str], *, actor: User) -> dict:
+        require_service_operational(actor)
         deleted = 0
         with get_session() as session:
             for sid in ids:

@@ -270,11 +270,11 @@ function CongregantHistoryPanel({ congregantId, congregantName, onClose }: {
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl p-4 text-white shadow-sm bg-gradient-to-br from-[#2E3A59] to-[#3d4f7a] text-center">
+              <div className="rounded-2xl p-4 text-white shadow-sm bg-linear-to-br from-[#2E3A59] to-[#3d4f7a] text-center">
                 <p className="text-3xl font-bold tracking-tight">{data?.total_aliyot ?? 0}</p>
                 <p className="text-xs text-white/70 mt-0.5">סה״כ עליות</p>
               </div>
-              <div className="rounded-2xl p-4 text-white shadow-sm bg-gradient-to-br from-emerald-600 to-emerald-500 text-center">
+              <div className="rounded-2xl p-4 text-white shadow-sm bg-linear-to-br from-emerald-600 to-emerald-500 text-center">
                 <p className="text-3xl font-bold tracking-tight">₪{aliyaPayments.reduce((s, p) => s + p.amount, 0).toLocaleString()}</p>
                 <p className="text-xs text-white/70 mt-0.5">סה״כ נדבות</p>
               </div>
@@ -371,7 +371,8 @@ export function Aliyot() {
   const toggle = (id: string) => {
     setCheckedIds(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -390,7 +391,7 @@ export function Aliyot() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-2xl p-5 text-white shadow-md bg-gradient-to-br from-[#2E3A59] to-[#3d4f7a] flex items-center gap-4">
+        <div className="rounded-2xl p-5 text-white shadow-md bg-linear-to-br from-[#2E3A59] to-[#3d4f7a] flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
             <BookOpen className="h-6 w-6 text-white" />
           </div>
@@ -399,7 +400,7 @@ export function Aliyot() {
             <p className="text-3xl font-bold tracking-tight">{data?.total ?? 0}</p>
           </div>
         </div>
-        <div className="rounded-2xl p-5 text-white shadow-md bg-gradient-to-br from-emerald-600 to-emerald-500 flex items-center gap-4">
+        <div className="rounded-2xl p-5 text-white shadow-md bg-linear-to-br from-emerald-600 to-emerald-500 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
             <DollarSign className="h-6 w-6 text-white" />
           </div>
@@ -408,7 +409,7 @@ export function Aliyot() {
             <p className="text-3xl font-bold tracking-tight">₪{totalDonations.toLocaleString()}</p>
           </div>
         </div>
-        <div className="rounded-2xl p-5 text-white shadow-md bg-gradient-to-br from-[#C5A059] to-[#d4b070] flex items-center gap-4">
+        <div className="rounded-2xl p-5 text-white shadow-md bg-linear-to-br from-[#C5A059] to-[#d4b070] flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
             <Calendar className="h-6 w-6 text-white" />
           </div>
@@ -417,7 +418,7 @@ export function Aliyot() {
             <p className="text-3xl font-bold tracking-tight">{uniqueParashot.length}</p>
           </div>
         </div>
-        <div className="rounded-2xl p-5 text-white shadow-md bg-gradient-to-br from-amber-500 to-amber-400 flex items-center gap-4">
+        <div className="rounded-2xl p-5 text-white shadow-md bg-linear-to-br from-amber-500 to-amber-400 flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
             <User className="h-6 w-6 text-white" />
           </div>
