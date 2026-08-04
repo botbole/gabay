@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # Modules enabled at startup (can be overridden per-tenant via TenantConfig)
     ENABLED_MODULES: list[str] = [
         "congregants", "payments", "aliyot", "seating",
-        "azkarot", "smachot", "calendar", "llm",
+        "azkarot", "smachot", "calendar", "llm", "prayer_schedule",
     ]
 
     # LLM provider settings

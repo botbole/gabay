@@ -14,7 +14,7 @@
 | 2 | Core – לוח שנה + LLM | ✅ הושלם | Done |
 | Infra | בדיקות אינטגרציה | ✅ הושלם | Done |
 | **1.5** | **תשתית מודולרית** | ✅ **הושלם** | Done |
-| **2.1** | **לוח זמני תפילות** | 🔴 הבא | Pending |
+| **2.1** | **לוח זמני תפילות ושיעורים** | 🟡 ליבה הושלמה | Partial |
 | **2.2** | **תקשורת ולוח שבועי** | 🔴 גבוהה | Pending |
 | **2.3** | **פיננסים מלא** *(ממזג 2.5+2.7)* | 🟠 גבוהה | Pending |
 | **2.4** | **גבאי חכם** *(שיבוץ + מלאי + LLM 2.0)* | 🟠 בינונית-גבוהה | Pending |
@@ -146,28 +146,34 @@
 
 ---
 
-## 🔴 v2.1 – Prayer Schedule · לוח זמני תפילות
+## 🟡 v2.1 – Prayer Schedule · לוח תפילות ושיעורים [CORE IMPLEMENTED]
 
-> **עדיפות:** הבא לפיתוח – צורך יומיומי של הגבאי.  
+> **סטטוס:** מודול הליבה פעיל ומחובר ל-Backend ול-Frontend. נותרו אינטגרציות Dashboard, LLM ו-v2.2 ובדיקות ייעודיות.  
 > **רעיון המפתח:** במקום "מנחה ב-17:30", הגבאי מגדיר "מנחה = 15 דקות לפני שקיעה". המערכת מחשבת אוטומטית.
 
 ### Backend
-- [ ] מודל `PrayerRule` – `name`, `day_type`, `anchor` (שקיעה/הנץ/קבוע), `offset_minutes`, `is_active`
-- [ ] `prayer_service.calculate_times(date)` – חישוב זמני תפילה ליום לפי כללים + zmanim
-- [ ] `GET /synagogue/schedule?date=YYYY-MM-DD`
-- [ ] `GET /synagogue/schedule/week?from=YYYY-MM-DD`
-- [ ] CRUD `/synagogue/prayer-rules` (GET / POST / PATCH / DELETE)
+- [x] מודל `PrayerRule` – כולל סוג יום, עוגן, היסט, זמן קבוע, טקסט חופשי, שיעור, ימי שבוע וסדר תצוגה
+- [x] מודל `SpecialDay` + CRUD לימים מיוחדים לפי תאריך עברי
+- [x] `prayer_schedule_service.calculate_times(date)` – חישוב זמני תפילה ושיעורים לפי כללים + zmanim
+- [x] `GET /synagogue/schedule?date=YYYY-MM-DD`
+- [x] `GET /synagogue/schedule/week?from_date=YYYY-MM-DD`
+- [x] `GET /synagogue/schedule/generate` – יצירת טקסט לוח שבועי להעתקה
+- [x] CRUD `/synagogue/prayer-rules` + שינוי סדר בגרירה
+- [x] רישום המודול ב-Registry, ב-`ENABLED_MODULES`, ב-`ALL_MODULES` ובמסד הפעיל
 
 ### Frontend
-- [ ] טאב "זמני בית הכנסת" בסייד-בר
-- [ ] עורך כללים: הוספה/עריכה/מחיקה, בחירת עוגן מרשימה
-- [ ] תצוגת לוח מחושב ליום ולשבוע – שעה בפועל לצד הכלל
-- [ ] הפרדה ימי חול / שבת / יום טוב
+- [x] טאב "לוח תפילות ושיעורים" בסייד-בר וב-Header
+- [x] עורך כללים: הוספה/עריכה/מחיקה, בחירת עוגן, זמן קבוע, היסט וטקסט חופשי
+- [x] תצוגה מקדימה חיה לפי תאריך עם השעה המחושבת לצד כל כלל
+- [x] הפרדה בין יום חול / שבת / יום טוב / ראש השנה / יום כיפור / יום מיוחד
+- [x] שיעורים בצבע ירוק, בחירת ימי שבוע ותיאור זמן חופשי
+- [x] Drag & Drop, מיון אוטומטי לפי זמן ויצירת לוח שבועי להעתקה
 - [ ] כרטיס "זמני היום" ב-Dashboard
 
 ### אינטגרציה
 - [ ] כלי LLM: `get_prayer_times(date)`
 - [ ] שילוב לוח הזמנים בלוח השבועי (v2.2)
+- [ ] בדיקות אינטגרציה ייעודיות ל-CRUD, חישוב עוגנים, חגים ושבוע
 
 ---
 
@@ -240,30 +246,110 @@
 
 > **עדיפות:** חובה לפני שיתוף עם כל גורם חיצוני.  
 > **תנאי מוקדם ל-v3.5:** מודל ה-JWT + מודל ה-Scope ב-LLM חייבים להיות מוכנים לפני בוט הוואטסאפ.
+> **אסטרטגיית פריסה מומלצת:** Docker מקומי + שירות Containers מנוהל בענן + PostgreSQL מנוהל. Kubernetes אינו נדרש בשלב זה; הוא ייבחן ב-v4.0 כאשר יהיה צורך ב-SaaS, ריבוי מופעים או High Availability.
 
-### אימות משתמשים – Backend
-- [ ] מודל `User` במסד הנתונים (שם משתמש, סיסמה מוצפנת עם bcrypt)
+### שלב 0 – החלטות ארכיטקטורה ו-Baseline
+- [ ] הגדרת endpoints ציבוריים בלבד: `/health`, התחברות, refresh ו-bootstrap חד-פעמי
+- [ ] הגדרת Roles: `admin` ו-`congregant` עם `congregant_id` אופציונלי
+- [ ] הרצת ושמירת baseline: כל בדיקות ה-Backend, `npm run lint` ו-`npm run build`
+- [ ] בחירת ספק ענן סופי ושירות Containers מנוהל (Azure Container Apps / AWS ECS Fargate / Google Cloud Run)
+
+### שלב 1 – אימות משתמשים מקומי: Backend
+- [ ] מודול `app/modules/auth/` לפי מבנה Registry הקיים
+- [ ] מודל `User`: שם משתמש ייחודי, password hash עם bcrypt, role, active ו-`congregant_id`
+- [ ] מודל `RefreshSession`: hash של refresh token, תפוגה, ביטול ו-token family
+- [ ] Bootstrap חד-פעמי למנהל הראשון; לאחר מכן יצירת משתמשים על ידי Admin בלבד
 - [ ] `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`
-- [ ] JWT middleware על כל ה-endpoints
+- [ ] Access JWT קצר-חיים + Refresh token מסתובב עם reuse detection וביטול ב-logout
+- [ ] הגדרות `JWT_SECRET`, issuer, audience, זמני תפוגה ו-cookie security ב-`app/core/config.py`
+- [ ] `get_current_user` ו-`require_admin` כ-FastAPI dependencies
+- [ ] הגנה על כל ה-Routers; השארת allowlist ציבורי מפורש בלבד
+- [ ] הגנת service-level לפעולות רגישות שנקראות גם מכלי LLM
+- [ ] Alembic baseline ומיגרציות מפורשות לפני מעבר למסד Production
+- [ ] `tests/test_auth.py` + התאמת fixtures קיימים ל-client מאומת
 
-### אימות משתמשים – Frontend
+### שלב 2 – אימות משתמשים מקומי: Frontend
 - [ ] דף התחברות (Login page) בעברית RTL
-- [ ] `AuthContext` / `useAuth`, Protected Routes
-- [ ] Authorization header ב-`api/client.ts`
-- [ ] כפתור התנתקות ב-Sidebar
+- [ ] `AuthContext` / `useAuth` + Protected Routes ו-redirect ל-`/login`
+- [ ] Access token בזיכרון; Refresh token ב-`HttpOnly Secure SameSite` cookie
+- [ ] Authorization header מרכזי ב-`api/client.ts`, כולל העלאות FormData/CSV
+- [ ] מנגנון refresh יחיד, retry פעם אחת בלבד וטיפול אחיד ב-401
+- [ ] כפתור התנתקות ופרטי משתמש ב-Sidebar
+- [ ] ניקוי TanStack Query cache בהתנתקות
 
-### הכנה ל-v3.5 (WhatsApp Bot Prep)
-- [ ] מודל LLM Scope: `role=admin` (כל הנתונים) vs `role=congregant, id=X` (מסונן לפי `congregant_id`)
-- [ ] Rate limiting על `/auth/*` ו-`/llm/chat`
+### שלב 3 – Authorization, LLM Scope ו-Rate Limiting
+- [ ] מודל Scope בצד השרת: `role=admin` מול `role=congregant, congregant_id=X`
+- [ ] רשימת כלי LLM נפרדת לפי Scope
+- [ ] סינון `congregant_id` בשכבת Service/DB ולא רק ב-Prompt
+- [ ] בדיקות המוכיחות שמתפלל אינו יכול לקרוא או לשנות נתונים של מתפלל אחר
+- [ ] Rate limiting נפרד ל-login כושל, refresh ו-`/llm/chat`
+- [ ] תשובת `429` אחידה ללא חשיפת קיום שם משתמש
 
-### אבטחה ופריסה
-- [ ] Helmet / security headers ב-FastAPI
-- [ ] `CORS_ORIGINS` לדומיין הסופי בלבד, `DEBUG=False`
-- [ ] `Dockerfile` backend + `Dockerfile` frontend (nginx)
-- [ ] `docker-compose.yml` (backend + frontend + db)
-- [ ] `.env.production` + `docs/DEPLOYMENT.md`
-- [ ] migration script מ-SQLite ל-PostgreSQL
-- [ ] תיעוד נוהל גיבוי ידני של `gabay.db`
+### שלב 4 – Security Hardening
+- [ ] Security headers ב-FastAPI: HSTS תחת HTTPS, CSP, frame denial, nosniff ו-referrer policy
+- [ ] `CORS_ORIGINS` לדומיין הסופי בלבד; ללא wildcard כאשר cookies פעילים
+- [ ] `DEBUG=False` ב-Production וכיבוי Swagger/ReDoc ושגיאות מפורטות
+- [ ] ולידציית startup שעוצרת Production עם JWT secret חלש או חסר
+- [ ] Structured logs עם request ID וללא tokens, cookies, סיסמאות, מפתחות LLM או מידע אישי
+- [ ] הגבלת Google Sheets import לכתובות Google HTTPS מאושרות, timeout וגודל תגובה
+- [ ] SCA, source scan, secret scan ו-container scan כחלק מה-CI
+
+### שלב 5 – Docker לסביבת פיתוח ואינטגרציה
+- [ ] `Dockerfile` רב-שלבי ל-Backend, הרצה כמשתמש non-root
+- [ ] `frontend/Dockerfile` רב-שלבי: Vite build + nginx
+- [ ] `frontend/nginx.conf`: SPA fallback, proxy ל-`/api`, compression ו-security limits
+- [ ] `docker-compose.yml`: Frontend + Backend + PostgreSQL עם health checks ו-volumes
+- [ ] `.dockerignore` ללא `.env`, מסדי נתונים מקומיים, caches ו-`graphify-out`
+- [ ] בדיקת `docker compose up` מקומית: login, CRUD, refresh, logout ושמירת נתונים לאחר restart
+
+### שלב 6 – PostgreSQL והעברת נתונים
+- [ ] PostgreSQL driver ותיקון `app/core/db.py` כך ש-`check_same_thread` יוגדר ל-SQLite בלבד
+- [ ] PostgreSQL מקומי ב-Compose; בענן להשתמש ב-Managed PostgreSQL ולא להריץ DB בתוך container/Kubernetes
+- [ ] `scripts/migrate_sqlite_to_postgres.py` עם dry-run, יעד ריק, transaction ושמירת IDs
+- [ ] אימות row counts, Foreign Keys, sequences ודגימות נתונים לאחר migration
+- [ ] חזרה מלאה על migration מעותק של `gabay.db` לפני cutover
+- [ ] שמירת SQLite המקורי כ-read-only עד לאחר backup + restore מוצלחים ב-PostgreSQL
+
+### שלב 7 – תשתית ענן חסכונית
+- [ ] Container Registry פרטי ל-Backend ול-Frontend
+- [ ] שירות Containers מנוהל עם scale-to-zero/scale-down כאשר נתמך
+- [ ] Managed PostgreSQL ברשת פרטית, ללא port ציבורי
+- [ ] Secret Manager עבור JWT, DB credentials ו-LLM API key; אין `.env.production` אמיתי ב-Git
+- [ ] Domain + TLS, reverse proxy/load balancer ו-trusted forwarded headers
+- [ ] Staging נפרד מ-Production עם DB וסודות נפרדים
+- [ ] `.env.production.example` עם placeholders בלבד
+- [ ] `docs/DEPLOYMENT.md`: provisioning, bootstrap admin, deploy, migrate, rollback ו-troubleshooting
+
+### שלב 8 – CI/CD לענן
+- [ ] GitHub Actions ב-Pull Request: Backend tests, Frontend lint/build, migration validation וסריקות אבטחה
+- [ ] לאחר merge/tag: בניית images, סריקה, tagging לפי commit SHA ו-push ל-Registry
+- [ ] פריסה אוטומטית ל-Staging + migration job חד-פעמי + smoke tests
+- [ ] אישור ידני לפני Production
+- [ ] Production deploy מדורג, readiness check ו-rollback אוטומטי ל-image הקודם בכשל
+- [ ] מיגרציות DB backward-compatible לפני החלפת גרסת האפליקציה
+- [ ] שמירת artifacts ו-deployment history לצורכי audit
+
+### שלב 9 – גיבוי, ניטור ותפעול
+- [ ] `docs/BACKUP.md`: גיבוי ידני בטוח של `gabay.db`, integrity check והצפנה
+- [ ] גיבוי אוטומטי של PostgreSQL, retention ואחסון off-site
+- [ ] תרגיל restore מתועד לסביבה חדשה; גיבוי שלא שוחזר אינו נחשב מאומת
+- [ ] `/health/live` לתהליך ו-`/health/ready` לחיבור DB ללא קריאת LLM חיצונית
+- [ ] Error tracking, uptime monitor והתראות לכשלי readiness, migration ו-backup
+- [ ] Runbook לתקלות, שחזור, החלפת secrets ו-rollback
+
+### Kubernetes – החלטה מפורשת
+- [ ] לא נדרש ל-v3.0: שירות Containers מנוהל נותן יחס עלות/תועלת טוב יותר למופע קטן
+- [ ] בחינה מחדש ב-v4.0 עבור multi-tenancy, מספר replicas, autoscaling מורכב ו-High Availability
+- [ ] אם יידרש: Helm chart, Deployments, Services, Ingress, Secrets, migration Job, HPA ו-PDB
+
+### Definition of Done
+- [ ] ללא JWT כל endpoint רגיש מחזיר `401`; משתמש ללא הרשאה מקבל `403`
+- [ ] logout מבטל refresh session ושימוש חוזר ב-refresh token מבטל את ה-token family
+- [ ] Scope של מתפלל נאכף ב-DB גם תחת Prompt Injection
+- [ ] CORS, Rate Limit, Security Headers וכיבוי docs נבדקו אוטומטית
+- [ ] Compose מקומי ו-Staging בענן עוברים smoke test מלא
+- [ ] migration, backup ו-restore נוסו בהצלחה על עותק נתונים אמיתי
+- [ ] Pipeline ירוק ו-Production deploy ניתן ל-rollback ללא איבוד נתונים
 
 ---
 

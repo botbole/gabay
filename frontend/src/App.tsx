@@ -12,6 +12,7 @@ import { Calendar } from './pages/Calendar';
 import { Import } from './pages/Import';
 import { Chat } from './pages/Chat';
 import { Aliyot } from './pages/Aliyot';
+import { PrayerSchedule } from './pages/PrayerSchedule';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +38,7 @@ export default function App() {
               <Route path="/azkarot" element={<Azkarot />} />
               <Route path="/smachot" element={<Smachot />} />
               <Route path="/calendar" element={<Calendar />} />
+              <Route path="/schedule" element={<PrayerSchedule />} />
               <Route path="/import" element={<Import />} />
               <Route path="/chat" element={<Chat />} />
             </Route>

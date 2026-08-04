@@ -50,23 +50,39 @@ def _month_names(month: int) -> tuple[str, str]:
 # Public helpers
 # ---------------------------------------------------------------------------
 
+_HEB_WEEKDAYS = ["שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת", "ראשון"]
+_HEB_MONTHS_SHORT = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני",
+                      "יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"]
+
+
 def gregorian_to_hebrew(d: date) -> dict:
     """
     Convert a Python date to its Hebrew equivalents.
 
     Returns a dict with year, month (pyluach internal), day, formatted
-    strings, and both Hebrew and transliterated month names.
+    strings, both Hebrew and transliterated month names, holiday info,
+    parasha name, and day-of-week name in Hebrew.
+    formatted_hebrew uses Hebrew gematria numerals (e.g. "ט באב תשפ״ו").
     """
     hd = _dates.HebrewDate.from_pydate(d)
     heb_name, eng_name = _month_names(hd.month)
+    holiday_en, holiday_he = _holiday_info(hd)
+    parasha_he = _parasha_info(hd)
+    day_of_week_he = f"יום {_HEB_WEEKDAYS[d.weekday()]}"
+    gregorian_formatted = f"{d.day} {_HEB_MONTHS_SHORT[d.month - 1]} {d.year}"
     return {
         "year": hd.year,
         "month": hd.month,
         "day": hd.day,
         "month_name_hebrew": heb_name,
         "month_name_english": eng_name,
-        "formatted_hebrew": f"{hd.day} {heb_name} {hd.year}",
+        "formatted_hebrew": f"{to_hebrew_numeral(hd.day)} ב{heb_name} {to_hebrew_year_str(hd.year)}",
         "formatted_english": f"{hd.day} {eng_name} {hd.year}",
+        "holiday_he": holiday_he,
+        "holiday_en": holiday_en,
+        "parasha_he": parasha_he,
+        "day_of_week_he": day_of_week_he,
+        "gregorian_formatted": gregorian_formatted,
     }
 
 

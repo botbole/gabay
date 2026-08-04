@@ -12,6 +12,7 @@ import {
   Upload,
   MessageCircle,
   Puzzle,
+  Clock,
   type LucideIcon,
 } from 'lucide-react';
 import { useAppConfig } from '../../contexts/AppConfigContext';
@@ -29,6 +30,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   MessageCircle,
   Puzzle,
   LayoutDashboard,
+  Clock,
 };
 
 /** All possible module nav items in the preferred display order */
@@ -40,6 +42,7 @@ const MODULE_NAV_ORDER = [
   'azkarot',
   'smachot',
   'calendar',
+  'prayer_schedule',
 ];
 
 export function Sidebar() {
@@ -47,7 +50,7 @@ export function Sidebar() {
 
   const enabledIds = config?.enabled_modules_list ?? [
     'congregants', 'payments', 'aliyot', 'seating',
-    'azkarot', 'smachot', 'calendar', 'llm',
+    'azkarot', 'smachot', 'calendar', 'llm', 'prayer_schedule',
   ];
 
   // Build manifest map from config (or fall back to defaults)
@@ -62,8 +65,9 @@ export function Sidebar() {
     aliyot:      { label: 'עליות לתורה',   icon: BookOpen,        path: '/aliyot' },
     azkarot:     { label: 'אזכרות',         icon: Star,            path: '/azkarot' },
     smachot:     { label: 'שמחות',          icon: Heart,           path: '/smachot' },
-    calendar:    { label: 'לוח עברי',       icon: Calendar,        path: '/calendar' },
-    llm:         { label: 'עוזר גבאי AI',   icon: MessageCircle,   path: '/chat' },
+    calendar:         { label: 'לוח עברי',       icon: Calendar,        path: '/calendar' },
+    prayer_schedule:  { label: 'לוח תפילות ושיעורים', icon: Clock, path: '/schedule' },
+    llm:              { label: 'עוזר גבאי AI',  icon: MessageCircle,   path: '/chat' },
   };
 
   // Build dynamic nav from enabled modules in the preferred order

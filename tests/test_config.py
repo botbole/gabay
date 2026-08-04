@@ -123,7 +123,7 @@ async def test_all_eight_modules_registered(client):
     manifest = r.json()["data"]["modules_manifest"]
     module_ids = {m["module_id"] for m in manifest}
     expected = {"congregants", "payments", "aliyot", "seating",
-                "azkarot", "smachot", "calendar", "llm"}
+                "azkarot", "smachot", "calendar", "llm", "prayer_schedule"}
     assert expected == module_ids
 
 

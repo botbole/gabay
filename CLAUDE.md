@@ -114,6 +114,127 @@ All UI changes must follow the **Modern Gabay Design System**:
 - **Module Registry (active – Milestone 1.5):** Every feature is a self-contained module under `app/modules/`. New features must follow the same pattern. Avoid imports between modules except via lazy imports or hooks.
 - **Testing convention:** After completing each milestone, add integration tests under `tests/` using `pytest` + `httpx.AsyncClient` with the in-memory SQLite fixture from `tests/conftest.py`. E2E tests (Playwright) are deferred to Milestone 5.
 
+## Learned Insights
+
+These are patterns and decisions extracted from real development sessions on this project. Every agent working on Gabay must internalize these before writing any code.
+
+### Registering a new module — the full checklist
+
+When a new module is added under `app/modules/`, it must be wired up in **four** places or it will silently not appear in the UI:
+
+1. `main.py` — import the module's `module.py` file so it self-registers with the global registry.
+2. `app/core/config.py` — add the slug to `ENABLED_MODULES` default.
+3. `app/core/tenant.py` — add the slug to the `ALL_MODULES` string constant.
+4. **The live database** — if a `TenantConfig` row already exists in `gabay.db`, run:
+   ```sql
+   UPDATE tenant_config SET enabled_modules = '<full comma list including new slug>';
+   ```
+   Restarting the server does NOT update an existing row — the constant only initialises a missing row.
+
+The `prayer_schedule` module was missing from `ALL_MODULES` and required this exact fix after it was built.
+
+### Database migrations — no auto-migration
+
+SQLModel does **not** run ALTER TABLE automatically when you add a new column. Whenever you add a field to a model, also add a migration block in `app/core/db.py`'s startup function:
+
+```python
+with engine.connect() as conn:
+    try:
+        conn.execute(text("ALTER TABLE prayer_rules ADD COLUMN free_text TEXT"))
+        conn.commit()
+    except Exception:
+        pass
+```
+
+Use a bare `except` to silently skip if the column already exists. This pattern is used for every additive migration in this codebase.
+
+### TypeScript: always use `import type` for interfaces
+
+A plain `import { SomeInterface }` of a TypeScript interface compiles fine but causes a runtime `SyntaxError` in Vite/esbuild because the interface is stripped at compile time but the import statement stays. Use:
+
+```ts
+import type { TenantConfig } from '../api/client'
+import type { LucideIcon } from 'lucide-react'
+```
+
+This hit production twice: `TenantConfig` in `AppConfigContext.tsx` and `LucideIcon` in `Sidebar.tsx`.
+
+### Vite module cache
+
+After adding new exports to `client.ts` or any widely-imported module, if the browser still shows the old version after saving, stop and restart `npm run dev`. Vite's optimizer bundles dependencies at startup and can serve a stale bundle until restarted.
+
+### Windows terminal encoding
+
+The PowerShell terminal on Windows cannot display Hebrew UTF-8 by default. Symptoms:
+- `pytest -s` prints garbled characters for Hebrew print statements.
+- Python scripts that print Hebrew to stdout will raise `UnicodeEncodeError: 'charmap'`.
+
+Fix in `tests/conftest.py`:
+```python
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
+```
+
+For one-off scripts, prefix with `$env:PYTHONIOENCODING='utf-8'` in PowerShell.
+
+### CSS/Tailwind conflicts with the Button component
+
+When combining the shared `Button` component's `variant` prop (e.g., `variant="danger"`) with additional Tailwind `className` color utilities on the same element, Tailwind's class ordering can make the variant's styles win over your overrides. Instead of fighting this, use a plain `<button>` HTML element with inline styles when you need to override colors in a modal confirmation bar or overlay context.
+
+### pyluach Hebrew calendar conventions
+
+- 1 Tishrei 5786 = **September 23, 2025** — not the 22nd. The Hebrew day begins at nightfall; pyluach's `HebrewDate` refers to the calendar day (starts at nightfall of the prior Gregorian day).
+- `Month` has no `monthlen()` or `month_lengths` attribute. Iterate with `month.iterdates()`.
+- `Year.itermonths()` starts at Tishrei (month 7), not Nisan (month 1).
+- All Hebrew date logic lives in `app/core/hebrew_date.py`. Never add conversion logic elsewhere.
+
+### Prayer schedule module — known gotchas
+
+The `prayer_schedule` module (`app/modules/prayer_schedule/`) is the most recently built and has the most edge cases:
+
+- **`candle_lighting` anchor** always refers to the *next* Friday, not today or last Friday.
+- **`havdalah` anchor** always refers to the *next* Saturday.
+- **`update_rule` sentinel bug** (fixed): a `value is not None` guard was preventing fields from being cleared back to `None`. If a field refuses to clear, check for this pattern in `service.py`.
+- **Hebcal timeout**: the "שגיאה בטעינת נתוני זמנים" error in the live preview sidebar is an external Hebcal API timeout, not a code bug. The sidebar has a retry button for this.
+- **Friday display rules**: when `isFriday`, filter the daily prayers block to exclude `ערבית` and `מנחה`. Show only Shabbat prayers whose calculated time is ≥ candle lighting.
+- **`no_auto_time`**: when checked, hide the anchor subtitle row in the rule list — do not show any computed time.
+- **`is_lesson`**: lessons display in green. Their `notes` field is used as the lesson time descriptor ("זמן השיעור"), not as supplementary notes.
+- **`day_of_week`**: 0=Sunday … 4=Thursday, 5=Friday (displayed as "ערב שבת"), 6=Saturday. `null` means every day.
+- **Display order**: prayer rows in the live preview should sort by `display_order` (the user's configured drag order), not by calculated time.
+
+### Seating map seat numbering
+
+Seat numbers are per-row (1 … row-width), not global. The `SeatTile` must display `place.place_number` only — never `row + place_number` — because the row letter is already shown in the row header.
+
+### Upcoming azkarot — congregant name enrichment
+
+The `Azkara` model does not store `congregant_name`. The backend `get_upcoming_azkarot` service method joins the `Congregant` table to enrich the result. Never try to resolve the name on the frontend by calling a separate API per item.
+
+### Button ghost variant on colored backgrounds
+
+When a `Button` with `variant="ghost"` is placed on a colored background (e.g., inside a red confirmation bar), its text may be invisible. Replace with a plain `<button>` and explicit `bg-white text-red-600` classes (or inline style) in those cases.
+
+### Testing
+
+Run all tests: `python -m pytest tests/ -v -s`
+
+Add `-s` to see Hebrew print labels. The 81 existing tests cover all core modules. After every new milestone add an integration test file under `tests/`. E2E tests (Playwright) are deferred to Milestone 5.
+
+### LLM configuration
+
+- Provider: OpenAI (`gpt-4o-mini`).
+- `LLM_BASE_URL` must be left **empty** for the standard OpenAI endpoint. Passing an empty string (not `None`) will cause a request error.
+- System prompt is in Hebrew in `app/core/config.py`.
+- The `llm_client` is a module-level singleton — restart the server after changing `.env`.
+
+### Workflow preferences
+
+- Plan first (Ask/Plan mode), then confirm, then switch to Agent mode to implement.
+- After every milestone: update `ROADMAP.md` and add integration tests.
+- Commits: use `git add . && git commit -m "..."` — do not commit `.env` or `gabay.db`.
+- When a chat gets long, the user asks "summarize for new chat" — provide a full context block they can paste as the first message.
+- The user often spots bugs visually while testing in the browser. When they describe a visual problem, ask one clarifying question to confirm which element they mean before coding.
+
 ## graphify
 
 This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.

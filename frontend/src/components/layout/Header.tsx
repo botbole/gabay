@@ -12,6 +12,7 @@ const routeLabels: Record<string, string> = {
   '/azkarot':     'אזכרות',
   '/smachot':     'שמחות',
   '/calendar':    'לוח עברי',
+  '/schedule':    'לוח תפילות ושיעורים',
   '/import':      'ייבוא מתפללים',
 };
 
@@ -34,7 +35,8 @@ export function Header() {
     staleTime: Infinity,
   });
 
-  const hebrewDateStr = hebrewData?.data?.hebrew_date ?? '';
+  const hebrewDateStr = hebrewData?.formatted_hebrew ?? '';
+  const holidayStr = hebrewData?.holiday_he ?? null;
 
   return (
     <header
@@ -47,6 +49,9 @@ export function Header() {
         {hebrewDateStr && (
           <span className="font-medium" style={{ color: 'var(--color-gold)' }}>
             {hebrewDateStr}
+            {holidayStr && (
+              <span className="mr-1.5 text-xs font-normal opacity-80">· {holidayStr}</span>
+            )}
           </span>
         )}
         {hebrewDateStr && <span className="text-gray-300">|</span>}

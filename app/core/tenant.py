@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from sqlmodel import Field, SQLModel
 
-ALL_MODULES = "congregants,payments,aliyot,seating,azkarot,smachot,calendar,llm"
+ALL_MODULES = "congregants,payments,aliyot,seating,azkarot,smachot,calendar,llm,prayer_schedule"
 
 
 class TenantConfig(SQLModel, table=True):

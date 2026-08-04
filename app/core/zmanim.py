@@ -9,7 +9,7 @@ throughout this app (see ``app.core.hebrew_date``).
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 import httpx
@@ -89,6 +89,58 @@ async def get_shabbat_times(d: date) -> dict:
         "candle_lighting": candle_lighting,
         "havdalah": havdalah,
         "parasha_he": parasha_he,
+    }
+
+
+async def get_full_shabbat_info(friday: date) -> dict:
+    """
+    Fetch combined candle-lighting / parasha / havdalah / special-Shabbat-name
+    for the Friday→Saturday pair, in a single Hebcal request.
+
+    Unlike ``get_shabbat_times`` (which filters by a single date), this function
+    collects items from *both* the Friday and Saturday rows so the caller gets
+    everything in one call.
+    """
+    saturday = friday + timedelta(days=1)
+    params = {
+        "cfg": "json",
+        "geonameid": settings.ZMANIM_GEONAME_ID,
+        "gy": friday.year,
+        "gm": friday.month,
+        "gd": friday.day,
+        "M": "on",
+    }
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        resp = await client.get(f"{_HEBCAL_BASE}/shabbat", params=params)
+        resp.raise_for_status()
+        items = resp.json().get("items", [])
+
+    fri_iso = friday.isoformat()
+    sat_iso = saturday.isoformat()
+
+    candle_lighting: Optional[str] = None
+    havdalah: Optional[str] = None
+    parasha_he: Optional[str] = None
+    special_shabbat_he: Optional[str] = None
+
+    for item in items:
+        item_date = (item.get("date") or "")[:10]
+        category = item.get("category")
+        if item_date == fri_iso and category == "candles":
+            candle_lighting = _hhmm(item.get("date"))
+        elif item_date == sat_iso:
+            if category == "havdalah":
+                havdalah = _hhmm(item.get("date"))
+            elif category == "parashat":
+                parasha_he = (item.get("hebrew") or "").removeprefix("פרשת ") or None
+            elif category == "holiday":
+                special_shabbat_he = item.get("hebrew") or None
+
+    return {
+        "candle_lighting": candle_lighting,
+        "havdalah": havdalah,
+        "parasha_he": parasha_he,
+        "special_shabbat_he": special_shabbat_he,
     }
 
 

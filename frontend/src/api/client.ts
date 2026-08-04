@@ -419,6 +419,8 @@ export interface HebrewDateInfo {
   formatted_hebrew: string;
   formatted_english: string;
   gregorian: string;
+  holiday_he: string | null;
+  holiday_en: string | null;
 }
 
 export interface DayTimes {
@@ -443,6 +445,126 @@ export const calendarApi = {
     request<CalendarMonth>(`/synagogue/calendar/month-view?year=${year}&month=${month}`),
   dayTimes: (date: string) =>
     request<DayTimes>(`/synagogue/calendar/day-times?date=${date}`),
+};
+
+// ─── Prayer Schedule ─────────────────────────────────────────────────────────
+
+export interface PrayerRule {
+  id: string;
+  name: string;
+  day_type: string;
+  anchor: string;
+  offset_minutes: number;
+  exact_time: string | null;
+  free_text: string | null;
+  no_auto_time: boolean;
+  is_lesson: boolean;
+  day_of_week: number | null;         // legacy, superseded by days_of_week
+  days_of_week: string | null;        // comma-sep ints: "0,1,5" = Sun,Mon,Fri; null = every day
+  notes: string;
+  display_order: number;
+  is_active: boolean;
+}
+
+export interface PrayerRuleCreate {
+  name: string;
+  day_type: string;
+  anchor: string;
+  offset_minutes?: number;
+  exact_time?: string | null;
+  free_text?: string | null;
+  no_auto_time?: boolean;
+  is_lesson?: boolean;
+  days_of_week?: number[] | null;     // [0,1,5] = Sun,Mon,Fri; null = every day
+  notes?: string;
+  display_order?: number;
+  is_active?: boolean;
+}
+
+export interface PrayerRuleUpdate {
+  name?: string;
+  anchor?: string;
+  offset_minutes?: number;
+  exact_time?: string | null;
+  free_text?: string | null;
+  no_auto_time?: boolean;
+  is_lesson?: boolean;
+  days_of_week?: number[] | null;     // null clears the selection → every day
+  notes?: string;
+  display_order?: number;
+  is_active?: boolean;
+}
+
+export interface CalculatedPrayer extends PrayerRule {
+  calculated_time: string | null;
+  offset_label: string;
+}
+
+export interface DaySchedule {
+  date: string;
+  day_type: string;
+  hebrew_date: string;
+  city: string;
+  zmanim: Record<string, string | null>;
+  prayers: CalculatedPrayer[];
+}
+
+export interface SpecialDay {
+  id: string;
+  name: string;
+  hebrew_month: number;
+  hebrew_day: number;
+  notes: string;
+}
+
+export interface SpecialDayCreate {
+  name: string;
+  hebrew_month: number;
+  hebrew_day: number;
+  notes?: string;
+}
+
+export const scheduleApi = {
+  getRules: (day_type?: string) => {
+    const qs = day_type ? `?day_type=${day_type}` : '';
+    return request<{ rules: PrayerRule[]; total: number }>(`/synagogue/prayer-rules${qs}`);
+  },
+  createRule: (body: PrayerRuleCreate) =>
+    request<PrayerRule>('/synagogue/prayer-rules', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateRule: (id: string, body: PrayerRuleUpdate) =>
+    request<PrayerRule>(`/synagogue/prayer-rules/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  deleteRule: (id: string) =>
+    request<{ deleted: string }>(`/synagogue/prayer-rules/${id}`, { method: 'DELETE' }),
+  reorderRules: (day_type: string, ordered_ids: string[]) =>
+    request<{ reordered: number }>('/synagogue/prayer-rules/reorder', {
+      method: 'POST',
+      body: JSON.stringify({ day_type, ordered_ids }),
+    }),
+  getSchedule: (date: string) =>
+    request<DaySchedule>(`/synagogue/schedule?date=${date}`),
+  getWeekSchedule: (from_date: string) =>
+    request<{ from: string; days: DaySchedule[] }>(`/synagogue/schedule/week?from_date=${from_date}`),
+  generateWeekly: (week_start?: string) => {
+    const qs = week_start ? `?week_start=${week_start}` : '';
+    return request<{ text: string; week_start: string; shabbat_date: string }>(
+      `/synagogue/schedule/generate${qs}`
+    );
+  },
+  getSpecialDays: () =>
+    request<{ days: SpecialDay[]; total: number }>('/synagogue/special-days'),
+  createSpecialDay: (body: SpecialDayCreate) =>
+    request<SpecialDay>('/synagogue/special-days', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  deleteSpecialDay: (id: string) =>
+    request<{ deleted: string }>(`/synagogue/special-days/${id}`, { method: 'DELETE' }),
 };
 
 // ─── Tenant Config ───────────────────────────────────────────────────────────

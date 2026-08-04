@@ -20,6 +20,7 @@ import app.modules.azkarot.module      # noqa: F401
 import app.modules.smachot.module      # noqa: F401
 import app.modules.calendar.module     # noqa: F401
 import app.modules.llm.module          # noqa: F401
+import app.modules.prayer_schedule.module  # noqa: F401
 
 # ── Import TenantConfig so its table is created by create_db_and_tables()
 import app.core.tenant  # noqa: F401
