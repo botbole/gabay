@@ -1,17 +1,158 @@
 const BASE_URL = '/api/v1';
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail ?? 'Request failed');
-  }
-  const json = await res.json();
-  return json.data ?? json;
+export type UserRole = 'admin' | 'gabai' | 'congregant';
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  role: UserRole;
+  is_active: boolean;
+  congregant_id: string | null;
+  created_at: string;
 }
+
+export interface AuthSession {
+  access_token: string;
+  expires_in: number;
+  user: AuthUser;
+}
+
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+  }
+}
+
+type SessionListener = (session: AuthSession | null) => void;
+
+let accessToken: string | null = null;
+let refreshPromise: Promise<AuthSession> | null = null;
+let sessionListener: SessionListener | null = null;
+
+export function setAuthSessionListener(listener: SessionListener | null) {
+  sessionListener = listener;
+}
+
+function updateSession(session: AuthSession | null) {
+  accessToken = session?.access_token ?? null;
+  sessionListener?.(session);
+}
+
+async function parseResponse<T>(res: Response): Promise<T> {
+  const json = await res.json().catch(() => null);
+  if (!res.ok) {
+    const message = json?.message ?? json?.detail ?? res.statusText ?? 'Request failed';
+    throw new ApiError(message, res.status);
+  }
+  const data = json?.data ?? json;
+  if (
+    json?.message
+    && data
+    && typeof data === 'object'
+    && !Array.isArray(data)
+    && !('message' in data)
+  ) {
+    return { ...data, message: json.message } as T;
+  }
+  return data as T;
+}
+
+async function performFetch<T>(
+  path: string,
+  options?: RequestInit,
+  includeAccessToken = true,
+): Promise<T> {
+  const headers = new Headers(options?.headers);
+  const isFormData = options?.body instanceof FormData;
+
+  if (options?.body != null && !isFormData && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (includeAccessToken && accessToken && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${accessToken}`);
+  }
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+  return parseResponse<T>(res);
+}
+
+function refreshAccessToken(): Promise<AuthSession> {
+  if (!refreshPromise) {
+    refreshPromise = performFetch<AuthSession>(
+      '/auth/refresh',
+      { method: 'POST' },
+      false,
+    )
+      .then(session => {
+        updateSession(session);
+        return session;
+      })
+      .catch(error => {
+        updateSession(null);
+        throw error;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+async function request<T>(
+  path: string,
+  options?: RequestInit,
+  allowRefresh = true,
+): Promise<T> {
+  try {
+    return await performFetch<T>(path, options);
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 401) {
+      throw error;
+    }
+    if (!allowRefresh) {
+      updateSession(null);
+      throw error;
+    }
+
+    try {
+      await refreshAccessToken();
+    } catch {
+      throw error;
+    }
+    return request<T>(path, options, false);
+  }
+}
+
+export const authApi = {
+  login: async (username: string, password: string) => {
+    const session = await performFetch<AuthSession>(
+      '/auth/login',
+      {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      },
+      false,
+    );
+    updateSession(session);
+    return session;
+  },
+  refresh: () => refreshAccessToken(),
+  logout: async () => {
+    try {
+      await performFetch<void>('/auth/logout', { method: 'POST' }, false);
+    } finally {
+      updateSession(null);
+    }
+  },
+};
 
 // ─── Congregants ────────────────────────────────────────────────────────────
 
@@ -108,13 +249,10 @@ export const congregantsApi = {
   bulkImportCsv: async (file: File): Promise<BulkImportResult> => {
     const form = new FormData();
     form.append('file', file);
-    const res = await fetch(`${BASE_URL}/synagogue/congregants/bulk/csv`, { method: 'POST', body: form });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail ?? 'Upload failed');
-    }
-    const json = await res.json();
-    return { ...(json.data ?? {}), message: json.message };
+    return request<BulkImportResult>('/synagogue/congregants/bulk/csv', {
+      method: 'POST',
+      body: form,
+    });
   },
 
   bulkDelete: (ids: string[]) => bulkDelete('/synagogue/congregants', ids),
@@ -127,19 +265,11 @@ export const congregantsApi = {
       method: 'POST', body: JSON.stringify({ ids }),
     }),
 
-  bulkImportSheets: async (url: string): Promise<BulkImportResult> => {
-    const res = await fetch(`${BASE_URL}/synagogue/congregants/bulk/sheets`, {
+  bulkImportSheets: (url: string) =>
+    request<BulkImportResult>('/synagogue/congregants/bulk/sheets', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(err.detail ?? 'Import failed');
-    }
-    const json = await res.json();
-    return { ...(json.data ?? {}), message: json.message };
-  },
+    }),
 };
 
 // ─── Payments ───────────────────────────────────────────────────────────────

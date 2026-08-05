@@ -24,6 +24,10 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("LLM_API_KEY", "test-key")
 
 import app.core.db as db_module  # noqa: E402  (must come after env override)
+from app.core.rate_limit import (  # noqa: E402
+    InMemoryRateLimitBackend,
+    set_rate_limit_backend,
+)
 from main import app  # noqa: E402
 
 
@@ -44,7 +48,9 @@ def use_test_db(monkeypatch):
     )
     SQLModel.metadata.create_all(test_engine)
     monkeypatch.setattr(db_module, "engine", test_engine)
+    set_rate_limit_backend(InMemoryRateLimitBackend())
     yield
+    set_rate_limit_backend(None)
     SQLModel.metadata.drop_all(test_engine)
 
 

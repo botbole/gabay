@@ -6,11 +6,10 @@ from datetime import date
 
 from sqlmodel import select
 
-from app.core.authorization import require_service_operational
+from app.core.authorization import Actor, require_service_operational, scope_congregant_id
 from app.core.db import get_session
 from app.core.hooks import hooks
 from app.modules.aliyot.models import Aliya
-from app.modules.auth.models import User
 
 
 class AliyotService:
@@ -25,7 +24,7 @@ class AliyotService:
         donation_amount: float = 0.0,
         notes: str = "",
         *,
-        actor: User,
+        actor: Actor,
     ) -> dict:
         require_service_operational(actor)
         aliya = Aliya(
@@ -58,7 +57,8 @@ class AliyotService:
         await hooks.fire("aliya.assigned", aliya=result)
         return result
 
-    async def list_aliyot(self) -> dict:
+    async def list_aliyot(self, *, actor: Actor) -> dict:
+        require_service_operational(actor)
         with get_session() as session:
             aliyot = session.exec(select(Aliya).order_by(Aliya.date.desc())).all()
             return {
@@ -66,7 +66,7 @@ class AliyotService:
                 "aliyot": [a.model_dump() for a in aliyot],
             }
 
-    async def bulk_delete_aliyot(self, ids: list[str], *, actor: User) -> dict:
+    async def bulk_delete_aliyot(self, ids: list[str], *, actor: Actor) -> dict:
         require_service_operational(actor)
         deleted = 0
         with get_session() as session:
@@ -78,7 +78,8 @@ class AliyotService:
             session.commit()
         return {"deleted": deleted}
 
-    async def get_aliyot_for_parasha(self, parasha: str) -> dict:
+    async def get_aliyot_for_parasha(self, parasha: str, *, actor: Actor) -> dict:
+        require_service_operational(actor)
         with get_session() as session:
             aliyot = session.exec(
                 select(Aliya).where(Aliya.parasha == parasha)
@@ -89,13 +90,19 @@ class AliyotService:
                 "aliyot": [a.model_dump() for a in aliyot],
             }
 
-    async def get_aliya_history(self, congregant_id: str) -> dict:
+    async def get_aliya_history(
+        self,
+        congregant_id: str,
+        *,
+        actor: Actor,
+    ) -> dict:
+        scoped_id = scope_congregant_id(actor, congregant_id)
         with get_session() as session:
             aliyot = session.exec(
-                select(Aliya).where(Aliya.congregant_id == congregant_id)
+                select(Aliya).where(Aliya.congregant_id == scoped_id)
             ).all()
             return {
-                "congregant_id": congregant_id,
+                "congregant_id": scoped_id,
                 "total_aliyot": len(aliyot),
                 "aliyot": [a.model_dump() for a in aliyot],
             }
@@ -114,7 +121,7 @@ async def _on_aliya_donation(
     parasha: str,
     aliya_type: str,
     date_str: str,
-    actor: User,
+    actor: Actor,
 ) -> None:
     from app.modules.payments.service import payment_service
     await payment_service.record_payment(

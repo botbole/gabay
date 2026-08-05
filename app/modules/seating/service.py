@@ -6,9 +6,8 @@ from typing import Optional
 
 from sqlmodel import select
 
-from app.core.authorization import require_service_operational
+from app.core.authorization import Actor, require_service_operational, scope_congregant_id
 from app.core.db import get_session
-from app.modules.auth.models import User
 from app.modules.seating.models import Place
 
 
@@ -24,7 +23,7 @@ class SeatingService:
         annual_fee: float = 0.0,
         notes: str = "",
         *,
-        actor: User,
+        actor: Actor,
     ) -> dict:
         require_service_operational(actor)
         place = Place(
@@ -49,7 +48,7 @@ class SeatingService:
         is_reserved: bool = True,
         annual_fee: float = 0.0,
         *,
-        actor: User,
+        actor: Actor,
     ) -> dict | None:
         require_service_operational(actor)
         with get_session() as session:
@@ -65,7 +64,7 @@ class SeatingService:
             session.refresh(place)
             return place.model_dump()
 
-    async def unassign_place(self, place_id: str, *, actor: User) -> dict | None:
+    async def unassign_place(self, place_id: str, *, actor: Actor) -> dict | None:
         require_service_operational(actor)
         with get_session() as session:
             place = session.get(Place, place_id)
@@ -78,7 +77,8 @@ class SeatingService:
             session.refresh(place)
             return place.model_dump()
 
-    async def get_place(self, place_id: str) -> dict | None:
+    async def get_place(self, place_id: str, *, actor: Actor) -> dict | None:
+        require_service_operational(actor)
         with get_session() as session:
             place = session.get(Place, place_id)
             return place.model_dump() if place else None
@@ -87,7 +87,10 @@ class SeatingService:
         self,
         section: Optional[str] = None,
         only_free: bool = False,
+        *,
+        actor: Actor,
     ) -> dict:
+        require_service_operational(actor)
         with get_session() as session:
             stmt = select(Place)
             if section:
@@ -100,14 +103,20 @@ class SeatingService:
                 "places": [p.model_dump() for p in places],
             }
 
-    async def get_congregant_place(self, congregant_id: str) -> dict | None:
+    async def get_congregant_place(
+        self,
+        congregant_id: str,
+        *,
+        actor: Actor,
+    ) -> dict | None:
+        scoped_id = scope_congregant_id(actor, congregant_id)
         with get_session() as session:
             place = session.exec(
-                select(Place).where(Place.congregant_id == congregant_id)
+                select(Place).where(Place.congregant_id == scoped_id)
             ).first()
             return place.model_dump() if place else None
 
-    async def bulk_delete_places(self, ids: list[str], *, actor: User) -> dict:
+    async def bulk_delete_places(self, ids: list[str], *, actor: Actor) -> dict:
         require_service_operational(actor)
         deleted = 0
         with get_session() as session:

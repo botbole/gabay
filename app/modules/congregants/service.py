@@ -7,10 +7,9 @@ from typing import Optional
 
 from sqlmodel import select
 
-from app.core.authorization import require_service_operational
+from app.core.authorization import Actor, require_service_operational, scope_congregant_id
 from app.core.db import get_session
 from app.core.hooks import hooks
-from app.modules.auth.models import User
 from app.modules.congregants.models import Congregant
 
 
@@ -32,7 +31,7 @@ class CongregantService:
         notes: str = "",
         join_date: str = "",
         *,
-        actor: User,
+        actor: Actor,
     ) -> dict:
         require_service_operational(actor)
         congregant = Congregant(
@@ -58,12 +57,19 @@ class CongregantService:
         await hooks.fire("congregant.created", congregant=result)
         return result
 
-    async def get_congregant(self, congregant_id: str) -> dict | None:
+    async def get_congregant(
+        self,
+        congregant_id: str,
+        *,
+        actor: Actor,
+    ) -> dict | None:
+        scoped_id = scope_congregant_id(actor, congregant_id)
         with get_session() as session:
-            congregant = session.get(Congregant, congregant_id)
+            congregant = session.get(Congregant, scoped_id)
             return congregant.model_dump() if congregant else None
 
-    async def find_congregant_by_name(self, name: str) -> dict | None:
+    async def find_congregant_by_name(self, name: str, *, actor: Actor) -> dict | None:
+        require_service_operational(actor)
         with get_session() as session:
             all_c = session.exec(select(Congregant)).all()
         name_lower = name.strip().lower()
@@ -82,7 +88,7 @@ class CongregantService:
         congregant_id: str,
         updates: dict,
         *,
-        actor: User,
+        actor: Actor,
     ) -> dict | None:
         require_service_operational(actor)
         with get_session() as session:
@@ -102,9 +108,14 @@ class CongregantService:
         self,
         member_type: Optional[str] = None,
         archived: bool = False,
+        *,
+        actor: Actor,
     ) -> dict:
+        scoped_id = scope_congregant_id(actor)
         with get_session() as session:
             stmt = select(Congregant).where(Congregant.is_archived == archived)
+            if scoped_id:
+                stmt = stmt.where(Congregant.id == scoped_id)
             if member_type:
                 stmt = stmt.where(Congregant.member_type == member_type)
             congregants = session.exec(stmt).all()
@@ -113,7 +124,7 @@ class CongregantService:
                 "congregants": [c.model_dump() for c in congregants],
             }
 
-    async def bulk_delete_congregants(self, ids: list[str], *, actor: User) -> dict:
+    async def bulk_delete_congregants(self, ids: list[str], *, actor: Actor) -> dict:
         require_service_operational(actor)
         deleted = 0
         with get_session() as session:
@@ -125,7 +136,7 @@ class CongregantService:
             session.commit()
         return {"deleted": deleted}
 
-    async def bulk_archive_congregants(self, ids: list[str], *, actor: User) -> dict:
+    async def bulk_archive_congregants(self, ids: list[str], *, actor: Actor) -> dict:
         require_service_operational(actor)
         archived = 0
         today = date.today().isoformat()
@@ -140,7 +151,7 @@ class CongregantService:
             session.commit()
         return {"archived": archived}
 
-    async def bulk_restore_congregants(self, ids: list[str], *, actor: User) -> dict:
+    async def bulk_restore_congregants(self, ids: list[str], *, actor: Actor) -> dict:
         require_service_operational(actor)
         restored = 0
         with get_session() as session:

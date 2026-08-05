@@ -7,6 +7,7 @@ from collections.abc import Callable
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from app.core.authorization import AuthScope, AuthorizationError, get_auth_scope
 from app.core.security import TokenValidationError, decode_token
 from app.modules.auth.models import User, UserRole
 from app.modules.auth.service import auth_service
@@ -52,16 +53,35 @@ def require_roles(*roles: UserRole) -> Callable:
     return dependency
 
 
+def get_current_scope(user: User = Depends(get_current_user)) -> AuthScope:
+    try:
+        return get_auth_scope(user)
+    except AuthorizationError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
+
+
+def require_scope_roles(*roles: UserRole) -> Callable:
+    def dependency(scope: AuthScope = Depends(get_current_scope)) -> AuthScope:
+        if scope.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Insufficient permissions",
+            )
+        return scope
+
+    return dependency
+
+
 require_admin = require_roles(UserRole.ADMIN)
 require_operational = require_roles(UserRole.ADMIN, UserRole.GABAI)
+require_admin_scope = require_scope_roles(UserRole.ADMIN)
+require_operational_scope = require_scope_roles(UserRole.ADMIN, UserRole.GABAI)
 
 
-def require_scoped_user(user: User = Depends(get_current_user)) -> User:
-    if user.role == UserRole.CONGREGANT and not user.congregant_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Congregant scope is not configured",
-        )
+def require_scoped_user(
+    user: User = Depends(get_current_user),
+    _scope: AuthScope = Depends(get_current_scope),
+) -> User:
     return user
 
 

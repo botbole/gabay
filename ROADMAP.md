@@ -300,25 +300,25 @@
 - [x] אכיפת הרשאות גם בשכבת Service/DB לפעולות רגישות, לרבות קריאות מכלי LLM ו-WhatsApp
 - [x] בדיקות `401` למשתמש אנונימי ו-`403` למשתמש ללא הרשאה בכל Router
 
-### שלב 2 – אימות משתמשים מקומי: Frontend
-- [ ] דף התחברות (Login page) בעברית RTL
-- [ ] `AuthContext` / `useAuth` + Protected Routes ו-redirect ל-`/login`
-- [ ] Access token בזיכרון; Refresh token ב-`HttpOnly Secure SameSite` cookie
-- [ ] Authorization header מרכזי ב-`api/client.ts`, כולל העלאות FormData/CSV
-- [ ] מנגנון refresh יחיד, retry פעם אחת בלבד וטיפול אחיד ב-401
-- [ ] כפתור התנתקות ופרטי משתמש ב-Sidebar
-- [ ] ניקוי TanStack Query cache בהתנתקות
-- [ ] הצגת Routes, ניווט ופעולות לפי Role: Admin מקבל מסכי ניהול; Gabai מקבל עבודה תפעולית בלבד
-- [ ] אין להסתמך על הסתרת UI כאמצעי הרשאה; ה-Backend נשאר מקור האמת
+### מקומי: Frontend שלב 2 – אימות משתמשים
+- [x] דף התחברות (Login page) בעברית RTL
+- [x] `AuthContext` / `useAuth` + Protected Routes ו-redirect ל-`/login`
+- [x] Access token בזיכרון; Refresh token ב-`HttpOnly Secure SameSite` cookie
+- [x] Authorization header מרכזי ב-`api/client.ts`, כולל העלאות FormData/CSV
+- [x] מנגנון refresh יחיד, retry פעם אחת בלבד וטיפול אחיד ב-401
+- [x] כפתור התנתקות ופרטי משתמש ב-Sidebar
+- [x] ניקוי TanStack Query cache בהתנתקות
+- [x] תשתית Role ל-Routes, ניווט ופעולות: Admin ו-Gabai מקבלים את מסכי התפעול הקיימים; מסכי ניהול Admin יתווספו עם ה-APIs הייעודיים
+- [x] אין להסתמך על הסתרת UI כאמצעי הרשאה; ה-Backend נשאר מקור האמת
 
 ### שלב 3 – Authorization, LLM Scope ו-Rate Limiting
-- [ ] מודל Scope בצד השרת: `role=admin`, `role=gabai`, או `role=congregant, congregant_id=X`
-- [ ] רשימת כלי LLM נפרדת לפי Scope
-- [ ] סינון `congregant_id` בשכבת Service/DB ולא רק ב-Prompt
-- [ ] בדיקות Role matrix: Admin בלבד מנהל משתמשים/הגדרות; Gabai מבצע פעולות שוטפות אך נדחה מהגדרות מוגנות
-- [ ] בדיקות המוכיחות שמתפלל אינו יכול לקרוא או לשנות נתונים של מתפלל אחר, גם באמצעות LLM
-- [ ] Rate limiting נפרד ל-login כושל, refresh ו-`/llm/chat`
-- [ ] תשובת `429` אחידה ללא חשיפת קיום שם משתמש
+- [x] מודל Scope בצד השרת: `role=admin`, `role=gabai`, או `role=congregant, congregant_id=X`
+- [x] רשימת כלי LLM נפרדת לפי Scope
+- [x] סינון `congregant_id` בשכבת Service/DB ולא רק ב-Prompt
+- [x] בדיקות Role matrix: Admin בלבד מנהל משתמשים/הגדרות; Gabai מבצע פעולות שוטפות אך נדחה מהגדרות מוגנות
+- [x] בדיקות המוכיחות שמתפלל אינו יכול לקרוא או לשנות נתונים של מתפלל אחר, גם באמצעות LLM
+- [x] Rate limiting נפרד ל-login כושל, refresh ו-`/llm/chat`
+- [x] תשובת `429` אחידה ללא חשיפת קיום שם משתמש
 
 ### שלב 4 – Security Hardening
 - [ ] Security headers ב-FastAPI: HSTS תחת HTTPS, CSP, frame denial, nosniff ו-referrer policy

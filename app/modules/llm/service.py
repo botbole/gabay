@@ -12,17 +12,22 @@ from typing import Any
 
 from openai.types.chat import ChatCompletionMessageParam
 
-from app.core.authorization import require_service_operational
+from app.core.authorization import (
+    Actor,
+    AuthScope,
+    AuthorizationError,
+    get_auth_scope,
+)
 from app.core.config import settings
 from app.core.llm import llm_client
-from app.modules.auth.models import User
+from app.modules.auth.models import UserRole
 
 
 # ---------------------------------------------------------------------------
 # Tool (function) definitions – the schema the LLM sees
 # ---------------------------------------------------------------------------
 
-TOOLS: list[dict] = [
+OPERATIONAL_TOOLS: list[dict] = [
     # ── Congregants ──────────────────────────────────────────────────────
     {
         "type": "function",
@@ -340,22 +345,100 @@ TOOLS: list[dict] = [
     },
 ]
 
+CONGREGANT_MY_TOOLS: list[dict] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_profile",
+            "description": "הצגת הפרטים האישיים שלי.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_payments",
+            "description": "הצגת היסטוריית התשלומים שלי.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_aliyot",
+            "description": "הצגת היסטוריית העליות לתורה שלי.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_azkarot",
+            "description": "הצגת האזכרות המשויכות אליי.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_smachot",
+            "description": "הצגת השמחות המשויכות אליי.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_my_seat",
+            "description": "הצגת מקום הישיבה שלי.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+]
+
+PUBLIC_TOOL_NAMES = {
+    "convert_gregorian_to_hebrew",
+    "convert_hebrew_to_gregorian",
+}
+PUBLIC_TOOLS = [
+    tool
+    for tool in OPERATIONAL_TOOLS
+    if tool["function"]["name"] in PUBLIC_TOOL_NAMES
+]
+ADMIN_TOOLS: list[dict] = []
+
+
+def tools_for_scope(scope: AuthScope) -> list[dict]:
+    if scope.role == UserRole.ADMIN:
+        return [*OPERATIONAL_TOOLS, *ADMIN_TOOLS]
+    if scope.role == UserRole.GABAI:
+        return list(OPERATIONAL_TOOLS)
+    if scope.role == UserRole.CONGREGANT:
+        return [*PUBLIC_TOOLS, *CONGREGANT_MY_TOOLS]
+    raise AuthorizationError("Insufficient permissions", 403)
+
+
+def _tool_names_for_scope(scope: AuthScope) -> set[str]:
+    return {tool["function"]["name"] for tool in tools_for_scope(scope)}
+
 
 # ---------------------------------------------------------------------------
 # Dispatcher – maps tool name → module service calls
 # ---------------------------------------------------------------------------
 
-async def _resolve_congregant(name: str) -> dict | None:
+async def _resolve_congregant(name: str, *, actor: Actor) -> dict | None:
     from app.modules.congregants.service import congregant_service
-    return await congregant_service.find_congregant_by_name(name)
+    return await congregant_service.find_congregant_by_name(name, actor=actor)
 
 
 async def _dispatch_tool(
     tool_name: str,
     args: dict,
-    actor: User,
+    actor: Actor,
 ) -> Any:  # noqa: PLR0911, PLR0912
-    require_service_operational(actor)
+    scope = get_auth_scope(actor)
+    if tool_name not in _tool_names_for_scope(scope):
+        raise AuthorizationError("Tool is not allowed for this scope", 403)
 
     from app.modules.congregants.service import congregant_service
     from app.modules.payments.service import payment_service
@@ -365,26 +448,59 @@ async def _dispatch_tool(
     from app.modules.seating.service import seating_service
     from app.modules.calendar.service import calendar_service
 
+    if tool_name == "get_my_profile":
+        return await congregant_service.get_congregant(
+            scope.congregant_id or "",
+            actor=scope,
+        )
+
+    if tool_name == "get_my_payments":
+        return await payment_service.get_payment_history(
+            scope.congregant_id or "",
+            actor=scope,
+        )
+
+    if tool_name == "get_my_aliyot":
+        return await aliyot_service.get_aliya_history(
+            scope.congregant_id or "",
+            actor=scope,
+        )
+
+    if tool_name == "get_my_azkarot":
+        return await azkara_service.list_azkarot(actor=scope)
+
+    if tool_name == "get_my_smachot":
+        return await simcha_service.list_smachot(actor=scope)
+
+    if tool_name == "get_my_seat":
+        return await seating_service.get_congregant_place(
+            scope.congregant_id or "",
+            actor=scope,
+        )
+
     # ── Congregants ──────────────────────────────────────────────────────
     if tool_name == "add_congregant":
-        return await congregant_service.add_congregant(**args, actor=actor)
+        return await congregant_service.add_congregant(**args, actor=scope)
 
     if tool_name == "get_congregant":
-        c = await _resolve_congregant(args["name"])
+        c = await _resolve_congregant(args["name"], actor=scope)
         return c if c else {"error": f"לא נמצא מתפלל בשם '{args['name']}'."}
 
     if tool_name == "update_congregant":
-        c = await _resolve_congregant(args.pop("name"))
+        c = await _resolve_congregant(args.pop("name"), actor=scope)
         if not c:
             return {"error": "לא נמצא המתפלל."}
-        return await congregant_service.update_congregant(c["id"], args, actor=actor)
+        return await congregant_service.update_congregant(c["id"], args, actor=scope)
 
     if tool_name == "list_congregants":
-        return await congregant_service.list_congregants(member_type=args.get("member_type"))
+        return await congregant_service.list_congregants(
+            member_type=args.get("member_type"),
+            actor=scope,
+        )
 
     # ── Payments ─────────────────────────────────────────────────────────
     if tool_name == "record_payment":
-        c = await _resolve_congregant(args.pop("congregant_name"))
+        c = await _resolve_congregant(args.pop("congregant_name"), actor=scope)
         if not c:
             return {"error": "לא נמצא המתפלל."}
         return await payment_service.record_payment(
@@ -394,24 +510,27 @@ async def _dispatch_tool(
             currency=args.get("currency", "ILS"),
             notes=args.get("notes", ""),
             payment_date=args.get("payment_date", ""),
-            actor=actor,
+            actor=scope,
         )
 
     if tool_name == "get_payment_history":
-        c = await _resolve_congregant(args["congregant_name"])
+        c = await _resolve_congregant(args["congregant_name"], actor=scope)
         if not c:
             return {"error": "לא נמצא המתפלל."}
-        return await payment_service.get_payment_history(c["id"])
+        return await payment_service.get_payment_history(c["id"], actor=scope)
 
     if tool_name == "get_pending_payments":
-        return await payment_service.get_pending_payments()
+        return await payment_service.get_pending_payments(actor=scope)
 
     if tool_name == "get_all_payments":
-        return await payment_service.get_all_payments(purpose=args.get("purpose"))
+        return await payment_service.get_all_payments(
+            purpose=args.get("purpose"),
+            actor=scope,
+        )
 
     # ── Aliyot ───────────────────────────────────────────────────────────
     if tool_name == "assign_aliya":
-        c = await _resolve_congregant(args.pop("congregant_name"))
+        c = await _resolve_congregant(args.pop("congregant_name"), actor=scope)
         if not c:
             return {"error": "לא נמצא המתפלל."}
         return await aliyot_service.assign_aliya(
@@ -421,21 +540,24 @@ async def _dispatch_tool(
             date_str=args.get("date_str", ""),
             donation_amount=args.get("donation_amount", 0.0),
             notes=args.get("notes", ""),
-            actor=actor,
+            actor=scope,
         )
 
     if tool_name == "get_aliyot_for_parasha":
-        return await aliyot_service.get_aliyot_for_parasha(args["parasha"])
+        return await aliyot_service.get_aliyot_for_parasha(
+            args["parasha"],
+            actor=scope,
+        )
 
     if tool_name == "get_aliya_history":
-        c = await _resolve_congregant(args["congregant_name"])
+        c = await _resolve_congregant(args["congregant_name"], actor=scope)
         if not c:
             return {"error": "לא נמצא המתפלל."}
-        return await aliyot_service.get_aliya_history(c["id"])
+        return await aliyot_service.get_aliya_history(c["id"], actor=scope)
 
     # ── Azkarot ───────────────────────────────────────────────────────────
     if tool_name == "add_azkara":
-        c = await _resolve_congregant(args.pop("congregant_name"))
+        c = await _resolve_congregant(args.pop("congregant_name"), actor=scope)
         if not c:
             return {"error": "לא נמצא המתפלל."}
         return await azkara_service.add_azkara(
@@ -447,17 +569,18 @@ async def _dispatch_tool(
             hebrew_day=args.get("hebrew_day", 0),
             hebrew_month=args.get("hebrew_month", 0),
             notes=args.get("notes", ""),
-            actor=actor,
+            actor=scope,
         )
 
     if tool_name == "get_upcoming_azkarot":
         return await azkara_service.get_upcoming_azkarot(
-            days_ahead=args.get("days_ahead", 30)
+            days_ahead=args.get("days_ahead", 30),
+            actor=scope,
         )
 
     # ── Smachot ───────────────────────────────────────────────────────────
     if tool_name == "add_simcha":
-        c = await _resolve_congregant(args.pop("congregant_name"))
+        c = await _resolve_congregant(args.pop("congregant_name"), actor=scope)
         if not c:
             return {"error": "לא נמצא המתפלל."}
         return await simcha_service.add_simcha(
@@ -469,13 +592,14 @@ async def _dispatch_tool(
             hebrew_month=args.get("hebrew_month", 0),
             parasha=args.get("parasha", ""),
             notes=args.get("notes", ""),
-            actor=actor,
+            actor=scope,
         )
 
     if tool_name == "get_upcoming_smachot":
         return await simcha_service.get_upcoming_smachot(
             days_ahead=args.get("days_ahead", 30),
             occasion_type=args.get("occasion_type"),
+            actor=scope,
         )
 
     # ── Seating ───────────────────────────────────────────────────────────
@@ -483,13 +607,14 @@ async def _dispatch_tool(
         return await seating_service.list_places(
             section=args.get("section"),
             only_free=args.get("only_free", False),
+            actor=scope,
         )
 
     if tool_name == "get_congregant_place":
-        c = await _resolve_congregant(args["congregant_name"])
+        c = await _resolve_congregant(args["congregant_name"], actor=scope)
         if not c:
             return {"error": "לא נמצא המתפלל."}
-        place = await seating_service.get_congregant_place(c["id"])
+        place = await seating_service.get_congregant_place(c["id"], actor=scope)
         if not place:
             return {"info": f"למתפלל {args['congregant_name']} אין מקום מושב מוקצה."}
         return place
@@ -517,11 +642,19 @@ class LLMService:
         user_message: str,
         history: list[dict] | None = None,
         *,
-        actor: User,
+        actor: Actor,
     ) -> dict:
-        require_service_operational(actor)
+        scope = get_auth_scope(actor)
+        scoped_tools = tools_for_scope(scope)
+        scope_prompt = (
+            "\n\nכללי הרשאה: השתמש רק בכלים שסופקו. "
+            "בגישה אישית מותר להציג רק את נתוני המשתמש המאומת."
+        )
         messages: list[ChatCompletionMessageParam] = [
-            {"role": "system", "content": settings.LLM_SYSTEM_PROMPT},
+            {
+                "role": "system",
+                "content": settings.LLM_SYSTEM_PROMPT + scope_prompt,
+            },
         ]
         for turn in (history or []):
             messages.append({"role": turn["role"], "content": turn["content"]})
@@ -533,7 +666,7 @@ class LLMService:
             response = await llm_client.chat.completions.create(
                 model=settings.LLM_MODEL,
                 messages=messages,
-                tools=TOOLS,  # type: ignore[arg-type]
+                tools=scoped_tools,  # type: ignore[arg-type]
                 tool_choice="auto",
                 max_tokens=settings.LLM_MAX_TOKENS,
                 temperature=settings.LLM_TEMPERATURE,
@@ -556,7 +689,7 @@ class LLMService:
                 except json.JSONDecodeError:
                     args = {}
 
-                result = await _dispatch_tool(tool_name, args, actor)
+                result = await _dispatch_tool(tool_name, args, scope)
                 actions_performed.append({"tool": tool_name, "args": args, "result": result})
 
                 messages.append({

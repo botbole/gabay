@@ -6,14 +6,13 @@ from typing import Optional
 
 from sqlmodel import select
 
-from app.core.authorization import require_service_operational
+from app.core.authorization import Actor, require_service_operational, scope_congregant_id
 from app.core.db import get_session
 from app.core.hebrew_date import (
     gregorian_to_hebrew,
     parse_gregorian_iso,
     upcoming_occurrences,
 )
-from app.modules.auth.models import User
 from app.modules.azkarot.models import Azkara
 
 
@@ -31,7 +30,7 @@ class AzkaraService:
         year_occurred: Optional[int] = None,
         notes: str = "",
         *,
-        actor: User,
+        actor: Actor,
     ) -> dict:
         require_service_operational(actor)
         day, month = hebrew_day, hebrew_month
@@ -65,23 +64,37 @@ class AzkaraService:
             session.refresh(azkara)
             return azkara.model_dump()
 
-    async def get_azkara(self, azkara_id: str) -> dict | None:
+    async def get_azkara(self, azkara_id: str, *, actor: Actor) -> dict | None:
         with get_session() as session:
             a = session.get(Azkara, azkara_id)
+            if a:
+                scope_congregant_id(actor, a.congregant_id)
             return a.model_dump() if a else None
 
-    async def list_azkarot(self, congregant_id: Optional[str] = None) -> dict:
+    async def list_azkarot(
+        self,
+        congregant_id: Optional[str] = None,
+        *,
+        actor: Actor,
+    ) -> dict:
+        scoped_id = scope_congregant_id(actor, congregant_id)
         with get_session() as session:
             stmt = select(Azkara)
-            if congregant_id:
-                stmt = stmt.where(Azkara.congregant_id == congregant_id)
+            if scoped_id:
+                stmt = stmt.where(Azkara.congregant_id == scoped_id)
             azkarot = session.exec(stmt).all()
             return {
                 "total": len(azkarot),
                 "azkarot": [a.model_dump() for a in azkarot],
             }
 
-    async def get_upcoming_azkarot(self, days_ahead: int = 30) -> dict:
+    async def get_upcoming_azkarot(
+        self,
+        days_ahead: int = 30,
+        *,
+        actor: Actor,
+    ) -> dict:
+        require_service_operational(actor)
         from app.modules.congregants.models import Congregant
         with get_session() as session:
             azkarot = session.exec(select(Azkara)).all()
@@ -99,7 +112,7 @@ class AzkaraService:
             "azkarot": upcoming,
         }
 
-    async def delete_azkara(self, azkara_id: str, *, actor: User) -> bool:
+    async def delete_azkara(self, azkara_id: str, *, actor: Actor) -> bool:
         require_service_operational(actor)
         with get_session() as session:
             a = session.get(Azkara, azkara_id)
@@ -109,7 +122,7 @@ class AzkaraService:
             session.commit()
             return True
 
-    async def bulk_delete_azkarot(self, ids: list[str], *, actor: User) -> dict:
+    async def bulk_delete_azkarot(self, ids: list[str], *, actor: Actor) -> dict:
         require_service_operational(actor)
         deleted = 0
         with get_session() as session:

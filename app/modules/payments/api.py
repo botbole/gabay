@@ -55,9 +55,10 @@ async def record_payment(
 @router.get("/payments", response_model=APIResponse)
 async def get_all_payments(
     purpose: Optional[str] = Query(None),
+    actor: User = Depends(require_operational),
 ):
     try:
-        data = await payment_service.get_all_payments(purpose=purpose)
+        data = await payment_service.get_all_payments(purpose=purpose, actor=actor)
         return APIResponse(data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
@@ -76,18 +77,21 @@ async def bulk_delete_payments(
 
 
 @router.get("/payments/pending", response_model=APIResponse)
-async def get_pending_payments():
+async def get_pending_payments(actor: User = Depends(require_operational)):
     try:
-        data = await payment_service.get_pending_payments()
+        data = await payment_service.get_pending_payments(actor=actor)
         return APIResponse(data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/payments/{congregant_id}/history", response_model=APIResponse)
-async def get_payment_history(congregant_id: str):
+async def get_payment_history(
+    congregant_id: str,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await payment_service.get_payment_history(congregant_id)
+        data = await payment_service.get_payment_history(congregant_id, actor=actor)
         return APIResponse(data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

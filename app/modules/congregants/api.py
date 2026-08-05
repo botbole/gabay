@@ -191,10 +191,11 @@ async def create_congregant(
 async def list_congregants(
     member_type: Optional[str] = Query(None),
     archived: bool = Query(False),
+    actor: User = Depends(require_operational),
 ):
     try:
         data = await congregant_service.list_congregants(
-            member_type=member_type, archived=archived
+            member_type=member_type, archived=archived, actor=actor
         )
         return APIResponse(data=data)
     except Exception as exc:
@@ -238,9 +239,12 @@ async def bulk_restore_congregants(
 
 
 @router.get("/congregants/{congregant_id}", response_model=APIResponse)
-async def get_congregant(congregant_id: str):
+async def get_congregant(
+    congregant_id: str,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await congregant_service.get_congregant(congregant_id)
+        data = await congregant_service.get_congregant(congregant_id, actor=actor)
         if data is None:
             raise HTTPException(status_code=404, detail=f"Congregant '{congregant_id}' not found.")
         return APIResponse(data=data)

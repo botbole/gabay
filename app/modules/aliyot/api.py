@@ -53,27 +53,33 @@ async def assign_aliya(
 
 
 @router.get("/aliyot", response_model=APIResponse)
-async def list_aliyot():
+async def list_aliyot(actor: User = Depends(require_operational)):
     try:
-        data = await aliyot_service.list_aliyot()
+        data = await aliyot_service.list_aliyot(actor=actor)
         return APIResponse(data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/aliyot/parasha/{parasha}", response_model=APIResponse)
-async def get_aliyot_for_parasha(parasha: str):
+async def get_aliyot_for_parasha(
+    parasha: str,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await aliyot_service.get_aliyot_for_parasha(parasha)
+        data = await aliyot_service.get_aliyot_for_parasha(parasha, actor=actor)
         return APIResponse(data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/aliyot/{congregant_id}/history", response_model=APIResponse)
-async def get_aliya_history(congregant_id: str):
+async def get_aliya_history(
+    congregant_id: str,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await aliyot_service.get_aliya_history(congregant_id)
+        data = await aliyot_service.get_aliya_history(congregant_id, actor=actor)
         return APIResponse(data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

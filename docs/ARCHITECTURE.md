@@ -156,7 +156,7 @@ The backend authentication contract is implemented in `app/modules/auth/`. The f
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 
-After bootstrap, `/auth/register` requires an authenticated administrator. `PATCH /api/v1/config` must also require Admin, while `GET /api/v1/config` remains public for pre-login branding. Current management routers remain open until the API authorization phase is completed.
+After bootstrap, `/auth/register` requires an authenticated administrator. `PATCH /api/v1/config` also requires Admin, while `GET /api/v1/config` remains public for pre-login branding. All management routers require an authenticated Admin or Gabai, and sensitive services repeat authorization checks below the router layer.
 
 **Target roles:**
 - `admin` (Admin / מנהל מערכת) — user and role management, Synagogue settings, modules and integrations, security, and emergency operational access.
@@ -187,6 +187,14 @@ sequenceDiagram
 ```
 
 Only hashes of refresh tokens are persisted. Reuse of a revoked refresh token revokes its complete token family.
+
+### Scope and abuse protection
+
+`AuthScope` is the channel-independent authorization principal. Web requests construct it from the active JWT user, while the future WhatsApp adapter will construct a congregant scope after verified phone resolution. Personal-data services enforce the effective `congregant_id` in their database queries; LLM prompts are not treated as an authorization boundary.
+
+LLM tools are selected by scope and checked again during dispatch. Admin and Gabai receive operational tools, while congregant scopes receive public date tools and read-only `my_*` tools bound to the authenticated congregant ID. Sensitive self-service writes remain deferred to the approval and audit workflow.
+
+Failed login, refresh, and LLM chat requests have independent limits and return the shared API envelope with `429` and `Retry-After`. Development and tests use an in-memory backend. Multi-instance production must set `RATE_LIMIT_BACKEND=redis` and configure a shared Redis/Valkey endpoint so counters are atomic across workers and ECS tasks.
 
 ### WhatsApp congregant scope
 

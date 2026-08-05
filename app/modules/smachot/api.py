@@ -62,10 +62,11 @@ async def add_simcha(
 async def get_upcoming_smachot(
     days_ahead: int = Query(30),
     occasion_type: Optional[str] = Query(None),
+    actor: User = Depends(require_operational),
 ):
     try:
         data = await simcha_service.get_upcoming_smachot(
-            days_ahead=days_ahead, occasion_type=occasion_type
+            days_ahead=days_ahead, occasion_type=occasion_type, actor=actor
         )
         return APIResponse(data=data)
     except Exception as exc:
@@ -76,10 +77,11 @@ async def get_upcoming_smachot(
 async def list_smachot(
     congregant_id: Optional[str] = Query(None),
     occasion_type: Optional[str] = Query(None),
+    actor: User = Depends(require_operational),
 ):
     try:
         data = await simcha_service.list_smachot(
-            congregant_id=congregant_id, occasion_type=occasion_type
+            congregant_id=congregant_id, occasion_type=occasion_type, actor=actor
         )
         return APIResponse(data=data)
     except Exception as exc:
@@ -87,9 +89,12 @@ async def list_smachot(
 
 
 @router.get("/smachot/{simcha_id}", response_model=APIResponse)
-async def get_simcha(simcha_id: str):
+async def get_simcha(
+    simcha_id: str,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await simcha_service.get_simcha(simcha_id)
+        data = await simcha_service.get_simcha(simcha_id, actor=actor)
         if data is None:
             raise HTTPException(status_code=404, detail=f"Simcha '{simcha_id}' not found.")
         return APIResponse(data=data)

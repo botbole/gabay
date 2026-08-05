@@ -13,9 +13,14 @@ import {
   MessageCircle,
   Puzzle,
   Clock,
+  LogOut,
+  UserRound,
   type LucideIcon,
 } from 'lucide-react';
+import type { UserRole } from '../../api/client';
 import { useAppConfig } from '../../contexts/AppConfigContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { Button } from '../ui/Button';
 
 /** Map module icon names (from backend) to Lucide components */
 const ICON_MAP: Record<string, LucideIcon> = {
@@ -45,8 +50,11 @@ const MODULE_NAV_ORDER = [
   'prayer_schedule',
 ];
 
+const OPERATIONAL_ROLES: UserRole[] = ['admin', 'gabai'];
+
 export function Sidebar() {
   const { config } = useAppConfig();
+  const { user, logout } = useAuth();
 
   const enabledIds = config?.enabled_modules_list ?? [
     'congregants', 'payments', 'aliyot', 'seating',
@@ -82,6 +90,7 @@ export function Sidebar() {
         label: manifest?.display_name ?? def?.label ?? id,
         icon: Icon,
         moduleId: id,
+        allowedRoles: OPERATIONAL_ROLES,
       };
     });
 
@@ -92,17 +101,32 @@ export function Sidebar() {
     label: manifestMap['llm']?.display_name ?? 'עוזר גבאי AI',
     icon: MessageCircle,
     end: false,
+    allowedRoles: OPERATIONAL_ROLES,
   }] : [];
 
   const nav = [
     ...chatEntry,
-    { to: '/', label: 'לוח בקרה', icon: LayoutDashboard, end: true },
+    {
+      to: '/',
+      label: 'לוח בקרה',
+      icon: LayoutDashboard,
+      end: true,
+      allowedRoles: OPERATIONAL_ROLES,
+    },
     ...moduleNav.filter(m => m.moduleId !== 'llm'),
   ];
 
   // Extra static items not in modules
-  const importEntry = { to: '/import', label: 'ייבוא מתפללים', icon: Upload, end: false };
-  const allNav = [...nav, importEntry];
+  const importEntry = {
+    to: '/import',
+    label: 'ייבוא מתפללים',
+    icon: Upload,
+    end: false,
+    allowedRoles: OPERATIONAL_ROLES,
+  };
+  const allNav = [...nav, importEntry].filter(
+    item => user && item.allowedRoles.includes(user.role),
+  );
 
   const synagogueName = config?.synagogue_name ?? 'גבאי';
 
@@ -171,8 +195,31 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="px-5 py-4 border-t border-white/10">
-        <p className="text-xs text-white/30 text-center">© 2026 מערכת גבאי</p>
+      <div className="px-4 py-4 border-t border-white/10">
+        {user && (
+          <div className="mb-3 flex items-center gap-3 px-1">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-white">
+              <UserRound className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-white">{user.username}</p>
+              <p className="text-xs text-white/50">
+                {user.role === 'admin' ? 'מנהל מערכת' : 'גבאי'}
+              </p>
+            </div>
+          </div>
+        )}
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => void logout()}
+          className="w-full"
+        >
+          <LogOut className="h-4 w-4" />
+          התנתקות
+        </Button>
+        <p className="mt-3 text-xs text-white/30 text-center">© 2026 מערכת גבאי</p>
       </div>
     </aside>
   );

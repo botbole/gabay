@@ -30,6 +30,17 @@ class Settings(BaseSettings):
     REFRESH_COOKIE_SAMESITE: Literal["strict", "lax", "none"] = "strict"
     REFRESH_COOKIE_PATH: str = "/api/v1/auth"
 
+    # Rate limiting
+    RATE_LIMIT_BACKEND: Literal["memory", "redis"] = "memory"
+    RATE_LIMIT_REDIS_URL: str = ""
+    RATE_LIMIT_TRUST_PROXY_HEADERS: bool = False
+    LOGIN_FAILED_RATE_LIMIT: int = 5
+    LOGIN_FAILED_RATE_WINDOW_SECONDS: int = 900
+    REFRESH_RATE_LIMIT: int = 30
+    REFRESH_RATE_WINDOW_SECONDS: int = 60
+    LLM_CHAT_RATE_LIMIT: int = 20
+    LLM_CHAT_RATE_WINDOW_SECONDS: int = 60
+
     # Zmanim / Shabbat times (Hebcal API) — defaults to the Haifa horizon
     ZMANIM_GEONAME_ID: int = 294801
     ZMANIM_CITY_NAME: str = "חיפה"
@@ -69,6 +80,18 @@ class Settings(BaseSettings):
     def validate_security_settings(self) -> "Settings":
         if self.ACCESS_TOKEN_MINUTES <= 0 or self.REFRESH_TOKEN_DAYS <= 0:
             raise ValueError("Token lifetimes must be positive")
+        rate_values = (
+            self.LOGIN_FAILED_RATE_LIMIT,
+            self.LOGIN_FAILED_RATE_WINDOW_SECONDS,
+            self.REFRESH_RATE_LIMIT,
+            self.REFRESH_RATE_WINDOW_SECONDS,
+            self.LLM_CHAT_RATE_LIMIT,
+            self.LLM_CHAT_RATE_WINDOW_SECONDS,
+        )
+        if any(value <= 0 for value in rate_values):
+            raise ValueError("Rate limits and windows must be positive")
+        if self.RATE_LIMIT_BACKEND == "redis" and not self.RATE_LIMIT_REDIS_URL:
+            raise ValueError("Redis rate limiting requires RATE_LIMIT_REDIS_URL")
         if self.REFRESH_COOKIE_SAMESITE == "none" and not self.REFRESH_COOKIE_SECURE:
             raise ValueError("SameSite=None refresh cookies must be secure")
         if self.ENVIRONMENT == "production":

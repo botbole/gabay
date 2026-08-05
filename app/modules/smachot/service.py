@@ -6,14 +6,13 @@ from typing import Optional
 
 from sqlmodel import select
 
-from app.core.authorization import require_service_operational
+from app.core.authorization import Actor, require_service_operational, scope_congregant_id
 from app.core.db import get_session
 from app.core.hebrew_date import (
     gregorian_to_hebrew,
     parse_gregorian_iso,
     upcoming_occurrences,
 )
-from app.modules.auth.models import User
 from app.modules.smachot.models import Simcha
 
 
@@ -31,7 +30,7 @@ class SimchaService:
         year_occurred: Optional[int] = None,
         notes: str = "",
         *,
-        actor: User,
+        actor: Actor,
     ) -> dict:
         require_service_operational(actor)
         day, month = hebrew_day, hebrew_month
@@ -65,20 +64,25 @@ class SimchaService:
             session.refresh(simcha)
             return simcha.model_dump()
 
-    async def get_simcha(self, simcha_id: str) -> dict | None:
+    async def get_simcha(self, simcha_id: str, *, actor: Actor) -> dict | None:
         with get_session() as session:
             s = session.get(Simcha, simcha_id)
+            if s:
+                scope_congregant_id(actor, s.congregant_id)
             return s.model_dump() if s else None
 
     async def list_smachot(
         self,
         congregant_id: Optional[str] = None,
         occasion_type: Optional[str] = None,
+        *,
+        actor: Actor,
     ) -> dict:
+        scoped_id = scope_congregant_id(actor, congregant_id)
         with get_session() as session:
             stmt = select(Simcha)
-            if congregant_id:
-                stmt = stmt.where(Simcha.congregant_id == congregant_id)
+            if scoped_id:
+                stmt = stmt.where(Simcha.congregant_id == scoped_id)
             if occasion_type:
                 stmt = stmt.where(Simcha.occasion_type == occasion_type)
             smachot = session.exec(stmt).all()
@@ -91,7 +95,10 @@ class SimchaService:
         self,
         days_ahead: int = 30,
         occasion_type: Optional[str] = None,
+        *,
+        actor: Actor,
     ) -> dict:
+        require_service_operational(actor)
         from app.modules.congregants.models import Congregant
         with get_session() as session:
             stmt = select(Simcha)
@@ -113,7 +120,7 @@ class SimchaService:
             "smachot": upcoming,
         }
 
-    async def delete_simcha(self, simcha_id: str, *, actor: User) -> bool:
+    async def delete_simcha(self, simcha_id: str, *, actor: Actor) -> bool:
         require_service_operational(actor)
         with get_session() as session:
             s = session.get(Simcha, simcha_id)
@@ -123,7 +130,7 @@ class SimchaService:
             session.commit()
             return True
 
-    async def bulk_delete_smachot(self, ids: list[str], *, actor: User) -> dict:
+    async def bulk_delete_smachot(self, ids: list[str], *, actor: Actor) -> dict:
         require_service_operational(actor)
         deleted = 0
         with get_session() as session:

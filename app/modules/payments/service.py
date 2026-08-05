@@ -7,10 +7,9 @@ from typing import Optional
 
 from sqlmodel import select
 
-from app.core.authorization import require_service_operational
+from app.core.authorization import Actor, require_service_operational, scope_congregant_id
 from app.core.db import get_session
 from app.core.hooks import hooks
-from app.modules.auth.models import User
 from app.modules.payments.models import Payment
 
 
@@ -25,7 +24,7 @@ class PaymentService:
         notes: str = "",
         payment_date: str = "",
         *,
-        actor: User,
+        actor: Actor,
     ) -> dict:
         require_service_operational(actor)
         payment = Payment(
@@ -44,23 +43,30 @@ class PaymentService:
         await hooks.fire("payment.recorded", payment=result)
         return result
 
-    async def get_payment_history(self, congregant_id: str) -> dict:
+    async def get_payment_history(
+        self,
+        congregant_id: str,
+        *,
+        actor: Actor,
+    ) -> dict:
+        scoped_id = scope_congregant_id(actor, congregant_id)
         with get_session() as session:
             payments = session.exec(
-                select(Payment).where(Payment.congregant_id == congregant_id)
+                select(Payment).where(Payment.congregant_id == scoped_id)
             ).all()
             total_paid = sum(p.amount for p in payments)
             by_purpose: dict[str, float] = {}
             for p in payments:
                 by_purpose[p.purpose] = by_purpose.get(p.purpose, 0.0) + p.amount
             return {
-                "congregant_id": congregant_id,
+                "congregant_id": scoped_id,
                 "total_paid": total_paid,
                 "by_purpose": by_purpose,
                 "payments": [p.model_dump() for p in payments],
             }
 
-    async def get_pending_payments(self) -> dict:
+    async def get_pending_payments(self, *, actor: Actor) -> dict:
+        require_service_operational(actor)
         from app.modules.congregants.models import Congregant
         with get_session() as session:
             congregants = session.exec(select(Congregant)).all()
@@ -77,7 +83,13 @@ class PaymentService:
                 ],
             }
 
-    async def get_all_payments(self, purpose: Optional[str] = None) -> dict:
+    async def get_all_payments(
+        self,
+        purpose: Optional[str] = None,
+        *,
+        actor: Actor,
+    ) -> dict:
+        require_service_operational(actor)
         with get_session() as session:
             stmt = select(Payment)
             if purpose:
@@ -89,7 +101,7 @@ class PaymentService:
                 "payments": [p.model_dump() for p in payments],
             }
 
-    async def bulk_delete_payments(self, ids: list[str], *, actor: User) -> dict:
+    async def bulk_delete_payments(self, ids: list[str], *, actor: Actor) -> dict:
         require_service_operational(actor)
         deleted = 0
         with get_session() as session:

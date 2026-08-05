@@ -64,18 +64,26 @@ async def add_place(
 async def list_places(
     section: Optional[str] = Query(None),
     only_free: bool = Query(False),
+    actor: User = Depends(require_operational),
 ):
     try:
-        data = await seating_service.list_places(section=section, only_free=only_free)
+        data = await seating_service.list_places(
+            section=section,
+            only_free=only_free,
+            actor=actor,
+        )
         return APIResponse(data=data)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/places/{place_id}", response_model=APIResponse)
-async def get_place(place_id: str):
+async def get_place(
+    place_id: str,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await seating_service.get_place(place_id)
+        data = await seating_service.get_place(place_id, actor=actor)
         if data is None:
             raise HTTPException(status_code=404, detail=f"Place '{place_id}' not found.")
         return APIResponse(data=data)
@@ -137,9 +145,12 @@ async def bulk_delete_places(
 
 
 @router.get("/congregants/{congregant_id}/place", response_model=APIResponse)
-async def get_congregant_place(congregant_id: str):
+async def get_congregant_place(
+    congregant_id: str,
+    actor: User = Depends(require_operational),
+):
     try:
-        data = await seating_service.get_congregant_place(congregant_id)
+        data = await seating_service.get_congregant_place(congregant_id, actor=actor)
         if data is None:
             raise HTTPException(status_code=404, detail="No seat assigned to this congregant.")
         return APIResponse(data=data)
