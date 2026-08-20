@@ -1,73 +1,107 @@
-# React + TypeScript + Vite
+# Gabay Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React SPA for the Gabay Synagogue Management System.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- React 19 + TypeScript
+- Vite (dev server + build)
+- Tailwind CSS (utility-first styling)
+- TanStack Query (all server state — no Redux/Zustand)
+- React Router 7
+- Lucide React (icons)
 
-## React Compiler
+## Commands
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install        # install dependencies
+npm run dev        # dev server at http://localhost:5173
+npm run build      # production build → dist/
+npm run lint       # ESLint
+npm run preview    # serve production build locally
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The dev server proxies all `/api` requests to `http://localhost:8080` (backend). No CORS configuration needed locally.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Structure
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+frontend/src/
+├── main.tsx                      # App entry point
+├── App.tsx                       # Router + providers
+│
+├── api/
+│   └── client.ts                 # Centralized API client — ALL fetch calls go here
+│
+├── contexts/
+│   ├── AppConfigContext.tsx       # TenantConfig (branding, active modules) from /api/v1/config
+│   └── AuthContext.tsx            # Current user, login, logout
+│
+├── components/
+│   ├── layout/
+│   │   ├── Layout.tsx             # App shell (sidebar + header + content)
+│   │   ├── Sidebar.tsx            # Dynamic nav — renders only enabled modules
+│   │   └── Header.tsx             # Page title + Hebrew/Gregorian date
+│   ├── auth/
+│   │   └── ProtectedRoute.tsx     # Role-gated route wrapper
+│   └── ui/                        # Shared design system components
+│       ├── PageHeader.tsx          # Required at top of every page
+│       ├── EmptyState.tsx          # Required when list/table has no data
+│       ├── Button.tsx
+│       ├── Input.tsx
+│       ├── Modal.tsx
+│       ├── Card.tsx
+│       ├── Badge.tsx
+│       └── ...
+│
+└── pages/                         # One page per module
+    ├── Dashboard.tsx
+    ├── Congregants.tsx
+    ├── Payments.tsx
+    ├── Aliyot.tsx
+    ├── Seating.tsx
+    ├── Azkarot.tsx
+    ├── Smachot.tsx
+    ├── Calendar.tsx
+    ├── PrayerSchedule.tsx
+    ├── Bulletin.tsx
+    ├── Chat.tsx
+    ├── Import.tsx
+    └── Login.tsx
+```
+
+## Key Conventions
+
+**API calls:** All calls go through `src/api/client.ts` only. Never use `fetch` directly in a component or page.
+
+**Server state:** TanStack Query for everything from the server. No global client-side stores.
+
+**Components:** Always use `PageHeader` at the top of every page and `EmptyState` when a list is empty. Never use raw `div`/`button`/`input` when a `components/ui/` equivalent exists.
+
+**RTL:** `dir="rtl"` is set globally on `<html>`. Never override it.
+
+**Colors:** Use CSS variables only — `var(--color-indigo)`, `var(--color-gold)`, `var(--color-bg)`. Never hardcode hex values.
+
+**Type imports:** Always use `import type { Foo }` for TypeScript interfaces to avoid Vite runtime errors.
+
+## Role-Based UI
+
+The sidebar and routes are role-aware:
+- `super_admin` — sees `/platform` (support panel)
+- `admin` — sees `/settings` (synagogue configuration)
+- `gabai` — sees all operational pages; no settings link
+- `congregant` — WhatsApp only; no web UI
+
+Role is read from `AuthContext`. Backend is always the authorization source of truth — UI visibility is a usability control, not a security boundary.
+
+## Design System
+
+Font: Heebo (Google Fonts, loaded in `index.html`)
+
+| Token | CSS Variable | Default |
+|---|---|---|
+| Primary | `--color-indigo` | `#2E3A59` |
+| Secondary | `--color-gold` | `#C5A059` |
+| Background | `--color-bg` | `#F8FAFC` |
+
+Card radius: `rounded-xl` · Button radius: `rounded-lg`

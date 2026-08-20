@@ -9,27 +9,54 @@ The built-in chat interface, powered by an LLM, allows the gabbai to perform any
 
 ## 2. Target Audience
 
-### Admin (System Administrator / מנהל מערכת)
-- Bootstraps the synagogue account and manages web users and role assignments
-- Configures Synagogue settings (`TenantConfig`), enabled modules, integrations, and security
-- Has emergency operational access, but routine synagogue work is normally delegated to a Gabai
-- Only this persona may change protected synagogue/system settings
+Gabay is a **commercial product** running on multiple synagogues. It defines four tiers of actors, each with a distinct scope of access.
 
-### Gabai (Gabbai / גבאי)
-- Primary day-to-day operator: head gabbai, deputy, or an authorized finance/community manager
-- Manages congregants, payments, aliyot, seating, yahrzeits, simchot, imports, reports, communications, and operational LLM tools
-- Works in Hebrew and needs quick access during prayer services
-- Cannot manage users or roles and cannot change protected synagogue/system settings
+```
+Tier 0 – Support / Super-Admin   (Gabay product team)
+Tier 1 – Admin                   (synagogue administrator / head gabbai)
+Tier 2 – Gabai                   (day-to-day gabbai, 1–3 per synagogue)
+Tier 3 – Congregant / Mitpalel   (WhatsApp self-service, v3.5)
+```
 
-### Congregant (Worshipper / מתפלל)
-- Uses WhatsApp for public information and personal self-service; no registration, app, or login `User` is required
-- Is identified by a verified phone number matched to their `Congregant` record
-- Can read only their own payments, aliyot, reminders, and other explicitly scoped data
-- May make safe self-updates immediately; sensitive identity, financial, yahrzeit, seating, or permission changes become requests requiring Gabai approval
+### Support / Super-Admin (Tier 0)
+- The Gabay product team. Provides remote support across all synagogue installations.
+- Accesses a dedicated platform panel (`/platform`) — not the per-synagogue UI.
+- Can view and edit any synagogue's `TenantConfig` for support purposes.
+- Monitors LLM usage, health, audit logs, and deployment status across all tenants.
+- Required before the second synagogue goes live.
+- Represented by `UserRole.super_admin` in the backend.
 
-Rabbi/Cantor read-only workflows may be represented by a suitably restricted future role; they are not a separate role in the current three-role target.
+### Admin (System Administrator / מנהל מערכת — Tier 1)
+- The synagogue's primary contact: head gabbai, board chairman, or designated IT contact.
+- Exactly one admin per synagogue installation.
+- Bootstraps the account (first-run wizard or CLI), configures settings, and manages gabai users.
+- Accesses the Settings page (`/settings`): synagogue profile, location, LLM integration, users & roles, help & support.
+- Has full operational access in addition to administrative access.
+- Only this persona may change `TenantConfig` fields or manage user roles within their synagogue.
 
-This persona model is implemented in the backend role enum. Operational APIs allow `admin` and `gabai`; user administration and protected settings remain `admin`-only.
+### Gabai (Gabbai / גבאי — Tier 2)
+- Primary day-to-day operator. A synagogue may have 1–3 gabais with equal operational permissions.
+- Manages congregants, payments, aliyot, seating, yahrzeits, simchot, bulletin, prayer schedule, imports, reports, and LLM chat.
+- Works in Hebrew; needs quick access during prayer services.
+- Does **not** see the Settings page. Cannot manage users or change synagogue/system settings.
+
+### Congregant (Worshipper / מתפלל — Tier 3)
+- Uses WhatsApp for public information and personal self-service. No registration, app, or login `User` required.
+- Identified by a verified phone number matched to their `Congregant` record.
+- Can read only their own payments, aliyot, reminders, and other explicitly scoped data.
+- Safe self-updates execute immediately; sensitive changes (identity, financial, yahrzeit, seating) become approval requests sent to the Gabai.
+
+Rabbi/Cantor read-only workflows may be represented by a restricted future role; they are not a separate role in the current target model.
+
+| Capability | super_admin | admin | gabai | congregant |
+|---|---|---|---|---|
+| Platform panel (all tenants) | Full | None | None | None |
+| Settings page (own synagogue) | Full | Full | None | None |
+| User / role management | Own account | Own synagogue | None | None |
+| All operational modules | Full | Full | Full | None |
+| Reports and imports | Full | Full | Full | None |
+| LLM tools | All | Admin + operational | Operational | Public + `my_*` |
+| Own personal data | All records | All records | All records | Self only |
 
 ---
 
@@ -166,7 +193,7 @@ The effective tool list is filtered by the server-side role and scope: Admin rec
 
 ## 5. Future Features (Post-MVP)
 
-### 5.1 Prayer Schedule (v2.1)
+### 5.1 Prayer Schedule (v2.1) ✅
 - **Rules Engine:** Instead of fixed times, the gabbai defines "Mincha = 15 min before sunset"; the system calculates automatically
 - **Weekly Schedule View:** Displays weekday and Shabbat times with actual hours alongside each rule
 - **Integration:** "Today's Times" dashboard card and LLM tool `get_prayer_times(date)`
@@ -179,7 +206,7 @@ The effective tool list is filtered by the server-side role and scope: Admin rec
 ### 5.3 Finance & Reports (v2.3)
 - **Pledge vs. Paid:** Payment status management on every donation record
 - **PDF Receipts:** Generation of formatted receipts with the synagogue's logo
-- **Extended Financial Management (v2.3):** Recording non-donation income and expenses (hall rental, grants)
+- **Extended Financial Management:** Recording non-donation income and expenses (hall rental, grants)
 - **Annual Report:** Export P&L (income vs. expenses) for the synagogue board
 
 ### 5.4 Advanced AI (v2.4)
@@ -187,53 +214,106 @@ The effective tool list is filtered by the server-side role and scope: Admin rec
 - **Smart Aliyah Scheduler:** Automated assignment suggestions based on frequency, yahrzeit, and Kohen/Levi/Yisrael status
 - **Inventory Management:** Track books, equipment, and sacred items
 
-### 5.5 Community WhatsApp Bot (v3.5)
-> **Depends on v3.0** – requires JWT Auth and LLM Scope model before development.
+### 5.5 Settings & Configuration (v2.5)
+
+**Purpose:** Provide the Admin with a centralized, role-gated settings page for all cross-cutting configuration.
+
+**Settings Page Tabs (Admin only):**
+- **Synagogue Profile** — name, logo, brand colors (primary, secondary, background)
+- **Location & Times** — city name and Geoname ID driving all prayer-time calculations; live candle-lighting preview
+- **AI Assistant** — LLM provider (OpenAI / Azure / Ollama), model, API key (masked), base URL, test-connection button
+- **Users** — table of gabai/admin users; invite, deactivate, change role
+- **Help & Support** — app version, changelog link, documentation link, support contact
+
+**Data Portability:**
+- Export all synagogue data (congregants, payments, aliyot, seating, yahrzeits, simchot) as JSON — from the Help tab. Synagogues own their data.
+
+**Onboarding Banner:**
+- First-time admin login triggers a guided setup banner until `TenantConfig.setup_completed = true`.
+
+**Module configuration** remains embedded inside each module — never in global Settings. This keeps Settings focused on cross-cutting concerns only.
+
+### 5.6 Production Deployment (v3.0)
+- **Security hardening:** HSTS, CSP, structured logs, rate limiting, production JWT validation
+- **Docker:** Multi-stage Dockerfiles for backend and frontend; `docker-compose.yml` with health checks
+- **PostgreSQL migration:** SQLite → PostgreSQL migration script with dry-run and validation
+- **Cloud:** AWS ECS Fargate + RDS PostgreSQL; Secrets Manager for credentials
+
+### 5.7 Installation & Onboarding (v3.1)
+
+**Purpose:** Make Gabay installable and operable by a non-developer synagogue administrator.
+
+- **`docs/INSTALLATION.md`** — step-by-step from `git clone` to first login (under 30 minutes)
+- **`docs/UPGRADE.md`** — backup, pull, migrate, verify; supports zero-downtime upgrades
+- **`.env.example`** — every variable documented in Hebrew with defaults and placeholders
+- **`CHANGELOG.md`** — maintained with every release; linked from the in-app Help tab
+- **Bootstrap CLI** — `python -m app.cli bootstrap` creates the first admin user interactively
+- **First-Run Wizard** — if no admin exists in the DB, the app redirects to a guided setup: synagogue name → city → admin password → optional: invite first gabai
+
+### 5.8 Support Platform (v3.2)
+
+**Purpose:** Give the Gabay product team visibility and control across all installations without SSH access.
+
+- **`/platform` route** — accessible only to `super_admin`; not visible in the per-synagogue sidebar
+- **Tenant Dashboard** — all synagogue installations: name, city, version, last login, setup status
+- **Remote Config** — view and edit any synagogue's `TenantConfig` for remote support
+- **Audit Log** — every admin-level action logged: actor, action, entity, before/after values, timestamp
+- **Module Catalog** — the authoritative list of all modules, their tier (base / addon / enterprise), and the default set for new installations. The super_admin manages this; it is the source of truth for "what comes in the box." It evolves into the license system in v4.0.
+
+| Module | Tier | Included by default |
+|---|---|---|
+| congregants, payments, aliyot, seating, azkarot, smachot, calendar, auth, prayer_schedule, bulletin | base | Yes |
+| llm | addon | Yes (requires external API key) |
+| whatsapp (v3.5), visual_bulletin (v3.6) | addon | No |
+| multi_tenant, audit_log_extended, sso | enterprise | No |
+
+- **In-app notifications for admin:**
+  - LLM key failure → red banner for the synagogue admin
+  - No data export in 30 days → reminder
+  - New version available → notification
+- **In-app feedback:** "Report a bug" button (sidebar, visible to gabais) sends to a webhook/email; no DB required
+
+### 5.9 Community WhatsApp Bot (v3.5)
+> **Depends on v3.0** – requires JWT Auth and LLM Scope model.
 - **Congregant Interface:** 24/7 self-service via WhatsApp, with no registration, app, or login `User`
-- **Phone-Based Identification:** Verified phone → `Congregant` → server-enforced `congregant_id`; unknown or ambiguous senders receive no private data
-- **Immediate Actions:** Public reads, personal reads, and explicitly safe self-updates
-- **Approval Workflow:** Sensitive identity, financial, yahrzeit, seating, or permission changes are sent to a Gabai for approval
-- **Auditability:** Identity resolution, scope, tools, changes, approvals, and outcomes are logged
+- **Phone-Based Identification:** Verified phone → `Congregant` → server-enforced `congregant_id`
+- **Approval Workflow:** Sensitive changes become Gabai approval requests
 - **Broadcast:** Sending community-wide updates from the gabbai interface
 
-### 5.6 Platform Architecture (v4.0)
-- **Module Registry:** Enable/disable modules per synagogue's needs (`.env`)
-- **Hook System:** Custom logic injection points without modifying the core
-- **Tenant Config:** Dynamic theming (colors, logo) per synagogue
-- **Multi-tenancy:** Data isolation for SaaS deployments with multiple synagogues
+### 5.10 Designed Weekly Bulletin (v3.6)
+- **Canva-style engine** with Auto-Scaling to A4, theme management
+- High-quality PDF and image (WhatsApp-ready) export
 
-### 5.7 Mobile Application – Android & iOS (v5.0)
+### 5.11 SaaS Platform (v4.0)
+- **Multi-tenancy:** `tenant_id` on all models; subdomain routing; data isolation
+- **License system:** `License` model — plan (Basic / Premium / Enterprise), expiry, permitted modules
+- **Super-admin panel evolution:** Billing, module entitlement per tenant, onboarding flow for new synagogues
+- **Kubernetes:** Evaluated if needed for scale; deferred until v4.0
 
-**Vision:** The gabbai manages the community from the palm of his hand — anywhere, at any time, including during prayer services.
+### 5.12 Mobile Application – Android & iOS (v5.0)
 
-**Recommended Approach – React Native:**
-- Reuses 90% of existing logic and the current API layer
-- Single codebase for both platforms (Android + iOS)
-- Full Hebrew RTL interface with Hebrew calendar support
+**Vision:** The gabbai manages the community from the palm of his hand — anywhere, at any time.
 
-**Key Mobile Features:**
-- Dashboard with community statistics
-- Quick congregant search and profile view
-- One-tap payment and aliyah recording
-- Push notifications for upcoming yahrzeits and simchot (D-7, D-1)
-- Access to the Digital Gabbai chat (LLM)
-- Basic offline mode — read from local cache when disconnected
+**Recommended Approach – React Native:** single codebase, reuses 90% of existing API logic, full Hebrew RTL.
 
 **Implementation Phases:**
 1. **Phase 1 (MVP Mobile):** Dashboard, congregant search, payment recording, Push notifications
 2. **Phase 2:** LLM chat, aliyot, azkarot, Hebrew calendar
-3. **Phase 3:** Full offline mode, biometrics (Face ID / Fingerprint)
+3. **Phase 3:** Full offline mode, biometrics (Face ID / Fingerprint), app store publish
 
 | Feature | Version |
 |---|---|
-| Rules-based prayer schedule | v2.1 |
+| Rules-based prayer schedule | v2.1 ✅ |
 | Communication hub + text weekly bulletin | v2.2 |
 | Full financials + annual reports | v2.3 |
 | Smart aliyah scheduler + inventory + LLM 2.0 | v2.4 |
-| User auth (JWT) + production deployment | v3.0 |
+| Settings page + data portability + onboarding banner | v2.5 |
+| Security hardening + Docker + cloud deployment | v3.0 |
+| Installation docs + first-run wizard + CHANGELOG | v3.1 |
+| Support platform + audit log + in-app feedback | v3.2 |
 | Community WhatsApp Bot *(requires v3.0)* | v3.5 |
 | Designed weekly bulletin (Canva-style) | v3.6 |
-| Platform architecture (SaaS) | v4.0 |
+| SaaS multi-tenancy + license system | v4.0 |
 | E2E tests (Playwright) + mobile app | v5.0 |
 
 ---
@@ -330,7 +410,10 @@ Every feature is a self-contained module in `app/modules/`. The platform is desi
 ## 8. Open Issues
 
 1. **Currencies:** Is multi-currency support needed (USD/EUR in addition to NIS)? The field is currently flexible.
-2. **Data Backup:** Planned for v3.0 – a CSV export endpoint and manual backup documentation for `gabay.db`.
-3. **Authentication and Authorization:** Backend JWT/session foundations are implemented. Route/service protection, the `gabai` role, frontend login, role-specific UI, and scoped LLM/WhatsApp enforcement remain v3.0 work and are prerequisites for the WhatsApp Bot (v3.5).
-4. **UI Language:** The interface has been fully localized to Hebrew (RTL) – all headings, buttons, and menus are in Hebrew.
+2. **Data Backup:** The data-portability export (v2.5) covers manual export. Automated backup documentation and restore testing are v3.1 items.
+3. **Authentication and Authorization:** Fully implemented as of v3.0 — JWT, refresh tokens, `admin`/`gabai`/`congregant` roles, and scoped LLM enforcement. `super_admin` role added in v2.5.
+4. **Demo / Sandbox Mode:** Should prospective synagogues be able to try Gabay with pre-seeded data before installing? Not planned yet — evaluate before v4.0 SaaS launch.
+5. **Terms of Service / Privacy Policy:** Required before publicly marketing the product. Not a technical item; must be authored and linked from the login page and Help tab.
+6. **Email Notifications:** SMTP for yahrzeit reminders is deferred (v2.2 partial). Should the admin be able to configure SMTP from the Settings page? Evaluate in v2.5 scope.
+7. **Multi-language UI:** Currently Hebrew-only. Future: English admin panel for non-Hebrew-speaking support staff?
 

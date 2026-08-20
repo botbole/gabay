@@ -52,16 +52,27 @@ All API responses use a shared envelope: `{ success: bool, message: str, data: .
 
 ### Roles, identities, and authorization
 
-- Persisted entities and permission roles are separate concepts. `User`, `Congregant`, and `TenantConfig` are records; `admin`, `gabai`, and `congregant` are the target role labels for authenticated actors.
-- `TenantConfig` is presented to users as **Synagogue settings**. `GET /api/v1/config` may expose the public pre-login branding manifest; `PATCH /api/v1/config`, module/integration settings, security settings, user management, and role assignment are Admin-only.
-- `admin`: user/role administration, protected Synagogue settings, integrations, security, and emergency operational access.
-- `gabai`: full day-to-day operations, reports, imports, and operational LLM tools, excluding user administration and protected settings.
-- `congregant`: WhatsApp-only public and own-data access. Verified phone → `Congregant` → server-enforced `congregant_id`; no registration or login `User` is required.
-- The backend implements `admin`, `gabai`, and `congregant`; operational routes allow Admin/Gabai, while user administration and protected settings remain Admin-only.
-- `User.congregant_id` is optional future web-account linkage. Do not require it for WhatsApp identification.
-- Enforce authorization in router dependencies **and** service/database operations. Frontend visibility, WhatsApp handlers, LLM prompts, and tool-list filtering are not authorization boundaries.
+Gabay is a **commercial product** running on multiple synagogues. Four role tiers exist:
+
+```
+super_admin  → Gabay product team. Platform panel only (/platform). Not per-synagogue.
+admin        → Synagogue administrator / head gabbai. Settings page (/settings). One per synagogue.
+gabai        → Day-to-day operator. Operational pages only. 1–3 per synagogue.
+congregant   → WhatsApp self-service only (v3.5). No web UI.
+```
+
+- `super_admin` is a platform-level role. It is not visible in the per-synagogue sidebar. It accesses `/platform` only.
+- `admin` is the synagogue-level admin: manages `TenantConfig`, users, LLM settings, location. Has full operational access too.
+- `gabai` has full operational access (congregants, payments, aliyot, seating, azkarot, smachot, bulletin, prayer schedule, LLM chat). Cannot access `/settings`.
+- `congregant`: WhatsApp-only public and own-data access. Verified phone → `Congregant` → server-enforced `congregant_id`; no login `User` required.
+- `UserRole` enum is in `app/modules/auth/models.py`. `super_admin` was added in v2.5.
+- `TenantConfig` is the per-synagogue settings record. Its fields include branding, LLM config (`llm_provider`, `llm_model`, `llm_api_key`, `llm_base_url`), and location (`zmanim_city_name`, `zmanim_geoname_id`). LLM and location fields override `.env` values.
+- `GET /api/v1/config` — public: branding only (pre-login). Admin: full config with `llm_api_key` masked.
+- `PATCH /api/v1/config` — admin only.
+- Enforce authorization in router dependencies **and** service/database operations. Frontend visibility is not an authorization boundary.
 - LLM tools must be selected by role/scope and re-authorized when executed. Congregant tools must query only the principal's `congregant_id`, including under prompt injection.
 - Safe self-service updates may execute immediately. Sensitive identity, financial, yahrzeit, seating, or permission changes require Gabai approval and an audit trail.
+- `User.congregant_id` is optional future web-account linkage. Do not require it for WhatsApp identification.
 
 ### Frontend (`frontend/src/`)
 
@@ -233,12 +244,32 @@ Run all tests: `python -m pytest tests/ -v -s`
 
 Add `-s` to see Hebrew print labels. The 81 existing tests cover all core modules. After every new milestone add an integration test file under `tests/`. E2E tests (Playwright) are deferred to Milestone 5.
 
+### Settings architecture — what lives where
+
+Three tiers of configuration exist. Never mix them:
+
+**Tier 1 — `.env` only (no UI, ever)**
+- `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGINS`, `ENVIRONMENT`, `DEBUG`, rate limits
+- `ENABLED_MODULES` — determines which modules load at startup. Adding a module = a deployment procedure, not a UI toggle.
+
+**Tier 2 — `TenantConfig` DB (Settings page, admin only)**
+- Branding: `synagogue_name`, `logo_url`, `color_primary`, `color_secondary`, `color_bg`
+- LLM: `llm_provider`, `llm_model`, `llm_api_key`, `llm_base_url` — override `.env` values. Always read `TenantConfig` first.
+- Location: `zmanim_city_name`, `zmanim_geoname_id` — override `.env` values.
+- These fields allow the admin to rotate an API key or change a city without restarting the server.
+
+**Tier 3 — Module-embedded config (inside each module, gabai-accessible)**
+- Prayer schedule rules, bulletin config, aliya pricing defaults, seating section names, etc.
+- Never move module-specific config to the global Settings page.
+
+**Rule:** If a gabai needs it during day-to-day operations → module config. If it's cross-cutting or has billing/security implications → Settings page (admin only).
+
 ### LLM configuration
 
-- Provider: OpenAI (`gpt-4o-mini`).
-- `LLM_BASE_URL` must be left **empty** for the standard OpenAI endpoint. Passing an empty string (not `None`) will cause a request error.
+- Provider is read from `TenantConfig` first; `.env` is the fallback for backward compatibility.
+- `LLM_BASE_URL` must be empty (not `""`) for the standard OpenAI endpoint. Passing an empty string causes a request error.
 - System prompt is in Hebrew in `app/core/config.py`.
-- The `llm_client` is a module-level singleton — restart the server after changing `.env`.
+- The `llm_client` is a module-level singleton — restart the server after changing `.env`. Changing via Settings page (`TenantConfig`) takes effect on next request without restart.
 
 ### Workflow preferences
 

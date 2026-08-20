@@ -6,26 +6,28 @@ This document describes the modular architecture of the Gabay Synagogue Manageme
 
 ## 1. Full System Overview
 
-The entire platform — web, mobile, backend, and AI — in one diagram.
+The entire platform — web, mobile, backend, AI, and support panel — in one diagram.
 
 ```mermaid
 graph TD
     subgraph Clients [Clients]
         Browser[Web Browser - React SPA]
-        Mobile[Mobile App - React Native
-Android + iOS - Future]
+        Platform[Platform Panel - super_admin only]
+        Mobile[Mobile App - React Native - Future]
     end
 
     subgraph Backend [Backend - FastAPI - Python]
         Main[main.py]
         Registry[Module Registry]
+        ModCatalog[Module Catalog]
         Bus[Event Bus]
 
         subgraph Core [Core - app/core/]
             DB[(SQLite / PostgreSQL)]
             AuthCore[JWT Validation and Auth Dependencies]
-            TenantCfg[Tenant Config]
+            TenantCfg[Tenant Config - settings + LLM + zmanim]
             HebDate[Hebrew Date - pyluach]
+            AuditLog[Audit Log]
         end
 
         subgraph Modules [Pluggable Modules - app/modules/]
@@ -36,7 +38,9 @@ Android + iOS - Future]
             MOD_CAL[calendar]
             MOD_LLM[llm - Digital Gabbai]
             MOD_AUTH[auth - Users and Sessions]
-            MOD_WA[whatsapp - Future]
+            MOD_PS[prayer_schedule]
+            MOD_BUL[bulletin]
+            MOD_WA[whatsapp - v3.5]
         end
 
         Main --> Registry
@@ -46,6 +50,8 @@ Android + iOS - Future]
         AuthCore --> DB
         Modules -.->|fire| Bus
         Bus -.->|notify| Modules
+        TenantCfg -.->|LLM config override| MOD_LLM
+        TenantCfg -.->|zmanim config override| MOD_CAL
     end
 
     subgraph External [External Services]
@@ -56,13 +62,14 @@ Android + iOS - Future]
     end
 
     Browser -->|Bearer access JWT and refresh cookie| Backend
+    Platform -->|super_admin JWT - /platform routes| Backend
     Mobile -->|REST /api/v1| Backend
-    TenantCfg -->|JSON Manifest| Browser
-    TenantCfg -->|JSON Manifest| Mobile
+    TenantCfg -->|JSON Manifest - branding + active modules| Browser
     MOD_LLM --> OpenAI
     MOD_WA --> WhatsAppAPI
     MOD_CAL --> HebCal
     FCM --> Mobile
+    ModCatalog -->|default module set for new installs| Registry
 ```
 
 ---
@@ -158,13 +165,22 @@ The backend authentication contract is implemented in `app/modules/auth/`. The f
 
 After bootstrap, `/auth/register` requires an authenticated administrator. `PATCH /api/v1/config` also requires Admin, while `GET /api/v1/config` remains public for pre-login branding. All management routers require an authenticated Admin or Gabai, and sensitive services repeat authorization checks below the router layer.
 
-**Target roles:**
-- `admin` (Admin / מנהל מערכת) — user and role management, Synagogue settings, modules and integrations, security, and emergency operational access.
-- `gabai` (Gabai / גבאי) — full day-to-day operational access, reports, and imports, excluding user administration and protected synagogue/system settings.
-- `congregant` (Congregant / מתפלל) — WhatsApp-only access to public information and explicitly safe actions scoped to their own `congregant_id`.
+**Four-tier role hierarchy:**
+
+```
+super_admin  → Gabay product team. /platform panel only. Cross-installation visibility.
+admin        → Synagogue administrator. /settings page. One per synagogue.
+gabai        → Day-to-day operator. Operational pages only. 1–3 per synagogue.
+congregant   → WhatsApp self-service only (v3.5). No web UI.
+```
+
+- `super_admin`: platform-level role for the Gabay product team. Accesses `/platform` (tenant list, remote config, module catalog, audit log). Not visible in the per-synagogue sidebar. Added in v2.5.
+- `admin`: synagogue-level administrator. Accesses `/settings` (profile, LLM, location, users). Manages gabai users. Has full operational access in addition to admin access.
+- `gabai`: full operational access to all modules. Cannot access `/settings` or manage users.
+- `congregant`: WhatsApp-only. No web login required. Verified phone → `Congregant` → server-enforced `congregant_id`.
 
 **Authorization principals:**
-- Admin and Gabai use web authentication: credentials resolve to an active `User`, JWT claims identify the user and role, and router plus service rules authorize the operation.
+- `super_admin`, `admin`, and `gabai` use web authentication: credentials resolve to an active `User`, JWT claims identify the user and role, router plus service rules authorize the operation.
 - A WhatsApp congregant does not register or log in. A verified sender phone is matched to `Congregant.phone`; the server constructs a `congregant` principal with that record's `congregant_id`.
 - `User.congregant_id` remains optional and supports future account linkage if a congregant portal is introduced. It is not required for WhatsApp self-service.
 
@@ -204,7 +220,48 @@ Public reads and safe self-updates may complete immediately. Sensitive changes�
 
 ---
 
-## 5. Event Bus (Hook System)
+## 5. Settings & Configuration Architecture
+
+Configuration is split across three tiers. Never mix them.
+
+```mermaid
+graph TD
+    EnvFile[".env file - install time only"]
+    TenantCfg["TenantConfig DB row - runtime, admin via UI"]
+    ModuleConfig["Module-embedded config - runtime, gabai via module UI"]
+
+    EnvFile -->|"ENABLED_MODULES ceiling"| Registry
+    EnvFile -->|"DB, JWT, CORS, rate limits"| Backend
+    TenantCfg -->|"branding, LLM settings, zmanim city"| Backend
+    TenantCfg -->|"overrides .env LLM and zmanim values"| Backend
+    ModuleConfig -->|"prayer rules, bulletin config, aliya defaults"| Modules
+
+    Registry -->|"loads only enabled modules"| Modules
+    ModCatalog["Module Catalog - code-defined, super_admin reads"] -->|"default set for new installs"| Registry
+```
+
+**Tier 1 — `.env` (install time, no UI ever)**
+- `DATABASE_URL`, `JWT_SECRET`, `CORS_ORIGINS`, `ENVIRONMENT`, `DEBUG`, rate limits
+- `ENABLED_MODULES` — the ceiling of what this installation can load. Adding a module = a deployment procedure.
+
+**Tier 2 — `TenantConfig` DB row (Settings page, admin only)**
+- Branding: `synagogue_name`, `logo_url`, `color_primary`, `color_secondary`, `color_bg`
+- LLM: `llm_provider`, `llm_model`, `llm_api_key` (encrypted), `llm_base_url` — read first; `.env` is fallback
+- Location: `zmanim_city_name`, `zmanim_geoname_id` — read first; `.env` is fallback
+- `setup_completed` — tracks first-run onboarding completion
+
+**Tier 3 — Module-embedded config (inside each module, gabai-accessible)**
+- Prayer schedule rules, bulletin config, aliya pricing, seating sections
+- Never belongs in global Settings
+
+**Module Catalog (code-defined, super_admin-visible at `/platform/modules`)**
+- Authoritative list of all modules with `tier` (`base` / `addon` / `enterprise`) and `enabled_by_default`
+- Not DB rows — defined in code, exposed via API
+- Evolves into the license entitlement system in v4.0
+
+---
+
+## 6. Event Bus (Hook System)
 
 Modules communicate only through events. No direct imports between modules.
 
@@ -237,9 +294,11 @@ Payments, Seating, or WhatsApp
 
 ---
 
-## 6. Deployment Architecture
+## 7. Deployment Architecture
 
-The v3.0 target is a single-tenant deployment on AWS ECS Fargate. Each deployment serves one synagogue; multi-tenancy remains a v4.0 concern. Kubernetes is intentionally not required for v3.0.
+The v3.0 target is a single-tenant deployment on AWS ECS Fargate. Each synagogue is a separate installation with its own database; multi-tenancy (shared DB with `tenant_id` isolation) is a v4.0 concern. Kubernetes is intentionally not required for v3.0.
+
+The support platform (`/platform`, v3.2) runs as part of the same backend but is only accessible via `super_admin` JWT. It does not require a separate deployment.
 
 ```mermaid
 graph TD
@@ -273,7 +332,7 @@ graph TD
 
 ---
 
-## 7. Frontend Dynamic Loading
+## 8. Frontend Dynamic Loading
 
 ```mermaid
 sequenceDiagram
@@ -293,7 +352,7 @@ sequenceDiagram
 
 ---
 
-## 8. Database Entity Relationship
+## 9. Database Entity Relationship
 
 Domain entities are linked to `Congregant` through **soft string IDs**. Authentication is the deliberate exception: optional `User.congregant_id` declares a cross-module foreign key for future web-account identity scope. WhatsApp scope is resolved directly from a verified `Congregant.phone`.
 
@@ -389,11 +448,40 @@ erDiagram
     CONGREGANTS ||--o{ SMACHOT   : "celebrates"
     CONGREGANTS o|--o{ USERS : "may identify"
     USERS ||--o{ REFRESH_SESSIONS : "owns"
+
+    TENANT_CONFIG {
+        int    id PK
+        string synagogue_name
+        string logo_url
+        string color_primary
+        string color_secondary
+        string color_bg
+        string enabled_modules
+        string llm_provider
+        string llm_model
+        string llm_api_key
+        string llm_base_url
+        string zmanim_city_name
+        int    zmanim_geoname_id
+        bool   setup_completed
+    }
+
+    AUDIT_LOG {
+        string id PK
+        string actor_user_id
+        string actor_role
+        string action
+        string entity_type
+        string entity_id
+        string old_value
+        string new_value
+        datetime timestamp
+    }
 ```
 
 ---
 
-## 9. Key Design Decisions
+## 10. Key Design Decisions
 
 | Decision | Reason |
 |---|---|
@@ -402,7 +490,12 @@ erDiagram
 | Event Bus over direct imports | Zero coupling — adding a WhatsApp module does not touch the Congregants module. |
 | FastAPI authorization dependencies | Keeps the public allowlist explicit and role requirements visible at router level. |
 | Defense-in-depth authorization | Router, service, and database layers enforce roles and row scope; UI visibility, WhatsApp orchestration, and LLM prompts never authorize access. |
-| Admin-only Synagogue settings | `TenantConfig` controls tenant-wide branding, modules, and configuration; only Admin may mutate it. |
+| Four-tier role hierarchy | `super_admin` (product team) / `admin` (synagogue) / `gabai` (operations) / `congregant` (WhatsApp). Each tier has clearly bounded access that does not overlap. |
+| Admin-only Settings page | `TenantConfig` controls branding, LLM config, and location; only `admin` may mutate it. `super_admin` can access all tenants via `/platform`. |
+| LLM and zmanim config in TenantConfig | Rotating an API key or changing the prayer-time city should not require a server restart. `TenantConfig` overrides `.env`; `.env` is the fallback for backward compatibility. |
+| ENABLED_MODULES in .env only | Module availability is an install-time (product/licensing) decision, not a runtime toggle. The Module Catalog in code defines which modules belong to which tier; the v4.0 License model formalizes billing entitlement. |
+| Module Catalog in code, not DB | The catalog is product-defined, not user-defined. `super_admin` can read and set defaults; creating new module entries requires a code deployment. |
+| Separate Support Platform panel | The Gabay product team needs visibility across all synagogue installations without SSH access. `/platform` is accessible only to `super_admin` and is completely separate from the per-synagogue UI. |
 | Phone-scoped WhatsApp identity | Verified phone → `Congregant` → server-enforced `congregant_id`, without requiring registration or a `User`. |
 | Rotated refresh sessions | Supports real logout, server-side revocation, and refresh-token reuse detection. |
 | AWS ECS Fargate for v3.0 | Most common cloud ecosystem with managed containers and no Kubernetes operational burden. |

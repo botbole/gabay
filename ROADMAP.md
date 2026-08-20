@@ -18,7 +18,10 @@
 | **2.2** | **תקשורת ולוח שבועי** | 🟡 ליבה הושלמה | Partial |
 | **2.3** | **פיננסים מלא** *(ממזג 2.5+2.7)* | 🟠 גבוהה | Pending |
 | **2.4** | **גבאי חכם** *(שיבוץ + מלאי + LLM 2.0)* | 🟠 בינונית-גבוהה | Pending |
+| **2.5** | **הגדרות מערכת** *(Settings Page)* | 🟠 גבוהה | Pending |
 | **3.0** | **Production – Auth + Deploy** | 🔴 לפני שיתוף | Pending |
+| **3.1** | **התקנה ו-Onboarding** *(Installation & First Run)* | 🔴 לפני בית כנסת שני | Pending |
+| **3.2** | **פלטפורמת תמיכה** *(Support Platform)* | 🔴 לפני בית כנסת שני | Pending |
 | **3.5** | **בוט וואטסאפ** *(תלוי ב-3.0)* | 🟡 קהילתי | Pending |
 | **3.6** | **לוח שבועי מעוצב (Canva)** | 🟡 ליטוש | Pending |
 | **4.0** | **SaaS Platform** | 🟢 מסחרי | Pending |
@@ -243,6 +246,59 @@
 
 ---
 
+## 🟠 v2.5 – Settings · הגדרות מערכת
+
+> **עיקרון:** מוצר מקצועי שרץ על בתי כנסת מרובים חייב להפריד בין הגדרות גלובליות להגדרות מודול-ספציפיות. דף ההגדרות הוא הממשק של מנהל המערכת לכל הגדרה הרוחבית.  
+> **תלויות:** Auth (v3.0) קיים — הנתיב `/settings` נחסם ל-`admin` בלבד.
+
+### ארכיטקטורת תפקידים – ארבעה שכבות
+
+```
+Tier 0 – Super-Admin (צוות המוצר / תמיכה)   → גישה לכל הבתי כנסת, פאנל תמיכה
+Tier 1 – Admin (מנהל הבית כנסת)              → דף הגדרות, ניהול גבאים
+Tier 2 – Gabai (גבאי, 1–3 לבית כנסת)        → כל העבודה השוטפת, ללא גישה להגדרות
+Tier 3 – Congregant / מתפלל (v3.5)           → שירות עצמי WhatsApp בלבד
+```
+
+- מנהל מערכת הוא ראש הגבאים / איש הקשר הטכני. ייתכנו 1–3 גבאים ללא הרשאת הגדרות.
+- `super_admin` הוא תפקיד פלטפורמה (צוות גבאי) — ניהול בין-בתי-כנסת, לא גישה שגרתית.
+
+### Backend
+
+- [ ] הוספת `super_admin` ל-`UserRole` enum ב-`app/modules/auth/models.py`
+- [ ] הרחבת `TenantConfig` ב-`app/core/tenant.py`:
+  - שדות LLM: `llm_provider`, `llm_model`, `llm_api_key` (מוצפן), `llm_base_url`
+  - שדות מיקום: `zmanim_city_name`, `zmanim_geoname_id`
+  - שדות onboarding: `setup_completed` (boolean)
+- [ ] מיגרציה ב-`app/core/db.py` לכל עמודה חדשה (try/except pattern קיים)
+- [ ] `GET /api/v1/config` — ציבורי: מחזיר branding בלבד לפני login; admin: מחזיר את הכל (llm_api_key מוסתר)
+- [ ] `PATCH /api/v1/config` — admin בלבד; כל שדה מאומת בנפרד
+- [ ] `GET /api/v1/config/test-llm` — admin בלבד; בודק חיבור ל-LLM provider ומחזיר status
+- [ ] `app/core/llm.py` — לקרוא מ-`TenantConfig` ראשית, fallback ל-`.env` (תאימות לאחור)
+- [ ] `app/core/zmanim.py` — לקרוא מ-`TenantConfig` ראשית, fallback ל-`.env`
+
+### Frontend
+
+- [ ] נתיב `/settings` — נחסם ל-`admin` בלבד; גבאים לא רואים קישור בסייד-בר
+- [ ] **טאב 1 – פרופיל בית הכנסת:** שם, לוגו (העלאת קובץ), צבע ראשי, צבע משני, צבע רקע
+- [ ] **טאב 2 – מיקום ושעות תפילה:** שם עיר, Geoname ID, תצוגה מקדימה חיה של זמן הדלקת נרות / הבדלה
+- [ ] **טאב 3 – עוזר AI:** בחירת ספק (OpenAI / Azure / Ollama), שדה מודל, מפתח API (masked), Base URL (מותנה), כפתור "בדוק חיבור"
+- [ ] **טאב 4 – משתמשים:** טבלת גבאים (שם, תפקיד, כניסה אחרונה, סטטוס), הזמנה, השבתה, שינוי תפקיד
+- [ ] **טאב 5 – עזרה ותמיכה:** גרסת האפליקציה, קישור ל-Changelog, קישור לתיעוד, ערוץ יצירת קשר לתמיכה
+- [ ] **Onboarding Banner:** אם `setup_completed=false`, מציג סרגל הדרכה בראש כל עמוד עם שלבים: "הגדר פרופיל → הגדר מיקום → הגדר AI → הזמן גבאי"
+
+### ניידות נתונים (Data Portability)
+
+- [ ] `GET /api/v1/export/all` — admin בלבד; מייצא את כל נתוני הבית כנסת כ-JSON (מתפללים, תשלומים, עליות, מושבים, אזכרות, שמחות)
+- [ ] קישור "ייצא את כל הנתונים" בטאב עזרה ותמיכה
+
+### בדיקות
+
+- [ ] `tests/test_settings.py` — גישת admin לכל שדות TenantConfig; גבאי מקבל 403 על PATCH; super_admin עובר
+- [ ] בדיקת fallback: כאשר `llm_api_key` ריק ב-TenantConfig — מערכת עוברת ל-.env ולא נופלת
+
+---
+
 ## 🔴 v3.0 – Production · אבטחה, אימות ופריסה
 
 > **עדיפות:** חובה לפני שיתוף עם כל גורם חיצוני.  
@@ -392,6 +448,103 @@
 
 ---
 
+## 🔴 v3.1 – Installation & Onboarding · התקנה ו-Onboarding
+
+> **עיקרון:** מוצר מקצועי חייב שתהליך ההתקנה יהיה מתועד, חוזר על עצמו וניתן לביצוע ע"י מנהל מערכת ללא ידע קוד.  
+> **תלוי ב-v3.0:** Docker, PostgreSQL ומנגנון Auth חייבים להיות מוכנים.
+
+### תיעוד ותשתית
+
+- [ ] `docs/INSTALLATION.md` — מדריך התקנה מלא: דרישות מקדמיות, .env, Docker Compose, יצירת משתמש ראשון, בדיקת smoke
+- [ ] `docs/UPGRADE.md` — תהליך שדרוג: גיבוי DB, משיכת גרסה חדשה, הרצת מיגרציות, אימות
+- [ ] `docs/BACKUP_RESTORE.md` — גיבוי ידני ואוטומטי, בדיקת שחזור, off-site storage
+- [ ] `.env.example` — כל משתנה עם הסבר בעברית, ערכי ברירת מחדל ו-placeholder לסודות
+- [ ] `CHANGELOG.md` — קובץ שינויים קבוע; מתעדכן עם כל release; כולל הוראות מיגרציה
+
+### Bootstrap ו-First Run
+
+- [ ] פקודת Bootstrap CLI: `python -m app.cli bootstrap` — יוצרת את משתמש ה-admin הראשון באינטראקציה
+- [ ] חלופה: First-Run Page — אם אין משתמש admin בDB, מפנה אוטומטית לאשף הגדרה ראשונית
+- [ ] אשף First-Run (Frontend): שם בית כנסת → עיר → יצירת סיסמת admin → (אופציונלי) הזמנת גבאי → "התחל להשתמש"
+- [ ] לאחר השלמת האשף: `TenantConfig.setup_completed = true`; Banner ה-Onboarding נעלם
+
+### מדדי הצלחה
+
+- [ ] מנהל טכני שאינו מפתח יכול להתקין מ-`git clone` עד login תוך פחות מ-30 דקות
+- [ ] `docker compose up` מקומי עובר smoke test מלא (login, CRUD, refresh, logout)
+- [ ] תהליך שדרוג ניתן לביצוע ללא downtime על DB קיים
+
+---
+
+## 🔴 v3.2 – Support Platform · פלטפורמת תמיכה
+
+> **עיקרון:** לפני בית כנסת שני — צוות המוצר חייב כלי תמיכה שאינם מצריכים גישת SSH.  
+> **תלוי ב-v3.0 ו-v3.1.**
+
+### Module Catalog – קטלוג מודולים
+
+> **עיקרון:** super_admin הוא המקום שבו מוגדר מה נכלל במוצר הבסיסי ומה הוא תוסף. הקטלוג הוא מקור האמת — לא `.env.example`.
+
+- [ ] מודל `ModuleCatalog` ב-`app/core/` — רשומה לכל מודול קיים:
+  - `slug` — מזהה ייחודי (e.g. `congregants`, `llm`, `bulletin`)
+  - `display_name` — שם לתצוגה
+  - `description` — תיאור קצר
+  - `tier` — `base` / `addon` / `enterprise`
+  - `enabled_by_default` — האם נכלל בהתקנת ברירת מחדל
+  - `depends_on` — רשימת slugs של מודולים תלויים (e.g. `bulletin` תלוי ב-`prayer_schedule`)
+- [ ] הקטלוג מאוכלס בקוד (לא ב-DB) — super_admin רואה אותו, אינו יוצר רשומות חדשות
+- [ ] `GET /platform/modules` — מחזיר את כל המודולים עם tier ו-enabled_by_default
+- [ ] `GET /platform/modules/default-set` — מחזיר את רשימת slugs שמהווים את "ההתקנה הסטנדרטית"
+- [ ] בעת onboarding של בית כנסת חדש (v4.0): ה-default-set משמש כנקודת פתיחה לפני שמנהל הבית כנסת משנה
+
+**הקטלוג הנוכחי (base tier — נכלל בכל התקנה):**
+`congregants`, `payments`, `aliyot`, `seating`, `azkarot`, `smachot`, `calendar`, `auth`, `prayer_schedule`, `bulletin`
+
+**addon tier — מוסף לפי בקשה/תשלום:**
+`llm` (דורש מפתח API חיצוני), `whatsapp` (v3.5), `visual_bulletin` (v3.6)
+
+**enterprise tier — v4.0 ומעלה:**
+`multi_tenant`, `audit_log_extended`, `sso`
+
+### Backend – תפקיד super_admin ופאנל תמיכה
+
+- [ ] `super_admin` פעיל ב-`UserRole` (נוסף ב-v2.5); dependency `require_super_admin()`
+- [ ] `GET /platform/tenants` — רשימת כל בתי הכנסת (TenantConfig): שם, גרסה, כניסה אחרונה, `setup_completed`
+- [ ] `GET /platform/tenants/{id}/config` — קריאה מלאה של TenantConfig לבית כנסת ספציפי לצורכי תמיכה
+- [ ] `PATCH /platform/tenants/{id}/config` — עדכון הגדרות לבית כנסת ספציפי (תמיכה מרחוק)
+- [ ] `GET /platform/tenants/{id}/audit-log` — לוג פעולות admin: שינויי הגדרות, שינויי תפקידים, ייצוא נתונים
+- [ ] `GET /platform/stats` — סטטיסטיקות: מספר בתי כנסת פעילים, שיחות LLM ב-24 שעות האחרונות, שגיאות
+- [ ] Audit Log Model — רשומה לכל פעולה רגישה: actor, action, entity, old_value, new_value, timestamp
+
+### Frontend – פאנל `/platform`
+
+- [ ] נתיב `/platform` — נחסם ל-`super_admin` בלבד; לא מופיע בסייד-בר הרגיל
+- [ ] **דף Tenants:** טבלה — שם בית כנסת, עיר, תאריך הצטרפות, כניסה אחרונה, סטטוס setup, גרסה
+- [ ] **דף Tenant פרטי:** הגדרות TenantConfig, משתמשים, לוג פעולות, סטטיסטיקות LLM
+- [ ] **לוח מחוון Platform:** כרטיסי סיכום — בתי כנסת פעילים, שיחות LLM היום, שגיאות פתוחות
+- [ ] **Module Catalog דף:** טבלת כל המודולים — slug, tier, enabled_by_default, תלויות; אפשרות לשנות `enabled_by_default` לכל מודול
+- [ ] **Changelog In-App:** רנדור `CHANGELOG.md` בפאנל התמיכה ובטאב עזרה ב-Settings
+
+### In-App Notifications לאדמין
+
+- [ ] התראת LLM — כאשר קריאת LLM נכשלת (API key שגוי, מגבלת quota), admin רואה banner אדום
+- [ ] התראת גיבוי — אם לא בוצע export של הנתונים ביותר מ-30 יום, admin רואה תזכורת
+- [ ] התראת גרסה — כאשר גרסה חדשה זמינה (webhook / polling), admin רואה notification
+
+### In-App Feedback
+
+- [ ] כפתור "דווח על בעיה" (בסייד-בר, נגיש לגבאים) — טופס פשוט: תיאור + screenshot אופציונלי
+- [ ] שליחה ל-email / webhook חיצוני (Slack, Linear) — לא מצריך DB
+- [ ] קישור "בקש פיצ'ר" לטפסי משוב חיצוניים
+
+### מדדי הצלחה
+
+- [ ] צוות המוצר יכול לאבחן ולפתור בעיית תצורה בבית כנסת מרוחק ללא SSH
+- [ ] כל שינוי ב-TenantConfig מוקלט ב-audit log עם שם המשתמש, ה-timestamp והערך הישן
+- [ ] Admin מקבל התראה תוך דקה מכשל LLM
+
+---
+
 ## 🟡 v3.5 – WhatsApp Bot · בוט וואטסאפ קהילתי
 
 > **תלוי ב-v3.0** – נדרש: JWT Auth + LLM Scope model.  
@@ -454,9 +607,11 @@
 - [ ] תיעוד: DB-per-tenant לעומת shared DB עם Row-Level Security
 
 ### License System
+> **מבוסס על קטלוג המודולים מ-v3.2.** ה-`ModuleCatalog.tier` הופך לנקודת ייחוס של מה מורשה לכל רישיון.
 - [ ] מודל `License` – תוכנית (Basic / Premium / Enterprise), תאריך תפוגה, מודולים מורשים
-- [ ] `LicenseService` – אימות רישיון בעת הפעלה + בדיקת מודולים מורשים
+- [ ] `LicenseService` – אימות רישיון בעת הפעלה + בדיקת מודולים מורשים מול `ModuleCatalog`
 - [ ] `POST /admin/licenses`
+- [ ] חיבור בין tier מ-`ModuleCatalog` לבין תוכנית הרישיון: `base` = Basic+, `addon` = Premium+, `enterprise` = Enterprise בלבד
 
 ### Admin Panel
 - [ ] דף Tenants (Super Admin בלבד)
