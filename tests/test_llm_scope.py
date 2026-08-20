@@ -27,6 +27,9 @@ def test_llm_tool_lists_are_selected_by_scope():
     assert "list_congregants" in admin_tools
     assert "list_congregants" in gabai_tools
     assert "list_congregants" not in congregant_tools
+    assert "get_prayer_times" in admin_tools
+    assert "get_prayer_times" in gabai_tools
+    assert "get_prayer_times" not in congregant_tools
     assert "get_my_payments" in congregant_tools
     assert "record_payment" not in congregant_tools
     assert "convert_gregorian_to_hebrew" in congregant_tools

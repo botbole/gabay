@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     ENABLED_MODULES: list[str] = [
         "congregants", "payments", "aliyot", "seating",
         "azkarot", "smachot", "calendar", "llm", "prayer_schedule", "auth",
+        "bulletin",
     ]
 
     # LLM provider settings

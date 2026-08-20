@@ -13,6 +13,7 @@ const routeLabels: Record<string, string> = {
   '/smachot':     'שמחות',
   '/calendar':    'לוח עברי',
   '/schedule':    'לוח תפילות ושיעורים',
+  '/bulletin':    'לוח שבועי',
   '/import':      'ייבוא מתפללים',
 };
 

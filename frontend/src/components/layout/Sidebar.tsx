@@ -13,6 +13,7 @@ import {
   MessageCircle,
   Puzzle,
   Clock,
+  Newspaper,
   LogOut,
   UserRound,
   type LucideIcon,
@@ -36,6 +37,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Puzzle,
   LayoutDashboard,
   Clock,
+  Newspaper,
 };
 
 /** All possible module nav items in the preferred display order */
@@ -48,6 +50,7 @@ const MODULE_NAV_ORDER = [
   'smachot',
   'calendar',
   'prayer_schedule',
+  'bulletin',
 ];
 
 const OPERATIONAL_ROLES: UserRole[] = ['admin', 'gabai'];
@@ -58,7 +61,7 @@ export function Sidebar() {
 
   const enabledIds = config?.enabled_modules_list ?? [
     'congregants', 'payments', 'aliyot', 'seating',
-    'azkarot', 'smachot', 'calendar', 'llm', 'prayer_schedule',
+    'azkarot', 'smachot', 'calendar', 'llm', 'prayer_schedule', 'bulletin',
   ];
 
   // Build manifest map from config (or fall back to defaults)
@@ -75,6 +78,7 @@ export function Sidebar() {
     smachot:     { label: 'שמחות',          icon: Heart,           path: '/smachot' },
     calendar:         { label: 'לוח עברי',       icon: Calendar,        path: '/calendar' },
     prayer_schedule:  { label: 'לוח תפילות ושיעורים', icon: Clock, path: '/schedule' },
+    bulletin:         { label: 'לוח שבועי', icon: Newspaper, path: '/bulletin' },
     llm:              { label: 'עוזר גבאי AI',  icon: MessageCircle,   path: '/chat' },
   };
 

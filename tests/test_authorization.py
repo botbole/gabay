@@ -17,6 +17,7 @@ PROTECTED_ROUTES = [
     ("GET", "/api/v1/synagogue/smachot", None),
     ("GET", "/api/v1/synagogue/calendar/months", None),
     ("GET", "/api/v1/synagogue/prayer-rules", None),
+    ("GET", "/api/v1/synagogue/bulletin", None),
     ("POST", "/api/v1/llm/chat", {"message": "test"}),
 ]
 

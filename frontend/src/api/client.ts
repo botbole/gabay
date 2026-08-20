@@ -697,6 +697,73 @@ export const scheduleApi = {
     request<{ deleted: string }>(`/synagogue/special-days/${id}`, { method: 'DELETE' }),
 };
 
+// ─── Weekly Bulletin ─────────────────────────────────────────────────────────
+
+export interface BulletinEvent {
+  id: string;
+  congregant_id: string;
+  congregant_name: string;
+  congregant_phone: string;
+  next_gregorian: string;
+  whatsapp_url: string;
+  deceased_name?: string;
+  relation_label?: string;
+  occasion_label?: string;
+  description?: string;
+}
+
+export interface BulletinPayload {
+  week_start: string;
+  shabbat_date: string;
+  synagogue_name: string;
+  rabbi: string;
+  address: string;
+  announcements: string;
+  parasha: string;
+  special_shabbat: string;
+  candle_lighting: string;
+  havdalah: string;
+  prayer_text: string;
+  azkarot: BulletinEvent[];
+  smachot: BulletinEvent[];
+  sections: string[];
+  formats: {
+    whatsapp: string;
+    html: string;
+    print_html: string;
+  };
+}
+
+export interface BulletinConfig {
+  id: number;
+  rabbi: string;
+  address: string;
+  announcements: string;
+  default_sections: string;
+  available_sections?: string[];
+}
+
+export const bulletinApi = {
+  get: (date?: string, sections?: string[]) => {
+    const params = new URLSearchParams();
+    if (date) params.set('date', date);
+    if (sections?.length) params.set('sections', sections.join(','));
+    const qs = params.toString();
+    return request<BulletinPayload>(`/synagogue/bulletin${qs ? `?${qs}` : ''}`);
+  },
+  getConfig: () => request<BulletinConfig>('/synagogue/bulletin/config'),
+  updateConfig: (body: Partial<Pick<BulletinConfig, 'rabbi' | 'address' | 'announcements' | 'default_sections'>>) =>
+    request<BulletinConfig>('/synagogue/bulletin/config', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
+  saveWeek: (week_start: string, sections: string[]) =>
+    request<{ id: string; week_start: string; sections: string }>('/synagogue/bulletin/week', {
+      method: 'PUT',
+      body: JSON.stringify({ week_start, sections }),
+    }),
+};
+
 // ─── Tenant Config ───────────────────────────────────────────────────────────
 
 export interface ModuleManifestItem {

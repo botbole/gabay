@@ -1,0 +1,1 @@
+"""Weekly synagogue bulletin module."""

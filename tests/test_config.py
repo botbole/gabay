@@ -127,7 +127,7 @@ async def test_all_modules_registered(client):
     module_ids = {m["module_id"] for m in manifest}
     expected = {"congregants", "payments", "aliyot", "seating",
                 "azkarot", "smachot", "calendar", "llm", "prayer_schedule",
-                "auth"}
+                "auth", "bulletin"}
     assert expected == module_ids
 
 

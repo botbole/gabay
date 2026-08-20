@@ -343,6 +343,23 @@ OPERATIONAL_TOOLS: list[dict] = [
             },
         },
     },
+    # ── Prayer Schedule ───────────────────────────────────────────────────
+    {
+        "type": "function",
+        "function": {
+            "name": "get_prayer_times",
+            "description": "הצגת זמני התפילות והשיעורים לתאריך נתון. אם לא צוין תאריך — מוחזר לוח היום.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "date": {
+                        "type": "string",
+                        "description": "תאריך גרגוריאני בפורמט YYYY-MM-DD",
+                    },
+                },
+            },
+        },
+    },
 ]
 
 CONGREGANT_MY_TOOLS: list[dict] = [
@@ -627,6 +644,12 @@ async def _dispatch_tool(
         return await calendar_service.convert_hebrew_to_gregorian(
             year=args["year"], month=args["month"], day=args["day"]
         )
+
+    if tool_name == "get_prayer_times":
+        from datetime import date as date_cls
+        from app.modules.prayer_schedule.service import prayer_schedule_service
+        date_str = args.get("date") or date_cls.today().isoformat()
+        return await prayer_schedule_service.calculate_times(date_str)
 
     return {"error": f"כלי לא מוכר: {tool_name}"}
 

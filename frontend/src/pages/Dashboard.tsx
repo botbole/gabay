@@ -1,9 +1,10 @@
 import type { ElementType } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Users, CreditCard, AlertCircle, Heart, Star, CalendarDays, TrendingUp } from 'lucide-react';
-import { congregantsApi, paymentsApi, azkarotApi, smachotApi } from '../api/client';
+import { Users, CreditCard, AlertCircle, Heart, Star, CalendarDays, TrendingUp, Clock, RefreshCw } from 'lucide-react';
+import { congregantsApi, paymentsApi, azkarotApi, smachotApi, scheduleApi } from '../api/client';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
+import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 
 const hebrewMonthNames: Record<number, string> = {
@@ -129,6 +130,95 @@ function SectionHeader({
   );
 }
 
+function todayIso(): string {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function TodayTimesCard() {
+  const today = todayIso();
+  const { data, isFetching, isError, refetch } = useQuery({
+    queryKey: ['schedule', today],
+    queryFn: () => scheduleApi.getSchedule(today),
+    retry: 1,
+  });
+
+  const prayers = data?.prayers ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <SectionHeader
+          icon={Clock}
+          iconBg="color-mix(in srgb, var(--color-gold) 16%, white)"
+          iconColor="var(--color-gold)"
+          title="זמני היום"
+          badge={prayers.length || undefined}
+        />
+      </CardHeader>
+      <CardContent className="p-0">
+        {isFetching && (
+          <div className="flex justify-center py-8">
+            <RefreshCw className="h-5 w-5 animate-spin text-slate-400" />
+          </div>
+        )}
+        {isError && !isFetching && (
+          <div className="flex flex-col items-center gap-2 py-6 text-center px-5">
+            <p className="text-sm text-red-500">שגיאה בטעינת נתוני זמנים</p>
+            <p className="text-xs text-slate-400">ייתכן שיש בעיית חיבור לשירות הזמנים</p>
+            <Button variant="secondary" size="sm" onClick={() => void refetch()}>
+              <RefreshCw className="h-3.5 w-3.5" />
+              נסה שנית
+            </Button>
+          </div>
+        )}
+        {data && !isFetching && !isError && (
+          <>
+            <div className="px-5 py-3 border-b border-slate-100">
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-indigo)' }}>
+                {data.hebrew_date}
+              </p>
+              {data.city && (
+                <p className="text-xs text-slate-400 mt-0.5">{data.city}</p>
+              )}
+            </div>
+            {prayers.length === 0 ? (
+              <EmptyState
+                icon={Clock}
+                title="אין תפילות להצגה"
+                description="הוסיפו כללי תפילה בעמוד לוח התפילות"
+                className="py-8"
+              />
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {prayers.map((p) => (
+                  <li
+                    key={p.id}
+                    className="px-5 py-3 flex items-center justify-between gap-3"
+                  >
+                    <span
+                      className="text-sm font-medium truncate"
+                      style={{ color: p.is_lesson ? '#15803d' : 'var(--color-indigo)' }}
+                    >
+                      {p.name}
+                    </span>
+                    <span className="text-sm font-mono text-slate-600 shrink-0">
+                      {p.no_auto_time ? (p.notes || '—') : (p.calculated_time || '—')}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export function Dashboard() {
@@ -202,6 +292,8 @@ export function Dashboard() {
           sub="ב-30 הימים הקרובים"
         />
       </div>
+
+      <TodayTimesCard />
 
       {/* Upcoming Events */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">

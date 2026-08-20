@@ -31,6 +31,31 @@ def create_db_and_tables() -> None:
     """Create all tables defined in SQLModel models. Safe to call on every startup."""
     SQLModel.metadata.create_all(engine)
     _run_migrations()
+    _ensure_module_enabled("bulletin")
+
+
+def _ensure_module_enabled(slug: str) -> None:
+    """Append a module slug to an existing TenantConfig row if it is missing."""
+    with engine.connect() as conn:
+        try:
+            row = conn.execute(
+                sqlalchemy.text("SELECT enabled_modules FROM tenant_config WHERE id = 1")
+            ).fetchone()
+            if not row:
+                return
+            modules = [m.strip() for m in (row[0] or "").split(",") if m.strip()]
+            if slug in modules:
+                return
+            modules.append(slug)
+            conn.execute(
+                sqlalchemy.text(
+                    "UPDATE tenant_config SET enabled_modules = :mods WHERE id = 1"
+                ),
+                {"mods": ",".join(modules)},
+            )
+            conn.commit()
+        except Exception:
+            conn.rollback()
 
 
 def _run_migrations() -> None:
