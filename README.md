@@ -102,16 +102,16 @@ gabay/
 │   │   └── llm/                     # Digital Gabbai chat interface
 │   │
 │   ├── api/v1/config.py             # GET/PATCH /api/v1/config (TenantConfig endpoint)
-│   ├── models/base.py               # Shared response envelope { success, message, data }
-│   └── services/synagogue_service.py # Backward-compat facade
+│   └── models/base.py               # Shared response envelope { success, message, data }
 │
 ├── frontend/                        # React SPA (see frontend/README.md)
 ├── tests/                           # pytest integration tests
 └── docs/
     ├── ARCHITECTURE.md              # Full system diagrams and design decisions
+    ├── agent/                       # On-demand guides for AI agents (backend, frontend, ...)
+    ├── ROADMAP_HE.md                # Full roadmap (Hebrew)
     ├── PRD_Gabay.md                 # Product requirements (English)
-    ├── PRD_GABAY_HE.md              # Product requirements (Hebrew)
-    └── PRD_GABAY.md                 # (alias)
+    └── PRD_GABAY_HE.md              # Product requirements (Hebrew)
 ```
 
 ---
@@ -151,7 +151,7 @@ LLM and zmanim settings can be overridden at runtime via the admin Settings page
 | 4.0 | SaaS multi-tenancy + license system | Pending |
 | 5.0 | E2E tests + mobile app (React Native) | Future |
 
-Full roadmap: [`ROADMAP.md`](ROADMAP.md)
+Full roadmap: [`ROADMAP.md`](ROADMAP.md) (English) · [`docs/ROADMAP_HE.md`](docs/ROADMAP_HE.md) (Hebrew)
 
 ---
 
@@ -160,5 +160,6 @@ Full roadmap: [`ROADMAP.md`](ROADMAP.md)
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — System diagrams, role model, design decisions
 - [`docs/PRD_Gabay.md`](docs/PRD_Gabay.md) — Full product requirements (English)
 - [`docs/PRD_GABAY_HE.md`](docs/PRD_GABAY_HE.md) — Full product requirements (Hebrew)
-- [`CLAUDE.md`](CLAUDE.md) — AI agent guidance and learned patterns
-- [`ROADMAP.md`](ROADMAP.md) — Milestone-by-milestone development plan
+- [`AGENTS.md`](AGENTS.md) — AI agent rules; detailed guides in [`docs/agent/`](docs/agent/)
+- [`ROADMAP.md`](ROADMAP.md) — Milestone-by-milestone development plan (English)
+- [`docs/ROADMAP_HE.md`](docs/ROADMAP_HE.md) — Full roadmap (Hebrew)

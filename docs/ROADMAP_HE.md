@@ -16,6 +16,7 @@
 | **1.5** | **תשתית מודולרית** | ✅ **הושלם** | Done |
 | **2.1** | **לוח זמני תפילות ושיעורים** | ✅ הושלם | Done |
 | **2.2** | **תקשורת ולוח שבועי** | 🟡 ליבה הושלמה | Partial |
+| **2.2.5** | **עיצוב מחדש של ה-Frontend (Warm Heritage)** *(לפני 2.3)* | 🟠 גבוהה | Pending |
 | **2.3** | **פיננסים מלא** *(ממזג 2.5+2.7)* | 🟠 גבוהה | Pending |
 | **2.4** | **גבאי חכם** *(שיבוץ + מלאי + LLM 2.0)* | 🟠 בינונית-גבוהה | Pending |
 | **2.5** | **הגדרות מערכת** *(Settings Page)* | 🟠 גבוהה | Pending |
@@ -197,6 +198,43 @@
 - [x] עמוד "לוח שבועי" – תצוגה מקדימה, עריכה, כפתורי העתקה והדפסה
 - [x] כפתור "שלח בוואטסאפ" ליד כל אזכרה/שמחה (הודעה מובנית)
 - [ ] הגדרות SMTP בממשק
+
+---
+
+## 🟠 v2.2.5 – Frontend Redesign · עיצוב מחדש (Warm Heritage)
+
+> **עדיפות:** גבוהה – מתבצע לפני v2.3 כדי שמסכי הפיננסים החדשים ייבנו על המערכת העיצובית החדשה.  
+> **היקף:** Frontend בלבד. ללא שינוי ב-Backend או בסכמה, וללא תלות חדשה ב-npm (נדרש אישור מראש עבור `@fontsource` ו-`jsdom`/Testing Library).  
+> **תוכנית מפורטת:** `.cursor/plans/warm_heritage_frontend_final_8497efef.plan.md`
+
+### מצב יעד
+- רקע אבן חם (`bg` #FAF8F5), משטחים לבנים עם מסגרת דקה, `primary` כחול חצות (#172554), `accent` ברונזה (#B45309) ו-`accent-ink` בטוח לקריאות (AA) לטקסט. Heebo לממשק, גופן סריף עברי לכותרות בלבד.
+- טוקנים ב-`@theme` של Tailwind v4 (סמנטיים: `bg`, `surface`, `line`, `ink`, `muted`, `primary`, `accent`, צבעי סטטוס). `--color-indigo` ו-`--color-gold` נשארים כ-aliases זמניים ויוסרו בסוף.
+- בית כנסת יכול לשנות רק את צבע ה-accent ואת הלוגו; `applyTheme` מתעלם מ-`color_primary` ו-`color_bg`.
+- ה-props של `components/ui/` הקיימים נשארים תקפים; רכיבים חדשים: `DataTable`, `Tabs`, `Toast`, `Skeleton`, `StatCard`, `Num`, `Ltr`.
+- סרגל צד בהיר עם סימון ברונזה לפריט פעיל, פס "היום" בלוח הבקרה, טבלאות צפופות עם ספרות tabular.
+- RTL דרך כלים לוגיים בלבד; ניגודיות AA; טבעות פוקוס; יעדי מגע של 44px בטלפון; ללא גלילה אופקית ב-375, 768 ו-1280px.
+
+### משימות (כל משימה מסתיימת בבדיקה עצמית)
+- [ ] F0a עדכון Roadmap ומסמכים (סעיף זה, מראה בעברית, הערה במדריך ה-Frontend)
+- [ ] F0b Baseline וכלי מדידה: `npm run design:status` ו-`npm run design:check` (`frontend/scripts/design-status.mjs`); Baseline: hex 86, מחלקות gray/slate/zinc כ-490, מחלקות כיוון פיזי כ-26
+- [ ] F1 טוקנים ופונטים; חישוב ותיעוד יחסי ניגודיות
+- [ ] F2 עיצוב מחדש של הרכיבים הקיימים ללא שינוי API
+- [ ] שער 1: סקירת עיצוב של הרכיבים (צילומי מסך בשלושה רוחבים)
+- [ ] F3 רכיבים חדשים עם בדיקות server-render
+- [ ] F4 מעטפת ו-Login (Sidebar, Header, Layout עם מגירה)
+- [ ] שער 2: סקירת עיצוב של המעטפת, Login ושלד לוח הבקרה
+- [ ] F5 עמודים א׳: Dashboard, Congregants
+- [ ] F6 עמודים ב׳: Payments, Aliyot, Azkarot, Smachot
+- [ ] F7 עמודים ג׳: Seating, Calendar, PrayerSchedule, Bulletin, Chat, Import
+- [ ] F8 ניקוי: הסרת aliases, `design:check` מדווח 0, בדיקת נגישות ורספונסיביות
+- [ ] F9 תיעוד סופי: `docs/agent/frontend.md`, Skill ו-examples של `modern-ui`, כלל הצבעים והגדרת "Done" ב-`AGENTS.md`
+
+### בדיקה עצמית אחרי כל משימה
+- `npm run lint`, `npm run build`, `npm test`
+- סך `npm run design:status` לא עולה, וקבצים שהועברו מדווחים 0
+- צילומי מסך עם Playwright MCP ב-375, 768 ו-1280px, ללא שגיאות קונסול וללא גלילה אופקית
+- שני ניסיונות תיקון כושלים לאותה בדיקה: עוצרים ומדווחים
 
 ---
 
