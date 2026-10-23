@@ -66,6 +66,18 @@ Roles in code: `admin`, `gabai`, `congregant`. `super_admin`, `/settings`, `/pla
 - On "summarize for new chat": write a short handoff (goal, decisions, files touched, next step, open questions).
 - If the user describes a visual bug, ask one question to confirm which element before coding.
 
+## Workflow (coordinator)
+
+The main chat agent is the coordinator. For a phase, feature or slice, delegate to the subagents in `.cursor/agents/` (`pm`, `developer`, `tester`, `reviewer`); `/run-phase` triggers the full loop. Full procedure: `docs/product/WORKFLOW.md`.
+
+1. `pm` writes `docs/product/specs/<feature>.md`. Stop and wait for the user to approve it.
+2. `developer` builds one slice. `tester` and `reviewer` then run in parallel.
+3. Fix loop runs at most twice, then report to the user.
+
+- Subagents start with no context: always pass the spec path, the slice, the acceptance criteria and the files in scope.
+- Never run two developers on the same files in parallel.
+- Ideas found mid-build go to `docs/product/BACKLOG.md`; non-obvious choices to `docs/product/DECISIONS.md`; shipped slices to `CHANGELOG.md`.
+
 ## Read on demand
 
 - Touching `app/**`, migrations, config, LLM, auth, tests: `docs/agent/backend.md`
