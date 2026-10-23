@@ -17,6 +17,7 @@ if settings.DATABASE_URL.startswith("sqlite"):
 
 engine = create_engine(settings.DATABASE_URL, **_engine_options)
 
+# Frozen legacy list: new schema changes go through Alembic (docs/agent/backend.md).
 _MIGRATIONS = [
     "ALTER TABLE azkarot ADD COLUMN year_occurred INTEGER",
     "ALTER TABLE smachot ADD COLUMN year_occurred INTEGER",

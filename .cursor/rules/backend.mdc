@@ -1,0 +1,7 @@
+---
+description: Gabay backend conventions (modules, migrations, authz, config, tests)
+globs: app/**/*.py,tests/**/*.py,migrations/**/*.py,main.py
+alwaysApply: false
+---
+
+Before changing backend code, follow @docs/agent/backend.md (module wiring, schema changes, authorization, config tiers, tests).

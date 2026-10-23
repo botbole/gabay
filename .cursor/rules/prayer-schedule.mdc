@@ -1,0 +1,7 @@
+---
+description: Prayer schedule module edge cases
+globs: app/modules/prayer_schedule/**,frontend/src/pages/PrayerSchedule.tsx,tests/test_prayer_schedule.py
+alwaysApply: false
+---
+
+Before changing the prayer schedule, read @docs/agent/prayer-schedule.md (anchors, Friday rules, lessons, display order).

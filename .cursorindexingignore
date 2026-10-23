@@ -1,0 +1,15 @@
+# Excluded from semantic search only; files stay readable on demand via @ or Read.
+
+# Hebrew duplicates of English docs (agents use the English versions)
+docs/ROADMAP_HE.md
+docs/PRD_GABAY_HE.md
+
+# Long product docs; open explicitly when a task needs them
+docs/PRD_Gabay.md
+docs/PRD_GABAY.md
+
+# Generated knowledge graph and caches
+graphify-out/
+
+# Agent tooling copies
+.codex/

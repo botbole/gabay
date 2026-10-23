@@ -1,4 +1,4 @@
-﻿# Python virtual environment
+# Python virtual environment
 .venv/
 
 # Python bytecode
@@ -27,12 +27,8 @@ server_err.txt
 # SQLite database (binary)
 gabay.db
 
-# Claude / Cursor internals
+# Claude local state
 .claude/
-.cursor/skills/
-.cursor/rules/
-
-# Docs (use @docs/PRD_GABAY.md explicitly when needed)
 
 # Static assets
 frontend/src/assets/

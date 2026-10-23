@@ -5,6 +5,8 @@ description: Apply modern, clean, and spiritual design standards for the Gabay S
 
 # Modern UI Design for Gabay
 
+> Redesign in progress (milestone v2.2.5, "Warm Heritage": warm stone background, midnight blue primary, bronze accent, Hebrew serif titles). The palette below is the current one and is replaced in subtask F1; this skill is rewritten in F9. Follow `docs/agent/frontend.md` and `ROADMAP.md` for the current status, and do not add new hardcoded hex colors in the meantime.
+
 ## Design Principles
 1. **Spiritual Elegance**: Use a palette of Deep Indigo (#2E3A59) and Muted Gold (#C5A059).
 2. **Modern Clarity**: Prioritize white space, large typography, and rounded corners (`rounded-xl`).

@@ -10,3 +10,6 @@ __pycache__/
 .codex/
 graphify-out/
 .cursor/rules/graphify.mdc
+# Runtime logs
+server_out.txt
+server_err.txt

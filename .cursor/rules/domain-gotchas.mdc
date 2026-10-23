@@ -1,0 +1,7 @@
+---
+description: Hebrew dates, seating numbers, azkarot and smachot details
+globs: app/core/hebrew_date.py,app/modules/calendar/**,app/modules/azkarot/**,app/modules/smachot/**,app/modules/seating/**,frontend/src/pages/Seating.tsx,frontend/src/pages/Azkarot.tsx,frontend/src/pages/Smachot.tsx,frontend/src/pages/Calendar.tsx
+alwaysApply: false
+---
+
+Before changing date, calendar, seating, azkarot or smachot code, read @docs/agent/domain-gotchas.md.
