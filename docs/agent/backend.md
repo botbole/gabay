@@ -17,7 +17,7 @@ SQLModel `create_all` creates missing tables but never alters existing ones. Pol
 - `create_all` still runs at startup for fresh dev databases and for tests.
 - Ask before any schema change.
 
-Known gap: revisions are `462a2db307be` (baseline) and `a7f4c2d9e861` (gabai role). Tables added since then (`bulletin_config`, `bulletin_week_overrides`) are not in any revision, so `alembic check` reports drift. Add a catch-up revision before the PostgreSQL migration (roadmap v3.0 step 6).
+Revisions: `462a2db307be` (baseline), `a7f4c2d9e861` (gabai role), `488386355de3` (bulletin tables). The bulletin revision skips `create_table` when those tables already exist from `create_all`.
 
 ## Authorization and scope
 

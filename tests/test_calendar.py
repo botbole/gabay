@@ -91,3 +91,15 @@ async def test_calendar_month_view(client):
     assert len(data["days"]) == 30
     assert "azkarot" in data["days"][0]
     assert "smachot" in data["days"][0]
+
+
+async def test_leap_year_adar_i_label(client):
+    r = await client.get("/api/v1/synagogue/calendar/month-view?year=5787&month=12")
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["is_leap_year"] is True
+    assert data["month_name_hebrew"] == "אדר א׳"
+
+    plain = await client.get("/api/v1/synagogue/calendar/month-view?year=5786&month=12")
+    assert plain.status_code == 200
+    assert plain.json()["data"]["month_name_hebrew"] == "אדר"

@@ -343,6 +343,8 @@ def get_month_view(year: int, month: int) -> dict:
         return {"error": str(exc)}
 
     heb_name, eng_name = _month_names(month)
+    if is_leap and month == 12:
+        heb_name, eng_name = "אדר א׳", "Adar I"
     prev, nxt = _prev_next_months(year, month)
 
     days: list[dict] = []

@@ -288,7 +288,7 @@ Payments, Seating, or WhatsApp
 | `congregant.created` | congregants | payments (create dues invoice) |
 | `congregant.archived` | congregants | seating (free up seat), whatsapp |
 | `payment.recorded` | payments | llm (update summary context) |
-| `aliya.assigned` | aliyot | payments (auto-record donation) |
+| `aliya.assigned_with_donation` | aliyot | payments (auto-record donation) |
 | `azkara.approaching` | calendar | whatsapp (D-7 and D-1 reminders) |
 | `bulletin.building` | bulletin | all modules (inject weekly content) |
 

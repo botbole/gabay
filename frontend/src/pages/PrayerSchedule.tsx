@@ -49,6 +49,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
 import { Input, Select } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
+import { hebrewMonthLabel, useHebrewMonths } from '../lib/hebrewLabels';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -208,22 +209,6 @@ function computeRuleTime(
   if (!base) return null;
   return addOffsetToHHMM(base, rule.offset_minutes);
 }
-
-const HEBREW_MONTHS: { value: number; label: string }[] = [
-  { value: 1,  label: 'ניסן' },
-  { value: 2,  label: 'אייר' },
-  { value: 3,  label: 'סיוון' },
-  { value: 4,  label: 'תמוז' },
-  { value: 5,  label: 'אב' },
-  { value: 6,  label: 'אלול' },
-  { value: 7,  label: 'תשרי' },
-  { value: 8,  label: 'חשוון' },
-  { value: 9,  label: 'כסלו' },
-  { value: 10, label: 'טבת' },
-  { value: 11, label: 'שבט' },
-  { value: 12, label: 'אדר' },
-  { value: 13, label: 'אדר ב׳' },
-];
 
 function anchorDescription(rule: PrayerRule): string {
   if (rule.anchor === 'fixed') return rule.exact_time ?? '—';
@@ -524,6 +509,8 @@ function RuleFormModal({ open, onClose, dayType, editRule, onSaved }: RuleFormMo
 
 function SpecialDayModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
+  const { data: monthsData } = useHebrewMonths();
+  const months = monthsData?.months;
   const [form, setForm] = useState<SpecialDayCreate>({
     name: '',
     hebrew_month: 7,
@@ -555,8 +542,8 @@ function SpecialDayModal({ open, onClose }: { open: boolean; onClose: () => void
             value={form.hebrew_month}
             onChange={e => set('hebrew_month', parseInt(e.target.value))}
           >
-            {HEBREW_MONTHS.map(m => (
-              <option key={m.value} value={m.value}>{m.label}</option>
+            {(months ?? []).map(m => (
+              <option key={m.month} value={m.month}>{m.hebrew}</option>
             ))}
           </Select>
 
@@ -888,6 +875,8 @@ function RulesPanel({ dayType }: { dayType: string }) {
 
 function SpecialDaysPanel() {
   const qc = useQueryClient();
+  const { data: monthsData } = useHebrewMonths();
+  const months = monthsData?.months;
   const [addOpen, setAddOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -933,7 +922,7 @@ function SpecialDaysPanel() {
       ) : (
         <div className="space-y-2">
           {days.map((sd: SpecialDay) => {
-            const monthLabel = HEBREW_MONTHS.find(m => m.value === sd.hebrew_month)?.label ?? sd.hebrew_month;
+            const monthLabel = hebrewMonthLabel(sd.hebrew_month, months);
             return (
               <div
                 key={sd.id}

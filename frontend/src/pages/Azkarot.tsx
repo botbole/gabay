@@ -15,21 +15,7 @@ import { DatePickerField } from '../components/ui/DatePickerField';
 import { Modal } from '../components/ui/Modal';
 import { PageHeader } from '../components/ui/PageHeader';
 import { EmptyState } from '../components/ui/EmptyState';
-
-// ─── Hebrew helpers ──────────────────────────────────────────────────────────
-
-const HEBREW_MONTHS: Record<number, string> = {
-  1: 'ניסן', 2: 'אייר', 3: 'סיוון', 4: 'תמוז', 5: 'אב', 6: 'אלול',
-  7: 'תשרי', 8: 'חשוון', 9: 'כסלו', 10: 'טבת', 11: 'שבט',
-  12: 'אדר', 13: 'אדר ב׳',
-};
-
-const HEBREW_DAYS: Record<number, string> = {
-  1: 'א', 2: 'ב', 3: 'ג', 4: 'ד', 5: 'ה', 6: 'ו', 7: 'ז', 8: 'ח', 9: 'ט',
-  10: 'י', 11: 'יא', 12: 'יב', 13: 'יג', 14: 'יד', 15: 'טו', 16: 'טז',
-  17: 'יז', 18: 'יח', 19: 'יט', 20: 'כ', 21: 'כא', 22: 'כב', 23: 'כג',
-  24: 'כד', 25: 'כה', 26: 'כו', 27: 'כז', 28: 'כח', 29: 'כט', 30: 'ל',
-};
+import { formatHebrewDate, useHebrewMonths } from '../lib/hebrewLabels';
 
 const RELATION_LABELS: Record<string, string> = {
   father: 'אב',
@@ -39,11 +25,6 @@ const RELATION_LABELS: Record<string, string> = {
   child: 'ילד',
   other: 'אחר',
 };
-
-function formatHebrewDate(day: number, month: number) {
-  if (!day || !month) return '—';
-  return `${HEBREW_DAYS[day] ?? day} ${HEBREW_MONTHS[month] ?? month}`;
-}
 
 function daysUntil(dateStr: string) {
   if (!dateStr) return null;
@@ -181,6 +162,7 @@ function AzkaraRow({
   checked: boolean;
   onToggle: () => void;
 }) {
+  const { data: monthsData } = useHebrewMonths();
   const yahrzeit = yahrzeitNumber(a.year_occurred);
   return (
     <tr className={`hover:bg-slate-50 transition-colors ${checked ? 'bg-slate-50' : ''}`}>
@@ -207,7 +189,7 @@ function AzkaraRow({
         {RELATION_LABELS[a.relation] ?? a.relation ?? '—'}
       </td>
       <td className="px-4 py-3 text-sm font-medium text-gray-800">
-        {formatHebrewDate(a.hebrew_day, a.hebrew_month)}
+        {formatHebrewDate(a.hebrew_day, a.hebrew_month, monthsData?.months)}
       </td>
       <td className="px-4 py-3 text-xs text-gray-400">
         {a.year_occurred ? `${a.year_occurred}` : a.gregorian_date || '—'}
@@ -234,6 +216,7 @@ function UpcomingCard({
   a: Azkara;
   congregantName: string;
 }) {
+  const { data: monthsData } = useHebrewMonths();
   const days = daysUntil(a.next_gregorian ?? '');
   const isToday = days === 0;
   const isUrgent = days !== null && days <= 3;
@@ -255,7 +238,7 @@ function UpcomingCard({
         <p className="font-semibold text-gray-900 text-sm">{a.deceased_name}</p>
         <p className="text-xs text-gray-500">{congregantName} · {RELATION_LABELS[a.relation] ?? a.relation ?? ''}</p>
         <p className="text-xs text-gray-600 mt-0.5">
-          {formatHebrewDate(a.hebrew_day, a.hebrew_month)}
+          {formatHebrewDate(a.hebrew_day, a.hebrew_month, monthsData?.months)}
         </p>
         {a.year_occurred && (
           <p className="text-xs text-amber-600 font-medium mt-0.5">{yahrzeitNumber(a.year_occurred)}</p>

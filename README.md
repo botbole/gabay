@@ -24,15 +24,16 @@ Frontend: React 19 · TypeScript · Vite · Tailwind CSS · TanStack Query
 Database: SQLite (default) / PostgreSQL (production)
 ```
 
-**Four-tier role model:**
+**Roles in the current build:**
 ```
-super_admin  → Gabay product team  → /platform panel (cross-installation support)
-admin        → Synagogue admin     → /settings page (branding, LLM, users)
-gabai        → Day-to-day staff    → all operational pages
-congregant   → Worshipper          → WhatsApp self-service (v3.5)
+admin        → Synagogue admin     → operational pages, users, and tenant config API
+gabai        → Day-to-day staff    → operational pages (no user or settings management)
+congregant   → Worshipper          → scoped API only; no web sidebar
 ```
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for full diagrams and design decisions.
+Planned, not in the UI yet: a Settings page for admin (v2.5), a `super_admin` `/platform` panel (v3.2), and WhatsApp self-service (v3.5). See [`ROADMAP.md`](ROADMAP.md).
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the target design. The repo map and what runs today are in [`docs/hierarchy/README.md`](docs/hierarchy/README.md).
 
 ---
 
@@ -110,7 +111,7 @@ gabay/
     ├── ARCHITECTURE.md              # Full system diagrams and design decisions
     ├── agent/                       # On-demand guides for AI agents (backend, frontend, ...)
     ├── ROADMAP_HE.md                # Full roadmap (Hebrew)
-    ├── PRD_Gabay.md                 # Product requirements (English)
+    ├── PRD_GABAY.md                 # Product requirements (English)
     └── PRD_GABAY_HE.md              # Product requirements (Hebrew)
 ```
 
@@ -125,11 +126,11 @@ All settings are documented in `.env.example`. Key variables:
 | `DATABASE_URL` | `.env` | SQLite (default) or PostgreSQL |
 | `JWT_SECRET` | `.env` | Must be 32+ chars in production |
 | `ENABLED_MODULES` | `.env` | Comma-separated list of active modules |
-| `LLM_API_KEY` | `.env` → TenantConfig | API key (overridable via Settings page) |
-| `LLM_MODEL` | `.env` → TenantConfig | e.g. `gpt-4o`, `gpt-4o-mini` |
-| `ZMANIM_GEONAME_ID` | `.env` → TenantConfig | City ID for prayer time calculations |
+| `LLM_API_KEY` | `.env` | API key. A runtime override on `TenantConfig` is planned (v2.5 Settings) |
+| `LLM_MODEL` | `.env` | e.g. `gpt-4o`, `gpt-4o-mini`. Same planned override as the API key |
+| `ZMANIM_GEONAME_ID` | `.env` | City ID for prayer time calculations. Same planned override |
 
-LLM and zmanim settings can be overridden at runtime via the admin Settings page without restarting the server. All other variables require a restart.
+LLM and zmanim values are read from `.env` today. Changing them requires a restart. The admin Settings page that would override them at runtime is planned in v2.5.
 
 ---
 
@@ -158,7 +159,7 @@ Full roadmap: [`ROADMAP.md`](ROADMAP.md) (English) · [`docs/ROADMAP_HE.md`](doc
 ## Documentation
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — System diagrams, role model, design decisions
-- [`docs/PRD_Gabay.md`](docs/PRD_Gabay.md) — Full product requirements (English)
+- [`docs/PRD_GABAY.md`](docs/PRD_GABAY.md) — Full product requirements (English)
 - [`docs/PRD_GABAY_HE.md`](docs/PRD_GABAY_HE.md) — Full product requirements (Hebrew)
 - [`AGENTS.md`](AGENTS.md) — AI agent rules; detailed guides in [`docs/agent/`](docs/agent/)
 - [`ROADMAP.md`](ROADMAP.md) — Milestone-by-milestone development plan (English)

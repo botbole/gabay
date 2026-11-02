@@ -45,4 +45,4 @@ Start a fresh chat per feature or slice, or when a chat gets long. The handoff i
 - Push after each accepted slice and always at the weekly review.
 - Agents commit and push only when asked. Check `git status` first.
 - Tag a version when a roadmap milestone completes (once deployment exists).
-- Committed with the project: `.cursor/agents/`, `.cursor/rules/`, `.cursor/skills/`, `docs/product/`, `AGENTS.md`. Not committed: personal tool config (`.cursor/mcp.json` if it holds keys), `.cursor/plans/`, `graphify-out/`.
+- Committed with the project: `.cursor/agents/`, `.cursor/rules/`, `.cursor/skills/`, `docs/product/`, `AGENTS.md`, milestone plans in `.cursor/plans/`, and `.cursor/mcp.json` when it is an empty stub. Not committed: `graphify-out/`, `.env`, `gabay.db`, and any MCP file that contains keys.

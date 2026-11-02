@@ -6,12 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
-
-const hebrewMonthNames: Record<number, string> = {
-  1: 'ניסן', 2: 'אייר', 3: 'סיוון', 4: 'תמוז', 5: 'אב', 6: 'אלול',
-  7: 'תשרי', 8: 'חשוון', 9: 'כסלו', 10: 'טבת', 11: 'שבט',
-  12: 'אדר', 13: 'אדר ב׳',
-};
+import { hebrewMonthLabel, useHebrewMonths } from '../lib/hebrewLabels';
 
 const RELATION_LABELS: Record<string, string> = {
   father: 'אבא', mother: 'אמא', spouse: 'בן/בת זוג',
@@ -222,6 +217,9 @@ function TodayTimesCard() {
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export function Dashboard() {
+  const { data: monthsData } = useHebrewMonths();
+  const months = monthsData?.months;
+
   const { data: congregantsData } = useQuery({
     queryKey: ['congregants'],
     queryFn: () => congregantsApi.list(),
@@ -329,7 +327,7 @@ export function Dashboard() {
                       </p>
                       {a.congregant_name && (
                         <p className="text-xs text-slate-400 mt-0.5">
-                          של {a.congregant_name} · {hebrewMonthNames[a.hebrew_month]} {a.hebrew_day}
+                          של {a.congregant_name} · {hebrewMonthLabel(a.hebrew_month, months)} {a.hebrew_day}
                         </p>
                       )}
                     </div>
@@ -376,7 +374,7 @@ export function Dashboard() {
                       </p>
                       {s.congregant_name && (
                         <p className="text-xs text-slate-400 mt-0.5">
-                          של {s.congregant_name} · {hebrewMonthNames[s.hebrew_month]} {s.hebrew_day}
+                          של {s.congregant_name} · {hebrewMonthLabel(s.hebrew_month, months)} {s.hebrew_day}
                         </p>
                       )}
                     </div>

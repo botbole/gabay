@@ -54,7 +54,6 @@ class AliyotService:
                 actor=actor,
             )
 
-        await hooks.fire("aliya.assigned", aliya=result)
         return result
 
     async def list_aliyot(self, *, actor: Actor) -> dict:

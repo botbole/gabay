@@ -86,11 +86,12 @@ frontend/src/
 
 ## Role-Based UI
 
-The sidebar and routes are role-aware:
-- `super_admin` — sees `/platform` (support panel)
-- `admin` — sees `/settings` (synagogue configuration)
-- `gabai` — sees all operational pages; no settings link
-- `congregant` — WhatsApp only; no web UI
+The sidebar shows the same operational pages to `admin` and `gabai`. There is no `/platform` or `/settings` route.
+
+- `admin` and `gabai` — operational pages (dashboard, modules, import, chat)
+- `congregant` — no sidebar; scoped API only. WhatsApp self-service is planned (v3.5)
+
+A Settings page (v2.5) and a `super_admin` `/platform` panel (v3.2) are planned. See [`ROADMAP.md`](../ROADMAP.md).
 
 Role is read from `AuthContext`. Backend is always the authorization source of truth — UI visibility is a usability control, not a security boundary.
 

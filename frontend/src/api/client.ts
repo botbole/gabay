@@ -540,6 +540,20 @@ export interface CalendarMonth {
   days: CalendarDay[];
 }
 
+export interface HebrewMonthInfo {
+  month: number;
+  hebrew: string;
+  english: string;
+}
+
+export interface HebrewToGregorian {
+  hebrew_year: number;
+  hebrew_month: number;
+  hebrew_day: number;
+  gregorian?: string;
+  error?: string;
+}
+
 export interface HebrewDateInfo {
   year: number;
   month: number;
@@ -571,6 +585,11 @@ export interface DayTimes {
 export const calendarApi = {
   gregorianToHebrew: (date: string) =>
     request<HebrewDateInfo>(`/synagogue/calendar/gregorian-to-hebrew?date=${date}`),
+  hebrewToGregorian: (year: number, month: number, day: number) =>
+    request<HebrewToGregorian>(
+      `/synagogue/calendar/hebrew-to-gregorian?year=${year}&month=${month}&day=${day}`,
+    ),
+  months: () => request<{ months: HebrewMonthInfo[] }>('/synagogue/calendar/months'),
   monthView: (year: number, month: number) =>
     request<CalendarMonth>(`/synagogue/calendar/month-view?year=${year}&month=${month}`),
   dayTimes: (date: string) =>
