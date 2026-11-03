@@ -76,7 +76,7 @@ gabay/
 ├── main.py                          # FastAPI entry point; registers all modules
 ├── requirements.txt
 ├── .env.example                     # All settings with documentation
-├── CHANGELOG.md                     # Release notes (created at v3.1)
+├── CHANGELOG.md                     # User-facing changes, newest first
 │
 ├── app/
 │   ├── core/
@@ -110,6 +110,8 @@ gabay/
 └── docs/
     ├── ARCHITECTURE.md              # Full system diagrams and design decisions
     ├── agent/                       # On-demand guides for AI agents (backend, frontend, ...)
+    ├── hierarchy/                   # Repo map and what runs today
+    ├── product/                     # Workflow, specs, backlog, decisions
     ├── ROADMAP_HE.md                # Full roadmap (Hebrew)
     ├── PRD_GABAY.md                 # Product requirements (English)
     └── PRD_GABAY_HE.md              # Product requirements (Hebrew)
@@ -141,6 +143,8 @@ LLM and zmanim values are read from `.env` today. Changing them requires a resta
 | 1, 2, Infra, 1.5 | MVP, Calendar, Tests, Modular foundation | Done |
 | 2.1 | Prayer schedule rules engine | Done |
 | 2.2 | Weekly bulletin generator | Core done |
+| 2.2.5 | Frontend redesign (Warm Heritage) | Pending |
+| 2.2.6 | Assistant chat history (saved conversations) | Pending |
 | 2.3 | Full financials + reports | Pending |
 | 2.4 | Smart aliyah scheduler + inventory + LLM 2.0 | Pending |
 | **2.5** | **Settings page** (profile, LLM, location, users, data export) | Pending |
@@ -159,6 +163,9 @@ Full roadmap: [`ROADMAP.md`](ROADMAP.md) (English) · [`docs/ROADMAP_HE.md`](doc
 ## Documentation
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — System diagrams, role model, design decisions
+- [`docs/hierarchy/README.md`](docs/hierarchy/README.md) — Repo map and current architecture
+- [`docs/product/WORKFLOW.md`](docs/product/WORKFLOW.md) — Product workflow (specs, agents, backlog, decisions)
+- [`CHANGELOG.md`](CHANGELOG.md) — User-facing changes
 - [`docs/PRD_GABAY.md`](docs/PRD_GABAY.md) — Full product requirements (English)
 - [`docs/PRD_GABAY_HE.md`](docs/PRD_GABAY_HE.md) — Full product requirements (Hebrew)
 - [`AGENTS.md`](AGENTS.md) — AI agent rules; detailed guides in [`docs/agent/`](docs/agent/)
