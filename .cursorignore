@@ -35,3 +35,11 @@ frontend/src/assets/
 
 # TypeScript build info
 *.tsbuildinfo
+
+graphify-out/
+
+.git/
+
+build/
+
+*.json

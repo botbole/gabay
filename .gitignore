@@ -1,15 +1,16 @@
 .venv/
+.venv-1/
 venv/
 .env
 __pycache__/
 *.pyc
 *.db
+.pytest_cache/
 
 # Local agent / AI tooling (not part of the project)
 .claude/
 .codex/
-graphify-out/
-.cursor/rules/graphify.mdc
+**/graphify-out/
 # Runtime logs
 server_out.txt
 server_err.txt

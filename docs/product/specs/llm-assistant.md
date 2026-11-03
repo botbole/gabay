@@ -24,6 +24,8 @@ As a gabai, I want to ask questions and make changes in Hebrew in a chat, so tha
 - [x] `/llm/chat` is rate limited.
 
 ## Out of scope
+- Assistant as a side panel on every screen (v2.2.5 F4b).
+- Saved conversations with list, rename and delete (v2.2.6, `specs/assistant-chat-history.md`). Today history lives in the page and is lost on reload.
 - RAG over PDFs, complex queries and halachic times in answers (v2.4).
 - Provider, model and API key in `TenantConfig` (v2.5).
 - WhatsApp channel (v3.5).

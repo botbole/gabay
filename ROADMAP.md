@@ -17,6 +17,7 @@ Principle: day-to-day gabai functionality comes before deployment and polish. Au
 | 2.1 | Prayer schedule and lessons | Done |
 | 2.2 | Weekly bulletin | Core done; SMTP open |
 | 2.2.5 | Frontend redesign (Warm Heritage), before 2.3 | Pending |
+| 2.2.6 | Assistant chat history (saved conversations), after 2.2.5 Gate 2 | Pending |
 | 2.3 | Financial completeness | Pending |
 | 2.4 | Smart gabai (aliya suggestions, inventory, LLM 2.0) | Pending |
 | 2.5 | Settings page and roles expansion | Pending |
@@ -32,7 +33,7 @@ Principle: day-to-day gabai functionality comes before deployment and polish. Au
 
 Implemented: modules `congregants payments aliyot seating azkarot smachot calendar llm prayer_schedule auth bulletin`; roles `admin`, `gabai`, `congregant`; JWT access plus rotating refresh cookie; rate limiting; role-scoped LLM tools; Alembic baseline; frontend login and protected routes.
 
-Planned, not in code yet: `super_admin` role, `/settings` page, `/platform` panel, audit log, `ModuleCatalog`, LLM and zmanim fields in `TenantConfig` (it currently holds branding and `enabled_modules` only), WhatsApp module, Docker, CI/CD.
+Planned, not in code yet: `super_admin` role, `/settings` page, `/platform` panel, audit log, `ModuleCatalog`, LLM and zmanim fields in `TenantConfig` (it currently holds branding and `enabled_modules` only), WhatsApp module, Docker, CI/CD, the assistant side panel on every screen (today chat is the `/chat` page only), saved assistant conversations (today `/llm/chat` is stateless and history lives in the page until reload).
 
 `docs/ARCHITECTURE.md` describes the target state, not only the current state.
 
@@ -65,21 +66,43 @@ Target state
 - RTL via logical utilities only; AA contrast; focus rings; 44px touch targets on phones; no horizontal scroll at 375, 768 and 1280px.
 
 Subtasks (each ends with a self-check)
-- [ ] F0a Docs and roadmap updated (this section, Hebrew mirror, frontend guide note).
+- [x] F0a Docs and roadmap updated (this section, Hebrew mirror, frontend guide note).
 - [ ] F0b Baseline and tooling: `npm run design:status` and `npm run design:check` (`frontend/scripts/design-status.mjs`); baseline hex 86, raw gray-family about 490, physical-direction about 26.
 - [ ] F1 Tokens and fonts; contrast ratios computed and recorded.
 - [ ] F2 Restyle existing primitives with unchanged APIs.
 - [ ] Gate 1: design review of primitives (screenshots at three widths).
 - [ ] F3 New primitives with server-render tests.
 - [ ] F4 Shell and Login (sidebar, header, layout drawer).
-- [ ] Gate 2: design review of shell, Login and Dashboard skeleton.
+- [ ] F4b Assistant side panel on every screen: header toggle, pushes content at 1024px and wider, overlay below, full-screen on phones; the conversation survives navigation; `/chat` renders the same component full-page.
+- [ ] Gate 2: design review of shell, assistant panel, Login and Dashboard skeleton.
 - [ ] F5 Pages A: Dashboard, Congregants.
 - [ ] F6 Pages B: Payments, Aliyot, Azkarot, Smachot.
-- [ ] F7 Pages C: Seating, Calendar, PrayerSchedule, Bulletin, Chat, Import.
+- [ ] F7 Pages C: Seating, Calendar, PrayerSchedule, Bulletin, Import (Chat moved to F4b).
 - [ ] F8 Cleanup: remove aliases, `design:check` reports 0, accessibility and responsive pass.
 - [ ] F9 Final docs: `docs/agent/frontend.md`, `modern-ui` skill and examples, `AGENTS.md` colors rule and definition of done.
 
 Self-check after every subtask: `npm run lint`, `npm run build`, `npm test`; `npm run design:status` total never increases and migrated files report 0; Playwright MCP screenshots at 375, 768 and 1280px with no console errors and no horizontal scroll; two failed fixes of the same check means stop and report.
+
+## v2.2.6 - Assistant chat history (saved conversations)
+
+Gemini/Claude-style history in the assistant panel: past chats are listed, can be reopened and continued, renamed and deleted. Includes a schema change (approved with the plan). The backend slice can run in parallel with v2.2.5 F1-F4 (no shared files); the frontend slice starts after v2.2.5 Gate 2 approves the panel. Detailed plan: `.cursor/plans/assistant_chat_history_8b2c9ccd.plan.md`. Spec: `docs/product/specs/assistant-chat-history.md` (to be written by `pm`).
+
+Rules
+- Stored on the server per user; a user sees only their own chats (admin included); another user's chat returns 404.
+- Delete is a hard delete with cascade to messages.
+- With `conversation_id`, the server loads history from the DB (last N messages) and ignores client-sent `history`. `/llm/chat` without it and `/llm/action` keep working.
+- Title is the first user message trimmed to 60 characters; no extra LLM call.
+
+Backend
+- [ ] `app/modules/llm/models.py`: `Conversation` (`user_id` plain string, `title`, timestamps) and `ConversationMessage` (`role`, `content`, `actions` JSON); Alembic revision.
+- [ ] Owner-scoped service and routes: `GET/PATCH/DELETE /llm/conversations[/{id}]`, `POST /llm/conversations/bulk-delete`; `POST /llm/chat` accepts and returns `conversation_id`.
+- [ ] `tests/test_llm_conversations.py`: create, continue, server-loaded history, owner isolation, rename, delete cascade, bulk delete ignores foreign IDs, rate limit unchanged.
+
+Frontend
+- [ ] `conversationsApi` in `client.ts`; TanStack Query for the list and each conversation.
+- [ ] Panel history view: new chat, title search, date groups, rename inline, delete with confirm, bulk delete, `EmptyState`.
+- [ ] `/chat` full page with two panes (list and conversation) on wide screens.
+- [ ] Playwright check: chat survives reload, switch, rename, delete, a second user sees none of them.
 
 ## v2.3 - Financial completeness
 

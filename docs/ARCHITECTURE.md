@@ -1,5 +1,7 @@
 # Gabay Architecture Guide
 
+Target design. This file includes pieces that are not built yet (`super_admin`, `/platform`, `/settings`, audit log, Module Catalog, WhatsApp, ECS). What runs today is [`hierarchy/ARCHITECTURE.md`](hierarchy/ARCHITECTURE.md). The reader and file map is [`hierarchy/README.md`](hierarchy/README.md).
+
 This document describes the modular architecture of the Gabay Synagogue Management System.
 
 ---
@@ -209,6 +211,8 @@ Only hashes of refresh tokens are persisted. Reuse of a revoked refresh token re
 `AuthScope` is the channel-independent authorization principal. Web requests construct it from the active JWT user, while the future WhatsApp adapter will construct a congregant scope after verified phone resolution. Personal-data services enforce the effective `congregant_id` in their database queries; LLM prompts are not treated as an authorization boundary.
 
 LLM tools are selected by scope and checked again during dispatch. Admin and Gabai receive operational tools, while congregant scopes receive public date tools and read-only `my_*` tools bound to the authenticated congregant ID. Sensitive self-service writes remain deferred to the approval and audit workflow.
+
+Assistant conversations are stored per user (`Conversation`, `ConversationMessage` in the `llm` module, `user_id` as a plain string). Every conversation query filters by the actor's user ID, so no role, including `admin`, can read another user's chats. When a request names a conversation, the server loads its recent messages as LLM history and ignores client-sent history.
 
 Failed login, refresh, and LLM chat requests have independent limits and return the shared API envelope with `429` and `Retry-After`. Development and tests use an in-memory backend. Multi-instance production must set `RATE_LIMIT_BACKEND=redis` and configure a shared Redis/Valkey endpoint so counters are atomic across workers and ECS tasks.
 
@@ -501,4 +505,6 @@ erDiagram
 | AWS ECS Fargate for v3.0 | Most common cloud ecosystem with managed containers and no Kubernetes operational burden. |
 | Separate frontend and backend images | Supports nginx static delivery while keeping the FastAPI runtime independently deployable. |
 | Dynamic LLM tools | Disabled modules are completely invisible to the AI assistant. |
+| Assistant as a global side panel | The gabai can ask while working on any page; `/chat` remains a full-page view of the same component. |
+| Private server-side conversations | Chats follow the user across devices, stay private to their owner, and can be truly deleted because they may contain personal data. |
 | React Native for Mobile | Reuses 90% of existing API layer; single codebase for Android and iOS. |

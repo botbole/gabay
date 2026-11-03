@@ -38,7 +38,7 @@ Frontend
 
 ## Implemented vs planned
 
-Roles in code: `admin`, `gabai`, `congregant`. `super_admin`, `/settings`, `/platform`, audit log, `ModuleCatalog`, LLM/zmanim fields in `TenantConfig`, the WhatsApp module, and the "Warm Heritage" frontend redesign (v2.2.5, new semantic tokens and `npm run design:check`) are planned, not implemented (see `ROADMAP.md`). `docs/ARCHITECTURE.md` describes the target state.
+Roles in code: `admin`, `gabai`, `congregant`. `super_admin`, `/settings`, `/platform`, audit log, `ModuleCatalog`, LLM/zmanim fields in `TenantConfig`, the WhatsApp module, the "Warm Heritage" frontend redesign (v2.2.5, new semantic tokens, `npm run design:check`, assistant side panel on every screen), and saved assistant conversations (v2.2.6) are planned, not implemented (see `ROADMAP.md`). `docs/ARCHITECTURE.md` describes the target state.
 
 ## New module checklist
 
@@ -84,4 +84,5 @@ The main chat agent is the coordinator. For a phase, feature or slice, delegate 
 - Touching `frontend/**` or UI design: `docs/agent/frontend.md`
 - Prayer schedule (`app/modules/prayer_schedule/**`, `PrayerSchedule.tsx`): `docs/agent/prayer-schedule.md`
 - Hebrew dates, seating numbers, azkarot/smachot display: `docs/agent/domain-gotchas.md`
-- System design and diagrams: `docs/ARCHITECTURE.md`
+- Repo map (who reads which file, file tree, current architecture): `docs/hierarchy/README.md`
+- System design and diagrams: `docs/ARCHITECTURE.md` (target). What runs today: `docs/hierarchy/ARCHITECTURE.md`
