@@ -16,3 +16,11 @@ Seat numbers are per row (1 to row width), not global. `SeatTile` shows `place.p
 
 - `Azkara` does not store `congregant_name`; the service joins `Congregant` (see `docs/agent/backend.md`).
 - Both have `hebrew_day`, `hebrew_month`, `gregorian_date`, and `year_occurred`.
+
+## Money and records (iron rules)
+
+- A recorded payment is never silently erased. Correct it by voiding (flag, reason, actor, time) or by a linked refund/credit record; the original amount and date are not edited.
+- Excluded from totals and reports when voided, but kept in history.
+- Congregants are archived, never deleted.
+- `gabai` and `admin` are different roles; congregant self-service never changes money.
+- Known gap: `payments` currently hard-deletes (`bulk_delete_payments`). Fixed in v2.3 (void and refund).

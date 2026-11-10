@@ -25,6 +25,7 @@ Backend
 - All Hebrew date logic goes through `app/core/hebrew_date.py` (pyluach wrapper). Never reimplement it.
 - Never hard-delete congregants: use the `archived` flag. Bulk operations: `POST .../bulk-delete` with a list of IDs.
 - Authorization is enforced in the router (`require_roles`) and again in the service. LLM tools are chosen by scope and re-authorized at dispatch. Congregant scope filters by `congregant_id` in the DB query. Frontend visibility is never a security boundary.
+- Never hard-delete payments (target; v2.3 replaces `bulk_delete_payments`): void with a reason or add a linked refund. See `docs/agent/domain-gotchas.md`.
 - Sensitive congregant self-service changes (identity, money, yahrzeit, seating, permissions) need gabai approval and an audit trail.
 - Settings tiers: `.env` (install time) / `TenantConfig` (admin, runtime) / module-embedded config (gabai). Never mix them.
 

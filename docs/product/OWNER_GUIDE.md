@@ -36,7 +36,7 @@ The role files are in `.claude/agents/`. Cursor and Claude Code both read them. 
 | Role | Job | Can edit |
 |---|---|---|
 | coordinator | The main chat. It calls the roles and passes results along | everything, when you allow it |
-| `pm` | Challenges the request, writes and slices the spec, updates the backlog and decisions | `docs/product/` only |
+| `pm` | Challenges the request, writes and slices the spec, updates the backlog and decisions | `docs/product/` and `CHANGELOG.md` when asked |
 | `developer` | Builds one approved slice, with its tests | code and tests |
 | `tester` | Checks the slice against the spec's acceptance criteria | read-only |
 | `reviewer` | Checks the diff against the hard rules in `AGENTS.md` | read-only |
@@ -58,6 +58,7 @@ Models change often, so this guide names strength tiers, not model versions. Pic
 - **Context:** standard context is enough. Each agent starts fresh with only the spec and the files in scope. When a chat gets long, start a new one instead of buying a bigger context window.
 - **In the agent files:** `pm` and `developer` say `inherit` (they use your main chat model). `tester` and `reviewer` use the strong-tier alias (today `sonnet`). Claude Code moves the alias to new versions by itself. Change these lines only if the tiers above change.
 - **Cursor:** for a review by another model family, say so when you call it, for example "run the reviewer with a non-Claude model".
+- Keep your main chat on the strongest model. If it is the same as the `reviewer` alias (`sonnet`), `developer` (`inherit`) and `reviewer` would collide, so the coordinator passes a different model to `reviewer`.
 - Slices that touch sign-in, permissions, money or the schema always get the independent reviewer.
 - If the reviewer and the developer disagree, the coordinator brings it to you. It does not pick a side.
 
@@ -134,12 +135,12 @@ There are three places your code lives:
 ```mermaid
 gitGraph
     commit id: "main works"
+    commit id: "docs: spec approved"
     branch feat/pledge-paid
     checkout feat/pledge-paid
     commit id: "slice 1 accepted"
     commit id: "slice 2 accepted"
     checkout main
-    commit id: "docs: spec approved"
     merge feat/pledge-paid id: "PR merged"
     commit id: "next feature starts"
 ```
@@ -153,7 +154,9 @@ Feature cycle, with what you type:
 
 Small rules:
 
-- Docs-only changes (specs, backlog, decisions) can go straight to `main`, or ride with the slice on the feature branch.
+- Approve and commit the spec on `main` before creating the feature branch, so `developer` finds it there. Other docs-only changes (backlog, decisions) can go straight to `main`, or ride with the slice.
+- Never start slice 2 before slice 1 is committed.
+- Trivial changes (UI text, styling, typos) skip the spec and the separate reviewer; see `WORKFLOW.md`.
 - Push at least at the weekly review, so nothing lives only on your machine.
 - One feature branch at a time, matching the one-slice-at-a-time rule.
 - Once deployment exists, tag a version (for example `v2.3.0`) when a phase is done.

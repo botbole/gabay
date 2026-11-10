@@ -18,6 +18,7 @@ Principle: day-to-day gabai functionality comes before deployment and polish. Au
 | 2.2 | Weekly bulletin | Core done; SMTP open |
 | 2.2.5 | Frontend redesign (Warm Heritage), before 2.3 | Pending |
 | 2.2.6 | Assistant chat history (saved conversations), after 2.2.5 Gate 2 | Pending |
+| 2.2.7 | Minimal PR CI (tests, lint, build), before 2.3 | Pending |
 | 2.3 | Financial completeness | Pending |
 | 2.4 | Smart gabai (aliya suggestions, inventory, LLM 2.0) | Pending |
 | 2.5 | Settings page and roles expansion | Pending |
@@ -104,10 +105,15 @@ Frontend
 - [ ] `/chat` full page with two panes (list and conversation) on wide screens.
 - [ ] Playwright check: chat survives reload, switch, rename, delete, a second user sees none of them.
 
+## v2.2.7 - Minimal PR CI
+
+- [ ] `.github/workflows/ci.yml` on pull request: backend `pytest`, frontend `npm run lint`, `npm run build`, `npm test`. No deploy, no scans (those stay in v3.5 Step 8).
+
 ## v2.3 - Financial completeness
 
 Backend
 - [ ] Payment status: pledge vs paid.
+- [ ] Void and refund instead of hard delete: `voided` flag with reason, actor, time; linked refund/credit record; `bulk-delete` becomes `bulk-void`; voided payments excluded from totals; Alembic revision (needs spec and owner approval).
 - [ ] PDF receipts (synagogue logo, donation details).
 - [ ] `Expense` model and CRUD `/synagogue/expenses`.
 - [ ] `Income` model (non-donation income: hall rental, book sales, grants) and CRUD `/synagogue/income`.

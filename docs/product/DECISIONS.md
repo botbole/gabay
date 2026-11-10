@@ -102,3 +102,13 @@ Reason: a client cannot inject fake assistant turns or tool results, and token u
 Roles are assigned strength tiers (strongest, strong) and effort levels, not model versions; the table is in `OWNER_GUIDE.md`. In the files, `developer` and `pm` inherit the main chat model; `tester` and `reviewer` use the `sonnet` tier alias. If the main chat is on that same model, the coordinator passes another one to `reviewer`. Slices touching auth, permissions, money or schema always get the independent reviewer.
 Alternatives: every role inherits the main model; pinned model versions in the frontmatter.
 Reason: a model reviewing its own kind of output shares its blind spots, and pinned versions go stale as models change. One agent file serves Cursor and Claude Code: Claude Code accepts only `inherit`, `opus`, `sonnet`, `haiku`, and Cursor documents only `inherit` or exact model IDs, so cross-family review is chosen at call time in Cursor, not in the file.
+
+### 2026-11-10 - Payments are voided or refunded, never deleted
+A recorded payment keeps its history. Mistakes are voided (reason, actor, time); refunds and credits are linked records. Amount and date of a recorded payment are not edited. No hard-delete exception. Current `bulk_delete_payments` is a known gap, fixed in v2.3.
+Alternatives: keep hard delete; hard delete only for recent entries.
+Reason: donations are reconciled against bank statements and receipts, and books are handed between gabbaim; consistent with the archive-only rule for congregants.
+
+### 2026-11-10 - Workflow tightening after external review
+Added a trivial fast track, a migration-approval line, spec-before-branch and one-slice-per-commit rules, and a minimal PR CI roadmap item (v2.2.7). No separate `.cursorrules`: `AGENTS.md` already loads in every chat and a second file would drift.
+Alternatives: new `RULES.md`; wait for full CI in v3.5.
+Reason: solo owner relies on AI checks, so an automated gate is needed before money work.

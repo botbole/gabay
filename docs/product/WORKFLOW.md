@@ -8,7 +8,7 @@ The coordinator is the main chat agent, guided by `AGENTS.md`. It delegates to s
 
 | Role | Does | Edits |
 |---|---|---|
-| `pm` | Challenges the request, writes the spec, slices it, updates backlog and decisions | `docs/product/**` only |
+| `pm` | Challenges the request, writes the spec, slices it, updates backlog and decisions | `docs/product/**` and `CHANGELOG.md` when asked |
 | `developer` | Implements one approved slice with tests | code and tests |
 | `tester` | Verifies the slice against acceptance criteria | read-only |
 | `reviewer` | Reviews the diff against the hard rules | read-only |
@@ -46,16 +46,26 @@ Ideas that show up during step 4 go to the backlog and do not enter the current 
 
 ## Weekly rhythm
 
-1. **Plan** (30-60 min, start of week). Pick 1-3 items from `BACKLOG.md` or `ROADMAP.md`. Run `/pm <item>`. Review and approve the spec. No coding.
+1. **Plan** (30-60 min, start of week). Pick 1-3 items from `BACKLOG.md` or `ROADMAP.md`. Use the `pm` agent to write a spec for each item. Review and approve the spec. No coding.
 2. **Build** (rest of week). Coordinator runs developer, then tester and reviewer in parallel, one slice at a time. Work in progress: one slice.
 3. **Review** (30 min, end of week). Use the feature as a real gabai would. Decide: ship, fix or drop. Update `CHANGELOG.md` and `DECISIONS.md`. Push. Every 2-3 weeks, show it to one or two real gabbaim.
 
 Ideas that appear while building go to `BACKLOG.md`. They do not change the current slice.
 
+## Trivial changes (fast track)
+
+A change is trivial when it is UI text, styling or a typo fix, and touches no schema, auth, money, LLM tool, dependency or module boundary. Anything on the "ask before" list in `AGENTS.md` is never trivial.
+- No spec, no `pm`, no separate `reviewer`.
+- `developer` makes the change; `npm run lint` and `npm run build` (frontend) or the touched module's tests (backend) must pass.
+- The owner checks the result, then it goes to a PR. Log it in `CHANGELOG.md` only if users notice it.
+- If it turns out to be bigger, stop and use the normal flow.
+
 ## Definition of Ready (before building)
 - Spec exists in `docs/product/specs/` with status `approved`.
 - Acceptance criteria are testable.
 - Schema, auth and dependency decisions are answered by the owner.
+- A schema change has its own Alembic revision, reviewed by a human, and the owner approves the spec's schema section before `developer` runs or applies it.
+- The approved spec is committed on `main` before `feat/<name>` is created (or committed on the feature branch itself), so `developer` finds it on the branch.
 - The slice fits one or two days.
 
 ## Definition of Done (per slice)
@@ -70,7 +80,7 @@ Start a fresh chat per feature or slice, or when a chat gets long. The handoff i
 
 ## Git
 - Branch per feature (`feat/<name>`), merge to `main` by PR, even solo.
-- Commit at the end of each accepted slice, explicit paths, small commits. Never mid-slice or with failing tests. Never commit `.env` or `gabay.db`.
+- Commit at the end of each accepted slice, explicit paths, small commits. Never start the next slice before the previous one is committed, so `tester` and `reviewer` see only one slice in `git diff`. Never mid-slice or with failing tests. Never commit `.env` or `gabay.db`.
 - Push after each accepted slice and always at the weekly review.
 - Agents commit and push only when asked. Check `git status` first.
 - Tag a version when a roadmap milestone completes (once deployment exists).

@@ -12,4 +12,4 @@ Input: a roadmap item, backlog ID, or spec path.
 2. After approval, delegate one slice to `developer`. Pass the spec path, the slice, the acceptance criteria and the files in scope. Never run two developers on the same files at once.
 3. Run `tester` and `reviewer` in parallel on the result. Pass each the spec path, slice and acceptance criteria.
 4. If either reports problems, send them back to `developer`. After two failed rounds, stop and report to the user.
-5. When both pass, summarize for the user: what changed, results, open items. Add a `CHANGELOG.md` line. Do not commit or push unless asked.
+5. When both pass, summarize for the user: what changed, results, open items. Propose a `CHANGELOG.md` line, and write it only after the owner accepts the slice. Do not commit or push unless asked.
