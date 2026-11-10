@@ -97,3 +97,8 @@ Reason: chats follow the user across devices; shared synagogue computers make br
 When `conversation_id` is present, client-sent `history` is ignored and only the last N stored messages are used.
 Alternatives: trust the client history as today.
 Reason: a client cannot inject fake assistant turns or tool results, and token use stays bounded.
+
+### 2026-11-10 - The reviewer runs on a different model than the developer
+Roles are assigned strength tiers (strongest, strong) and effort levels, not model versions; the table is in `OWNER_GUIDE.md`. In the files, `developer` and `pm` inherit the main chat model; `tester` and `reviewer` use the `sonnet` tier alias. If the main chat is on that same model, the coordinator passes another one to `reviewer`. Slices touching auth, permissions, money or schema always get the independent reviewer.
+Alternatives: every role inherits the main model; pinned model versions in the frontmatter.
+Reason: a model reviewing its own kind of output shares its blind spots, and pinned versions go stale as models change. One agent file serves Cursor and Claude Code: Claude Code accepts only `inherit`, `opus`, `sonnet`, `haiku`, and Cursor documents only `inherit` or exact model IDs, so cross-family review is chosen at call time in Cursor, not in the file.

@@ -1,7 +1,7 @@
 ---
 name: tester
 description: Verifies a finished Gabay slice against the spec's acceptance criteria. Use proactively after the developer finishes a slice.
-model: inherit
+model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
 

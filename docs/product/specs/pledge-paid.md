@@ -10,6 +10,9 @@ A `Payment` row today means money received (`amount`, `purpose`, `date`). Donors
 ## User story
 As a gabai, I want to record a donation as pledged or paid and mark a pledge as paid later, so that I always know what was promised, what was collected and who still owes.
 
+## Success check
+The gabai records pledges and payments only in the app and no longer keeps a separate notebook or spreadsheet of who owes. Finding who still owes takes under 10 seconds.
+
 ## Acceptance criteria
 - [ ] A payment has a status: `pledged` or `paid`. Existing payments are treated as `paid` after migration.
 - [ ] Creating a payment accepts a status; default is `paid` so existing clients keep working.
@@ -37,3 +40,8 @@ As a gabai, I want to record a donation as pledged or paid and mark a pledge as 
 1. Backend: model, migration, service, API, role checks, tests.
 2. Frontend: status badge, filter, mark-as-paid action, outstanding total.
 3. LLM tool and dashboard totals respect status.
+
+## Gabai pass
+- Slice 1: pending
+- Slice 2: pending
+- Slice 3: pending

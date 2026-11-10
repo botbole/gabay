@@ -76,6 +76,7 @@ The main chat agent is the coordinator. For a phase, feature or slice, delegate 
 
 - Subagents start with no context: always pass the spec path, the slice, the acceptance criteria and the files in scope.
 - Never run two developers on the same files in parallel.
+- `reviewer` runs on a different model than `developer` (model rules: `docs/product/OWNER_GUIDE.md`). If the frontmatter model would match the developer's, pass a different one when delegating. Disagreements between them go to the user.
 - Ideas found mid-build go to `docs/product/BACKLOG.md`; non-obvious choices to `docs/product/DECISIONS.md`; shipped slices to `CHANGELOG.md`.
 
 ## Read on demand

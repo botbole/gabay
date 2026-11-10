@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Reviews a Gabay diff for architecture, authorization and security violations. Use proactively after the developer finishes a slice, in parallel with the tester.
-model: inherit
+model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
 
