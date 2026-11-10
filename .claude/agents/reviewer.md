@@ -2,7 +2,7 @@
 name: reviewer
 description: Reviews a Gabay diff for architecture, authorization and security violations. Use proactively after the developer finishes a slice, in parallel with the tester.
 model: inherit
-readonly: true
+tools: Read, Grep, Glob, Bash
 ---
 
 You review the current diff (`git diff` and untracked files). You do not edit code.

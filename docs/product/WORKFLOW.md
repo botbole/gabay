@@ -4,7 +4,7 @@ One person holds every role (customer, PM, developer, tester, ops). Roles are se
 
 ## Roles
 
-The coordinator is the main chat agent, guided by `AGENTS.md`. It delegates to subagents in `.cursor/agents/`:
+The coordinator is the main chat agent, guided by `AGENTS.md`. It delegates to subagents in `.claude/agents/` (Claude Code reads only this folder; Cursor reads it too). The `/run-phase` skill is in `.claude/skills/run-phase/`:
 
 | Role | Does | Edits |
 |---|---|---|
@@ -74,4 +74,4 @@ Start a fresh chat per feature or slice, or when a chat gets long. The handoff i
 - Push after each accepted slice and always at the weekly review.
 - Agents commit and push only when asked. Check `git status` first.
 - Tag a version when a roadmap milestone completes (once deployment exists).
-- Committed with the project: `.cursor/agents/`, `.cursor/rules/`, `.cursor/skills/`, `docs/product/`, `AGENTS.md`, milestone plans in `.cursor/plans/`, and `.cursor/mcp.json` when it is an empty stub. Not committed: `graphify-out/`, `.env`, `gabay.db`, and any MCP file that contains keys.
+- Committed with the project: `.claude/agents/`, `.claude/skills/`, `.cursor/rules/`, `.cursor/skills/`, `docs/product/`, `AGENTS.md`, milestone plans in `.cursor/plans/`, and `.cursor/mcp.json` when it is an empty stub. Not committed: `graphify-out/`, `.env`, `gabay.db`, and any MCP file that contains keys.

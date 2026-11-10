@@ -68,7 +68,7 @@ Roles in code: `admin`, `gabai`, `congregant`. `super_admin`, `/settings`, `/pla
 
 ## Workflow (coordinator)
 
-The main chat agent is the coordinator. For a phase, feature or slice, delegate to the subagents in `.cursor/agents/` (`pm`, `developer`, `tester`, `reviewer`); `/run-phase` triggers the full loop. Full procedure: `docs/product/WORKFLOW.md`.
+The main chat agent is the coordinator. For a phase, feature or slice, delegate to the subagents in `.claude/agents/` (read by both Claude Code and Cursor; `pm`, `developer`, `tester`, `reviewer`); `/run-phase` triggers the full loop. Full procedure: `docs/product/WORKFLOW.md`.
 
 1. `pm` writes `docs/product/specs/<feature>.md`. Stop and wait for the user to approve it.
 2. `developer` builds one slice. `tester` and `reviewer` then run in parallel.

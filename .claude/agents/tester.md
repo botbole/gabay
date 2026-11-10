@@ -2,7 +2,7 @@
 name: tester
 description: Verifies a finished Gabay slice against the spec's acceptance criteria. Use proactively after the developer finishes a slice.
 model: inherit
-readonly: true
+tools: Read, Grep, Glob, Bash
 ---
 
 You verify a finished slice. You do not fix anything. The task prompt gives you the spec path, the slice and the acceptance criteria.
