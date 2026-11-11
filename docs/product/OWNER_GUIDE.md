@@ -127,6 +127,70 @@ Ideas, bugs and gaps that come up during steps 5 to 8 go to the backlog. They do
 | Commit and push | You ask, the agent does it | "Commit and push this slice" |
 | New chat | You | "Continue slice 2 of `docs/product/specs/pledge-paid.md`" |
 
+### Prompt flow
+
+Two chats. Copy one block. Replace the angle brackets.
+
+**Log an idea, bug, or gap** (short chat, or edit `BACKLOG.md` yourself). Does not change `ROADMAP.md`.
+
+```text
+Add to the backlog: <idea, bug, or gap>.
+Do not change ROADMAP.md.
+Do not commit unless I ask.
+```
+
+**Chat 1 — spec** (`pm`). The backlog row already exists.
+
+```text
+Use the pm agent.
+Item: <B-00x> (already in BACKLOG.md).
+Read that row and its phase in ROADMAP.md.
+Write docs/product/specs/<feature>.md as draft.
+List decisions I must answer.
+Do not add roadmap phases or new backlog ideas.
+No code. Do not commit unless I ask.
+```
+
+After you approve:
+
+```text
+The spec is approved. Decisions: <answers>.
+Commit the spec on main and push.
+```
+
+**Chat 2 — one slice** (new chat, after the spec is on `main`).
+
+```text
+Spec: docs/product/specs/<feature>.md (approved).
+Slice: <number>.
+Branch: feat/<name> from up-to-date main.
+Run /run-phase for this slice only.
+Do not start the next slice.
+Do not commit, push, or open a PR unless I ask.
+```
+
+After you use the app:
+
+```text
+Slice <number> accepted.
+```
+
+or `fix: <what to change>`.
+
+Then, only when you want it on GitHub:
+
+```text
+Commit and push this slice on feat/<name>, then open a pull request to main.
+```
+
+**After the PR is merged on GitHub** (you, in the terminal — not an agent prompt). Slice 2 of the same feature stays on `feat/<name>`. A new feature starts only after this:
+
+```powershell
+git switch main
+git pull
+git branch -d feat/<name>
+```
+
 ### Weekly rhythm
 
 1. **Plan** (30-60 min, start of week): pick 1-3 items, get the specs, approve them. No coding.
