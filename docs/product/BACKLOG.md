@@ -1,8 +1,12 @@
 # Backlog
 
-Ranked, highest priority first. Ideas and bugs go here instead of derailing the current slice. Version-level status lives in `ROADMAP.md`.
+Ranked, highest priority first. Ideas, bugs and gaps go here instead of derailing the current slice. Version-level status lives in `ROADMAP.md`. Picking a row means build it; it is not moved into the roadmap. See `docs/product/WORKFLOW.md` for triage (small vs big, when a spec is needed).
 
-Pain: 1 = nice to have, 2 = slows the gabai down, 3 = blocks real use. Effort: S (under a day), M (1-3 days), L (more).
+**Types:** `idea` (new want), `gap` (missing piece of something that exists), `bug` (broken behaviour).
+**Pain:** 1 = nice to have / cosmetic, 2 = slows the gabai down, 3 = blocks real use. For bugs, pain 3 means fix now on a `fix/<name>` branch.
+**Effort:** S (under a day), M (1-3 days), L (more).
+**Phase:** name it in the title when known (for example `v2.3`). An idea with no phase may need a roadmap decision before a spec.
+**Status:** `open`, `next` (picked), `planned` (on the roadmap, not started), `done`.
 
 | ID | Type | Title | Who needs it | Pain | Effort | Status |
 |---|---|---|---|---|---|---|

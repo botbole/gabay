@@ -17,11 +17,31 @@ Subagents start with no context. The coordinator always passes the spec path, th
 
 ## Specs, roadmap and backlog
 
-- A **spec** is one feature: who needs it and what "done" means (for example `specs/payments.md`).
-- The **roadmap** (`ROADMAP.md`) is the phase each feature belongs to and whether the phase is finished. A phase is a group of features; the spec's `Roadmap item` field names it.
-- The **backlog** (`BACKLOG.md`) is the waiting line for what to pick next.
+Three files, three levels. They do not replace each other.
 
-A feature that grows in a later phase keeps one spec and adds a slice. A later change to a `done` feature is a new spec that points at the done one (for example `specs/pledge-paid.md` after `specs/payments.md`). Architecture that is not a feature goes in `DECISIONS.md`, not in a spec.
+| File | Level | Answers |
+|---|---|---|
+| `ROADMAP.md` | Phases and features (the plan) | What exists in the long term, and which phase is done? |
+| `BACKLOG.md` | Ranked waiting line (ideas, bugs, gaps) | What should be picked next, and how urgent is it? |
+| `specs/<feature>.md` | One feature in detail | Who needs it, and what "done" means? |
+
+- The roadmap is the committed plan. A backlog row is not "pushed" into the roadmap when you decide to build it; it is picked and built. The roadmap changes only when a phase is finished, when a big item is added to a phase, or when the owner creates a new phase (rare).
+- Backlog rows usually name the phase they belong to (for example B-001 is v2.3). An idea with no phase may need a roadmap decision before a spec.
+- A feature that grows in a later phase keeps one spec and adds a slice. A later change to a `done` feature is a new spec that points at the done one (for example `specs/pledge-paid.md` after `specs/payments.md`). Architecture that is not a feature goes in `DECISIONS.md`, not in a spec.
+
+## Bugs, gaps and ideas (triage)
+
+| Kind | Where | Handling |
+|---|---|---|
+| Small bug (UI text, styling, typo; no schema, auth or money) | Optional backlog row, or fix now | Trivial fast track: `developer`, owner check, PR. No spec. |
+| Bug that blocks real use (pain 3) | `BACKLOG.md` type `bug` | Fix now on `fix/<name>`: developer, then tester and reviewer, then PR. No new spec for a small fix. |
+| Small gap (missing sort, validation) | `BACKLOG.md` type `gap` | Ranked; pick when convenient. Spec only if it grows. |
+| Big gap (needs schema, auth, money or several screens) | `BACKLOG.md` type `gap`, then a spec | Treat as a feature. Put it under the phase it belongs to, or ask the owner if no phase fits. |
+| New idea | `BACKLOG.md` type `idea` | Ranked first. Joins a phase only if the owner decides it fits. Spec before building. |
+
+Rule of thumb: under about a day with no schema, auth or money change → small (no spec). Otherwise → big (spec). If unsure, treat it as big.
+
+Bugs found by `tester` or CI during the current slice go back to `developer` in the fix loop. Only bugs outside the current slice are logged in the backlog.
 
 ## Flow for work already built
 
@@ -35,9 +55,9 @@ Features that shipped before this workflow (v1 to v3.0 steps 0-3) each have a sp
 ## Flow for the next change
 
 Example: pledge vs paid is backlog row B-001, belongs to phase v2.3, and has the spec `specs/pledge-paid.md`.
-1. **Waiting line.** A new idea goes to `BACKLOG.md` first, ranked. No spec yet. Items already on the roadmap or the backlog start at step 2.
-2. **Pick one.** One backlog row, or one item already listed under a phase in `ROADMAP.md`.
-3. **Spec.** `pm` writes one feature spec, status `draft`, naming the phase, cut into slices of one or two days. The owner approves it. No code yet.
+1. **Waiting line.** A new idea, bug or gap goes to `BACKLOG.md` first, ranked, with a type and a phase when known. No spec yet. Items already on the roadmap or the backlog start at step 2.
+2. **Pick one.** One backlog row, or one item already listed under a phase in `ROADMAP.md`. Both are valid sources; the roadmap is the plan, the backlog is the ranked order.
+3. **Spec.** For anything that is not trivial and not a small fix: `pm` writes one feature spec, status `draft`, naming the phase, cut into slices of one or two days. The owner approves it. No code yet. Small bugs use the triage table above instead.
 4. **Build one slice.** `developer` writes the code and that slice's tests together. `tester` checks the acceptance criteria and `reviewer` checks the rules, in parallel.
 5. **Close the slice.** Changelog line; decisions if a real choice was made. The next slice starts again at step 4.
 6. **Phase.** When every item in the phase is finished, mark it done in `ROADMAP.md`. A brand-new phase is an owner decision made before step 3, and it is rare.
