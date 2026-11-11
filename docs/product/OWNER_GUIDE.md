@@ -88,11 +88,21 @@ flowchart LR
     coord --> accept{You accept}
 ```
 
+### Roadmap vs backlog vs spec
+
+| File | Role |
+|---|---|
+| `ROADMAP.md` | The plan by phase. Updated when a phase finishes, or when you add a big item to a phase. |
+| `BACKLOG.md` | Ranked waiting line for ideas, bugs and gaps. Picking one means build it, not move it into the roadmap. |
+| `specs/<feature>.md` | Definition of done for one feature. Required unless the item is a small bug or a trivial change. |
+
+Rules and triage live in `docs/product/WORKFLOW.md`. This guide is how you operate them.
+
 ### Steps for every change
 
-1. **Idea goes to the backlog.** A new idea becomes a row in `BACKLOG.md`. It gets no spec yet.
-2. **Pick one.** Choose one backlog row or one item already in a `ROADMAP.md` phase.
-3. **Spec.** `pm` writes the spec with status `draft`, cut into slices of one or two days.
+1. **Log it.** A new idea, bug or gap becomes a row in `BACKLOG.md` (type `idea`, `bug` or `gap`), with a phase when known. No spec yet. Items already listed under a `ROADMAP.md` phase can skip this.
+2. **Pick one.** Choose one backlog row or one item already in a `ROADMAP.md` phase. Both are valid sources.
+3. **Spec (when needed).** Small bugs and trivial changes skip this (see the triage table in `WORKFLOW.md`). Otherwise `pm` writes the spec with status `draft`, cut into slices of one or two days.
 4. **Approve.** You read it, answer the schema, sign-in and money questions, and set the status to `approved`.
 5. **Build one slice.** `developer` writes the code and that slice's tests together.
 6. **Check.** `tester` and `reviewer` run in parallel. If they find problems, the slice goes back to `developer`. After two failed rounds, the coordinator stops and reports to you.
@@ -101,13 +111,14 @@ flowchart LR
 8. **Close the slice.** A changelog line, plus a decision entry if a real choice was made. Then commit and push. The next slice starts at step 5.
 9. **Phase done.** Mark the phase done in `ROADMAP.md` only when every item in it is finished.
 
-Ideas that come up during steps 5 to 8 go to the backlog. They do not change the current slice.
+Ideas, bugs and gaps that come up during steps 5 to 8 go to the backlog. They do not change the current slice. Bugs found by `tester` or CI inside the current slice go back to `developer`, not to the backlog.
 
 ### Who does what
 
 | Step | Who | What you type |
 |---|---|---|
 | Add an idea | You | "Add to the backlog: reminder list for unpaid pledges" |
+| Add a bug | You | "Add a bug to the backlog: payment form shows no error when amount is empty" |
 | Write a spec | `pm` | "Use the pm agent to write a spec for B-001" |
 | Approve | You | Edit the spec, then "The spec is approved, decisions: ..." |
 | Build, test, review | coordinator, `developer`, `tester`, `reviewer` | `/run-phase docs/product/specs/pledge-paid.md` |
