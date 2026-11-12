@@ -4,7 +4,7 @@ One person holds every role (customer, PM, developer, tester, ops). Roles are se
 
 ## Roles
 
-The coordinator is the main chat agent, guided by `AGENTS.md`. It delegates to subagents in `.claude/agents/` (Claude Code reads only this folder; Cursor reads it too). The `/run-phase` skill is in `.claude/skills/run-phase/`:
+The coordinator is the main chat agent, guided by `AGENTS.md`. In the full lane it delegates to subagents in `.claude/agents/` (Claude Code reads only this folder; Cursor reads it too); small-lane changes are done by the coordinator itself (see "Lanes"). The `/run-phase` skill is in `.claude/skills/run-phase/`:
 
 | Role | Does | Edits |
 |---|---|---|
@@ -33,13 +33,13 @@ Three files, three levels. They do not replace each other.
 
 | Kind | Where | Handling |
 |---|---|---|
-| Small bug (UI text, styling, typo; no schema, auth or money) | Optional backlog row, or fix now | Trivial fast track: `developer`, owner check, PR. No spec. |
-| Bug that blocks real use (pain 3) | `BACKLOG.md` type `bug` | Fix now on `fix/<name>`: developer, then tester and reviewer, then PR. No new spec for a small fix. |
+| Small bug (fits the small lane) | Optional backlog row, or fix now | Small lane: coordinator fixes it directly, owner check, PR. No spec, no subagents. |
+| Bug that blocks real use (pain 3) | `BACKLOG.md` type `bug` | Fix now on `fix/<name>`. Small lane if it fits, otherwise full lane without a new spec: developer, then tester and reviewer, then PR. |
 | Small gap (missing sort, validation) | `BACKLOG.md` type `gap` | Ranked; pick when convenient. Spec only if it grows. |
 | Big gap (needs schema, auth, money or several screens) | `BACKLOG.md` type `gap`, then a spec | Treat as a feature. Put it under the phase it belongs to, or ask the owner if no phase fits. |
 | New idea | `BACKLOG.md` type `idea` | Ranked first. Joins a phase only if the owner decides it fits. Spec before building. |
 
-Rule of thumb: under about a day with no schema, auth or money change → small (no spec). Otherwise → big (spec). If unsure, treat it as big.
+Rule of thumb: fits the small lane → small (no spec, no subagents). Otherwise → big (full lane, spec). If unsure, treat it as big.
 
 Bugs found by `tester` or CI during the current slice go back to `developer` in the fix loop. Only bugs outside the current slice are logged in the backlog.
 
@@ -57,7 +57,7 @@ Features that shipped before this workflow (v1 to v3.0 steps 0-3) each have a sp
 Example: pledge vs paid is backlog row B-001, belongs to phase v2.3, and has the spec `specs/pledge-paid.md`.
 1. **Waiting line.** A new idea, bug or gap goes to `BACKLOG.md` first, ranked, with a type and a phase when known. No spec yet. Items already on the roadmap or the backlog start at step 2.
 2. **Pick one.** One backlog row, or one item already listed under a phase in `ROADMAP.md`. Both are valid sources; the roadmap is the plan, the backlog is the ranked order.
-3. **Spec.** For anything that is not trivial and not a small fix: `pm` writes one feature spec, status `draft`, naming the phase, cut into slices of one or two days. The owner approves it. No code yet. Small bugs use the triage table above instead.
+3. **Spec.** Full lane only: `pm` writes one feature spec, status `draft`, naming the phase, cut into slices of one or two days. The owner approves it. No code yet. Small-lane changes skip steps 3 to 5 and follow "Lanes" above.
 4. **Build one slice.** `developer` writes the code and that slice's tests together. `tester` checks the acceptance criteria and `reviewer` checks the rules, in parallel.
 5. **Close the slice.** Changelog line; decisions if a real choice was made. The next slice starts again at step 4.
 6. **Phase.** When every item in the phase is finished, mark it done in `ROADMAP.md`. A brand-new phase is an owner decision made before step 3, and it is rare.
@@ -72,13 +72,19 @@ Ideas that show up during step 4 go to the backlog and do not enter the current 
 
 Ideas that appear while building go to `BACKLOG.md`. They do not change the current slice.
 
-## Trivial changes (fast track)
+## Lanes: small (default) and full
 
-A change is trivial when it is UI text, styling or a typo fix, and touches no schema, auth, money, LLM tool, dependency or module boundary. Anything on the "ask before" list in `AGENTS.md` is never trivial.
-- No spec, no `pm`, no separate `reviewer`.
-- `developer` makes the change; `npm run lint` and `npm run build` (frontend) or the touched module's tests (backend) must pass.
+Every change starts by picking a lane. The coordinator states the choice in one line; the owner can override it. `AGENTS.md` holds the short version of this rule.
+
+**Small lane (default).** All of these hold: one module or one page, about 3 files or fewer, no schema change, no auth/authz change, no new dependency, no new endpoint or LLM tool, no money (payments) logic. Examples: bug fix, UI text or styling, validation rule, new field on an existing form.
+- The coordinator makes the change directly in the main chat. No spec, no `pm`, no subagents (`developer`, `tester`, `reviewer`).
+- The touched module's tests (backend) or `npm run lint` and `npm run build` (frontend) must pass. Add a test for new behavior.
 - The owner checks the result, then it goes to a PR. Log it in `CHANGELOG.md` only if users notice it.
-- If it turns out to be bigger, stop and use the normal flow.
+- If it turns out to be bigger, stop and switch to the full lane.
+
+**Full lane.** A new feature or module, or anything touching schema, auth/authz, money, the LLM tool surface or a new dependency, or when the owner says "phase", "slice" or `/run-phase`. Use the flow below: spec, approval, `developer`, then `tester` and `reviewer` in parallel.
+
+If unsure, ask which lane. Anything on the "ask before" list in `AGENTS.md` is never small.
 
 ## Definition of Ready (before building)
 - Spec exists in `docs/product/specs/` with status `approved`.

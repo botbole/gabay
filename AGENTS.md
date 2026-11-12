@@ -4,17 +4,16 @@ Commercial synagogue management system. Backend: Python, FastAPI, SQLModel (SQLi
 
 ## Commands
 
-- Backend: `uvicorn main:app --reload` (port 8080, Swagger at `/docs`)
-- Tests: `python -m pytest tests/<file>.py -q` (run the touched module's tests; add `-s` for Hebrew output)
-- Frontend (in `frontend/`): `npm run dev`, `npm run lint`, `npm run build`, `npm test`
+- Backend: `uvicorn main:app --reload` (port 8080)
+- Tests: `python -m pytest tests/<file>.py -q` (touched module only; `-s` for Hebrew output)
+- Frontend (in `frontend/`): `npm run lint`, `npm run build`, `npm test`
+- Shell is PowerShell on Windows. Hebrew in one-off scripts: `$env:PYTHONIOENCODING='utf-8'`.
 
 ## Layout
 
-- `app/core/`: registry, hooks (event bus), config, db, tenant, security, rate_limit, `hebrew_date.py`, zmanim, llm
-- `app/modules/<slug>/`: `models.py`, `service.py`, `api.py`, `module.py`. Slugs: congregants, payments, aliyot, seating, azkarot, smachot, calendar, llm, prayer_schedule, auth, bulletin
-- `app/api/v1/config.py`: tenant config endpoint. Shared envelope: `app/models/base.py`
-- `frontend/src/`: `api/client.ts`, `pages/`, `components/ui/`, `components/layout/`, `contexts/`
-- `tests/`, `migrations/` (Alembic), `docs/`
+- `app/core/` (registry, hooks, config, db, tenant, security, `hebrew_date.py`, zmanim, llm); `app/modules/<slug>/` with `models.py`, `service.py`, `api.py`, `module.py`
+- Slugs: congregants, payments, aliyot, seating, azkarot, smachot, calendar, llm, prayer_schedule, auth, bulletin
+- `frontend/src/`: `api/client.ts`, `pages/`, `components/ui/`. Envelope: `app/models/base.py`. Full map: `docs/hierarchy/README.md`
 
 ## Hard rules
 
@@ -39,15 +38,7 @@ Frontend
 
 ## Implemented vs planned
 
-Roles in code: `admin`, `gabai`, `congregant`. `super_admin`, `/settings`, `/platform`, audit log, `ModuleCatalog`, LLM/zmanim fields in `TenantConfig`, the WhatsApp module, the "Warm Heritage" frontend redesign (v2.2.5, new semantic tokens, `npm run design:check`, assistant side panel on every screen), and saved assistant conversations (v2.2.6) are planned, not implemented (see `ROADMAP.md`). `docs/ARCHITECTURE.md` describes the target state.
-
-## New module checklist
-
-1. `main.py`: import the module's `module.py`.
-2. `app/core/config.py`: add the slug to `ENABLED_MODULES`.
-3. `app/core/tenant.py`: add the slug to `ALL_MODULES`.
-4. Existing DB row: add `_ensure_module_enabled("<slug>")` in `create_db_and_tables` (`app/core/db.py`). A restart alone does not update an existing `tenant_config` row.
-5. Add `tests/test_<module>.py`.
+Verify in `ROADMAP.md` ("Implemented vs planned"; grep it, do not read the whole file) before assuming a feature exists. Roles in code: `admin`, `gabai`, `congregant`. `docs/ARCHITECTURE.md` is the target state, not current.
 
 ## Definition of done
 
@@ -59,32 +50,34 @@ Roles in code: `admin`, `gabai`, `congregant`. `super_admin`, `/settings`, `/pla
 ## Working agreements
 
 - Ask before: schema changes, auth/authz changes, new dependencies.
-- For multi-file features: plan, wait for confirmation, then implement. If two attempts at a fix fail, stop and report instead of looping.
-- Explore narrowly: open the files named in the task. Use `graphify query "<question>"`, `graphify path "A" "B"` or `graphify explain "X"` only for cross-module or impact questions (event listeners, authz paths, who calls X). Skip graphify for single-file edits.
-- Do not read `docs/*_HE.md`, `docs/ROADMAP_HE.md`, or `docs/PRD_*.md` unless asked. `ROADMAP.md` is the English roadmap.
-- Instruction files, code and comments are English; Hebrew only for UI strings and product docs. No narrating comments.
-- Stage explicit paths when committing; never commit `.env` or `gabay.db`. Commit only when asked.
+- If two attempts at a fix fail, stop and report instead of looping.
+- Explore narrowly: open the files named in the task. Use `graphify query|path|explain` only for cross-module or impact questions (event listeners, authz paths, who calls X). Skip it for single-file edits.
+- Do not read `docs/*_HE.md`, `docs/ROADMAP_HE.md`, or `docs/PRD_*.md` unless asked.
+- Instruction files, code and comments are English; Hebrew only for UI strings and product docs.
+- Stage explicit paths when committing (`.env` and `gabay.db` are blocked by a hook). Commit only when asked.
 - On "summarize for new chat": write a short handoff (goal, decisions, files touched, next step, open questions).
 - If the user describes a visual bug, ask one question to confirm which element before coding.
 
-## Workflow (coordinator)
+## Workflow: pick the lane first
 
-The main chat agent is the coordinator. For a phase, feature or slice, delegate to the subagents in `.claude/agents/` (read by both Claude Code and Cursor; `pm`, `developer`, `tester`, `reviewer`); `/run-phase` triggers the full loop. Full procedure: `docs/product/WORKFLOW.md`.
+**Small lane (default): do it directly in the main chat, no subagents.** Use when ALL hold: one module or one page, roughly 3 files or fewer, no schema change, no auth/authz change, no new dependency, no new endpoint or LLM tool. Examples: bug fix, copy/UI tweak, validation rule, new field on an existing form. Then run the touched tests/lint, and stop.
 
+**Full lane: multi-agent loop.** Use for a new feature, a new module, or anything that touches schema, auth/authz, money (payments) or the LLM tool surface, or when the user says "phase"/"slice"/`/run-phase`. If unsure which lane, say which one you picked and why in one line.
+
+Full lane (procedure: `docs/product/WORKFLOW.md`; the main agent is the coordinator, agents in `.claude/agents/`):
 1. `pm` writes `docs/product/specs/<feature>.md`. Stop and wait for the user to approve it.
 2. `developer` builds one slice. `tester` and `reviewer` then run in parallel.
 3. Fix loop runs at most twice, then report to the user.
 
-- Subagents start with no context: always pass the spec path, the slice, the acceptance criteria and the files in scope.
+- Subagents start with no context: pass the spec path, the slice, the acceptance criteria and the files in scope.
 - Never run two developers on the same files in parallel.
-- `reviewer` runs on a different model than `developer` (model rules: `docs/product/OWNER_GUIDE.md`). If the frontmatter model would match the developer's, pass a different one when delegating. Disagreements between them go to the user.
+- `reviewer` runs on a different model than `developer` (rules: `docs/product/OWNER_GUIDE.md`). Disagreements go to the user.
 - Ideas found mid-build go to `docs/product/BACKLOG.md`; non-obvious choices to `docs/product/DECISIONS.md`; shipped slices to `CHANGELOG.md`.
 
 ## Read on demand
 
-- Touching `app/**`, migrations, config, LLM, auth, tests: `docs/agent/backend.md`
+- Touching `app/**`, migrations, config, LLM, auth, tests, or adding a module (checklist): `docs/agent/backend.md`
 - Touching `frontend/**` or UI design: `docs/agent/frontend.md`
 - Prayer schedule (`app/modules/prayer_schedule/**`, `PrayerSchedule.tsx`): `docs/agent/prayer-schedule.md`
 - Hebrew dates, seating numbers, azkarot/smachot display: `docs/agent/domain-gotchas.md`
-- Repo map (who reads which file, file tree, current architecture): `docs/hierarchy/README.md`
-- System design and diagrams: `docs/ARCHITECTURE.md` (target). What runs today: `docs/hierarchy/ARCHITECTURE.md`
+- Repo map and what runs today: `docs/hierarchy/README.md`, `docs/hierarchy/ARCHITECTURE.md`

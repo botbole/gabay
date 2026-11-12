@@ -4,7 +4,15 @@
 
 `main.py` imports every `app/modules/<slug>/module.py`. Each calls `registry.register(ModuleDefinition(...))`, then `main.py` mounts only slugs in `settings.ENABLED_MODULES`. Disabled modules expose no routes and no LLM tools.
 
-A new module that is not wired in all places silently does not appear in the UI. See the checklist in `AGENTS.md`; the `prayer_schedule` module once missed `ALL_MODULES` and needed a manual DB fix.
+A new module that is not wired in all places silently does not appear in the UI; `prayer_schedule` once missed `ALL_MODULES` and needed a manual DB fix.
+
+### New module checklist
+
+1. `main.py`: import the module's `module.py`.
+2. `app/core/config.py`: add the slug to `ENABLED_MODULES`.
+3. `app/core/tenant.py`: add the slug to `ALL_MODULES`.
+4. Existing DB row: add `_ensure_module_enabled("<slug>")` in `create_db_and_tables` (`app/core/db.py`). A restart alone does not update an existing `tenant_config` row.
+5. Add `tests/test_<module>.py`.
 
 `app/core/db.py::_ensure_module_enabled(slug)` appends a slug to the existing `tenant_config.enabled_modules` row at startup. Use it for new modules; `ALL_MODULES` only initializes a missing row.
 

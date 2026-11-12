@@ -98,11 +98,20 @@ flowchart LR
 
 Rules and triage live in `docs/product/WORKFLOW.md`. This guide is how you operate them.
 
-### Steps for every change
+### Two lanes: small and full
+
+The coordinator picks a lane for each change and says which in one line. You can override it ("use the full flow" or "just do it directly").
+
+- **Small lane (default).** One module or page, about 3 files or fewer, and no schema, sign-in/permissions, dependency, new endpoint, LLM tool or money change. Examples: bug fix, text or styling, validation rule, new field on a form. The coordinator does it directly in the main chat: no spec, no subagents. You check the result, then it goes to a PR.
+- **Full lane.** New features and modules, and anything touching schema, sign-in/permissions, money, LLM tools or dependencies. Also whenever you say "phase", "slice" or type `/run-phase`. Follow the steps below.
+
+Rules for the lanes are in `WORKFLOW.md` ("Lanes").
+
+### Steps for every change (full lane)
 
 1. **Log it.** A new idea, bug or gap becomes a row in `BACKLOG.md` (type `idea`, `bug` or `gap`), with a phase when known. No spec yet. Items already listed under a `ROADMAP.md` phase can skip this.
 2. **Pick one.** Choose one backlog row or one item already in a `ROADMAP.md` phase. Both are valid sources.
-3. **Spec (when needed).** Small bugs and trivial changes skip this (see the triage table in `WORKFLOW.md`). Otherwise `pm` writes the spec with status `draft`, cut into slices of one or two days.
+3. **Spec.** `pm` writes the spec with status `draft`, cut into slices of one or two days. (Small-lane changes never get here.)
 4. **Approve.** You read it, answer the schema, sign-in and money questions, and set the status to `approved`.
 5. **Build one slice.** `developer` writes the code and that slice's tests together.
 6. **Check.** `tester` and `reviewer` run in parallel. If they find problems, the slice goes back to `developer`. After two failed rounds, the coordinator stops and reports to you.
@@ -119,6 +128,7 @@ Ideas, bugs and gaps that come up during steps 5 to 8 go to the backlog. They do
 |---|---|---|
 | Add an idea | You | "Add to the backlog: reminder list for unpaid pledges" |
 | Add a bug | You | "Add a bug to the backlog: payment form shows no error when amount is empty" |
+| Small change (small lane) | You, coordinator does it | "Small change: <what>" (no subagents, no spec) |
 | Write a spec | `pm` | "Use the pm agent to write a spec for B-001" |
 | Approve | You | Edit the spec, then "The spec is approved, decisions: ..." |
 | Build, test, review | coordinator, `developer`, `tester`, `reviewer` | `/run-phase docs/product/specs/pledge-paid.md` |
@@ -231,7 +241,7 @@ Small rules:
 
 - Approve and commit the spec on `main` before creating the feature branch, so `developer` finds it there. Other docs-only changes (backlog, decisions) can go straight to `main`, or ride with the slice.
 - Never start slice 2 before slice 1 is committed.
-- Trivial changes (UI text, styling, typos) skip the spec and the separate reviewer; see `WORKFLOW.md`.
+- Small-lane changes skip the spec and all subagents; see `WORKFLOW.md` ("Lanes").
 - Push at least at the weekly review, so nothing lives only on your machine.
 - One feature branch at a time, matching the one-slice-at-a-time rule.
 - Once deployment exists, tag a version (for example `v2.3.0`) when a phase is done.

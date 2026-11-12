@@ -8,6 +8,8 @@ disable-model-invocation: true
 
 Input: a roadmap item, backlog ID, or spec path.
 
+0. Lane check. If the input fits the small lane in `AGENTS.md` (one module or page, about 3 files or fewer, no schema, auth, money, dependency, new endpoint or LLM tool change), say so in one line and ask the user whether to do it directly instead. Continue below only if they want the full flow or it is not a small change.
+
 1. If no approved spec exists, delegate to `pm` to write `docs/product/specs/<feature>.md`. Pass it the request and tell it to read `ROADMAP.md` and `docs/product/BACKLOG.md`. Then stop and ask the user to approve the spec and answer open decisions.
 2. After approval, delegate one slice to `developer`. Pass the spec path, the slice, the acceptance criteria and the files in scope. Never run two developers on the same files at once.
 3. Run `tester` and `reviewer` in parallel on the result. Pass each the spec path, slice and acceptance criteria.
