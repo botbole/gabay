@@ -11,6 +11,8 @@ __pycache__/
 .claude/*
 !.claude/agents/
 !.claude/skills/
+!.claude/hooks/
+!.claude/settings.json
 .codex/
 **/graphify-out/
 # Runtime logs
