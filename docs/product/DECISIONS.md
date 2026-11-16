@@ -127,3 +127,44 @@ Reason: one approval step in one file, so `developer` never guesses whether a pl
 The PR is opened as a draft right after slice 1 is pushed, and merged when the last slice is accepted. The owner's gabai pass happens per slice and gates the commit; the weekly review only catches up. Small-lane code changes use a `fix/<name>` or `chore/<name>` branch. A "big" backlog item (needs more than one spec, or changes what a phase promises) is added to a `ROADMAP.md` phase: `pm` recommends, the owner decides, the coordinator edits.
 Alternatives: a PR per slice; a PR only when the feature is finished; gabai pass once a week.
 Reason: CI runs only on pull requests and `main`, so an early draft PR is what makes it run on every slice. A weekly gabai pass would limit work to one slice a week.
+
+### 2026-11-16 - The assistant side panel (F4b) is a slice of the frontend redesign spec
+F4b sits between F4 and Gate 2 in `specs/frontend-redesign.md`; Gate 2 reviews the panel; Chat is migrated in F4b, not F7. Frontend only: same `llmApi.chat` call, no backend change. Owner accepted the PM recommendation (D-1), relayed by the coordinator.
+Alternatives: a separate spec for the panel; build the panel after F9 and restyle `/chat` in F7.
+Reason: the roadmap text (2026-11-03) is newer than the plan (2026-10-23), v2.2.6 depends on the panel, and Chat is migrated once.
+
+### 2026-11-16 - The tenant accent is the stored `color_secondary`; the frontend ignores `color_primary` and `color_bg`
+No backend, column or default change in v2.2.5. The document title and logo handling stay as they are. Owner accepted the PM recommendation (D-5), relayed by the coordinator. Together with the contrast fallback below, the old default gold may be replaced by bronze; the owner reconfirms this in D-24 of the spec.
+Alternatives: treat the old default `#C5A059` as "not set" in the frontend; change the backend default.
+Reason: no hidden special case and no exemption in the design enforcement script; the milestone stays frontend only.
+
+### 2026-11-16 - A tenant accent that fails the contrast test falls back to the default bronze
+The frontend computes the contrast in `applyTheme` (v2.2.5 F1). The exact pass test is open (spec D-24). Owner accepted the PM recommendation (D-20), relayed by the coordinator.
+Alternatives: accept any color and leave it to the admin; use the tenant accent only for rules and borders.
+Reason: tenants choose the color, so AA contrast cannot be promised without a check; there is no settings UI to warn the admin until v2.5.
+
+### 2026-11-16 - Fonts load from the Google Fonts link; no `@fontsource` in v2.2.5
+Display face: Frank Ruhl Libre, confirmed at Gate 1. Heebo stays the UI font. Owner accepted the PM recommendation (D-6), relayed by the coordinator.
+Alternatives: self-hosted fonts through `@fontsource` packages (backlog B-014).
+Reason: no new dependency in this milestone; offline and privacy needs are decided with v3.0 hardening and deploy.
+
+### 2026-11-16 - Component tests in v2.2.5 use `react-dom/server` only
+No `jsdom` and no Testing Library. Page flows are checked in the browser by the developer and in the gabai pass. Owner accepted the PM recommendation (D-7), relayed by the coordinator.
+Alternatives: add `jsdom` and Testing Library for interaction tests (backlog B-013).
+Reason: no new dependency in this milestone; the new primitives are simple enough to assert from static markup.
+
+
+### 2026-11-16 - The accent contrast test is white text on the accent at 4.5:1
+A tenant accent below 4.5:1 is replaced by the default bronze, with no message to the admin until the v2.5 settings page (B-012). The stored default gold `#C5A059` fails (about 2.5:1), so installs that never changed it show bronze after v2.2.5 F1. This completes the two accent entries above. Owner accepted the PM recommendation (D-24), relayed by the coordinator.
+Alternatives: test at 3:1; keep the stored default gold and apply the fallback only to other values.
+Reason: one simple test guarantees AA for small text on accent buttons, and it gives bronze on default installs without a backend change.
+
+### 2026-11-16 - The v2.2.6 frontend slice starts after v2.2.5 is merged, not after Gate 2
+The v2.2.6 backend slice may still run in parallel with v2.2.5 F1 to F4. `ROADMAP.md` still says "after v2.2.5 Gate 2" until the coordinator edits it. Owner accepted the PM recommendation (D-26), relayed by the coordinator.
+Alternatives: branch v2.2.6 from the redesign branch after Gate 2 (stacked branch).
+Reason: v2.2.5 lives on one branch until F9; the panel, tokens and `design:check` exist only there, and v2.2.6 edits the same assistant files that F8 cleans up. The owner works on one feature at a time.
+
+### 2026-11-16 - `design:check` counts every raw Tailwind palette color, not only the gray family
+Any palette color class with a numeric shade (`blue-600`, `red-500` and so on) is a violation; `white`, `black` and `transparent` are allowed. Added to the status script in v2.2.5 F0b, before the baseline is recorded. Owner accepted the PM recommendation (D-22), relayed by the coordinator.
+Alternatives: also forbid `white` and `black`; keep the plan's gray-only rule and rely on review.
+Reason: about 259 lines use raw status and brand colors today; without the rule the check could report 0 while pages bypass the semantic tokens.
