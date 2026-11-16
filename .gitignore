@@ -18,3 +18,5 @@ __pycache__/
 # Runtime logs
 server_out.txt
 server_err.txt
+# Generated on demand from OWNER_GUIDE.md
+docs/product/OWNER_GUIDE.pdf

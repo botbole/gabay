@@ -18,7 +18,7 @@ Principle: day-to-day gabai functionality comes before deployment and polish. Au
 | 2.2 | Weekly bulletin | Core done; SMTP open |
 | 2.2.5 | Frontend redesign (Warm Heritage), before 2.3 | Pending |
 | 2.2.6 | Assistant chat history (saved conversations), after 2.2.5 Gate 2 | Pending |
-| 2.2.7 | Minimal PR CI (tests, lint, build), before 2.3 | Pending |
+| 2.2.7 | Minimal PR CI (tests, lint, build), before 2.3 | Done |
 | 2.3 | Financial completeness | Pending |
 | 2.4 | Smart gabai (aliya suggestions, inventory, LLM 2.0) | Pending |
 | 2.5 | Settings page and roles expansion | Pending |
@@ -56,7 +56,7 @@ Delivered: `BulletinConfig`, `GET /bulletin?date=`, three formats (WhatsApp text
 
 ## v2.2.5 - Frontend redesign (Warm Heritage)
 
-Runs before v2.3 so new financial screens are built on the new system. Frontend only: no backend, schema or new npm dependency (ask first for `@fontsource` and `jsdom`/Testing Library). Detailed plan: `.cursor/plans/warm_heritage_frontend_final_8497efef.plan.md`.
+Runs before v2.3 so new financial screens are built on the new system. Frontend only: no backend, schema or new npm dependency (ask first for `@fontsource` and `jsdom`/Testing Library). Detailed plan: `.cursor/plans/warm_heritage_frontend_final_8497efef.plan.md`. Spec: to be written by `pm` under `docs/product/specs/` from this section and the plan; the spec wins if they differ.
 
 Target state
 - Warm stone background (`bg` #FAF8F5), white hairline-bordered surfaces, midnight blue `primary` (#172554), bronze `accent` (#B45309) plus AA-safe `accent-ink` for text. Heebo for UI, a Hebrew serif display face for titles only.
@@ -86,7 +86,7 @@ Self-check after every subtask: `npm run lint`, `npm run build`, `npm test`; `np
 
 ## v2.2.6 - Assistant chat history (saved conversations)
 
-Gemini/Claude-style history in the assistant panel: past chats are listed, can be reopened and continued, renamed and deleted. Includes a schema change (approved with the plan). The backend slice can run in parallel with v2.2.5 F1-F4 (no shared files); the frontend slice starts after v2.2.5 Gate 2 approves the panel. Detailed plan: `.cursor/plans/assistant_chat_history_8b2c9ccd.plan.md`. Spec: `docs/product/specs/assistant-chat-history.md` (to be written by `pm`).
+Gemini/Claude-style history in the assistant panel: past chats are listed, can be reopened and continued, renamed and deleted. Includes a schema change (approved when the owner approves the spec). The backend slice can run in parallel with v2.2.5 F1-F4 (no shared files); the frontend slice starts after v2.2.5 Gate 2 approves the panel. Spec: `docs/product/specs/assistant-chat-history.md` (draft).
 
 Rules
 - Stored on the server per user; a user sees only their own chats (admin included); another user's chat returns 404.
@@ -107,7 +107,7 @@ Frontend
 
 ## v2.2.7 - Minimal PR CI
 
-- [ ] `.github/workflows/ci.yml` on pull request: backend `pytest`, frontend `npm run lint`, `npm run build`, `npm test`. No deploy, no scans (those stay in v3.5 Step 8).
+- [x] `.github/workflows/ci.yml` on pull request: backend `pytest` and a migrations check, frontend `npm run lint`, `npm run build`, `npm test`. No deploy, no scans (those stay in v3.5 Step 8).
 
 ## v2.3 - Financial completeness
 

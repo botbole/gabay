@@ -4,6 +4,8 @@ Status: draft
 Roadmap item: v2.3 Financial completeness
 Owner: eran
 
+Waits for the frontend redesign (v2.2.5), which runs first (`DECISIONS.md`, 2026-11-16).
+
 ## Problem
 A `Payment` row today means money received (`amount`, `purpose`, `date`). Donors often pledge (for example on an aliya or at Yom Kippur) and pay later. The gabai cannot record a pledge, see who still owes, or tell pledged from collected money. Today this lives in notes or a separate spreadsheet.
 

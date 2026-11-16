@@ -60,7 +60,7 @@ Verify in `ROADMAP.md` ("Implemented vs planned"; grep it, do not read the whole
 
 ## Workflow: pick the lane first
 
-**Small lane (default): do it directly in the main chat, no subagents.** Use when ALL hold: one module or one page, roughly 3 files or fewer, no schema change, no auth/authz change, no new dependency, no new endpoint or LLM tool. Examples: bug fix, copy/UI tweak, validation rule, new field on an existing form. Then run the touched tests/lint, and stop.
+**Small lane (default): do it directly in the main chat, no subagents.** Use when ALL hold: one module or one page, roughly 3 files or fewer, no schema change, no auth/authz change, no new dependency, no new endpoint or LLM tool, no money (payments) logic. Examples: bug fix, copy/UI tweak, validation rule, new field on an existing form. Code goes on a `fix/<name>` or `chore/<name>` branch. Then run the touched tests/lint, and stop. Source of this rule: `docs/product/WORKFLOW.md` ("Lanes").
 
 **Full lane: multi-agent loop.** Use for a new feature, a new module, or anything that touches schema, auth/authz, money (payments) or the LLM tool surface, or when the user says "phase"/"slice"/`/run-phase`. If unsure which lane, say which one you picked and why in one line.
 
@@ -72,6 +72,9 @@ Full lane (procedure: `docs/product/WORKFLOW.md`; the main agent is the coordina
 - Subagents start with no context: pass the spec path, the slice, the acceptance criteria and the files in scope.
 - Never run two developers on the same files in parallel.
 - `reviewer` runs on a different model than `developer` (rules: `docs/product/OWNER_GUIDE.md`). Disagreements go to the user.
+- Slice touches auth/authz, money or schema: before the commit, remind the user to run the second reviewer on another company's model and paste the report.
+- The spec is the only approval. A plan (`.cursor/plans/`) is optional detail; if they disagree, the spec wins.
+- A slice is committed only after the user accepts it (gabai pass). One PR per feature, opened as a draft after slice 1 is pushed.
 - Ideas found mid-build go to `docs/product/BACKLOG.md`; non-obvious choices to `docs/product/DECISIONS.md`; shipped slices to `CHANGELOG.md`.
 
 ## Read on demand

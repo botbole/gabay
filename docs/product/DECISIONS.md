@@ -112,3 +112,18 @@ Reason: donations are reconciled against bank statements and receipts, and books
 Added a trivial fast track, a migration-approval line, spec-before-branch and one-slice-per-commit rules, and a minimal PR CI roadmap item (v2.2.7). No separate `.cursorrules`: `AGENTS.md` already loads in every chat and a second file would drift.
 Alternatives: new `RULES.md`; wait for full CI in v3.5.
 Reason: solo owner relies on AI checks, so an automated gate is needed before money work.
+
+### 2026-11-16 - The frontend redesign (v2.2.5) runs before pledge vs paid (v2.3)
+The order in `ROADMAP.md` stands. B-001 goes back to `open` and `specs/pledge-paid.md` stays `draft` until the redesign is done.
+Alternatives: pledge-paid backend slice first, then the redesign, then the pledge UI; all of pledge-paid first.
+Reason: the financial screens are built once, on the new design system, and the owner works on one feature at a time.
+
+### 2026-11-16 - The spec is the "what" and the only approval; a plan is the optional "how"
+Every full-lane item has a spec, including the frontend redesign. A spec says what the user gets and when it is done, and the owner approves it. A plan (for example in `.cursor/plans/`) says how and in what order; it is optional and the spec links to it. If they disagree, the spec wins. Schema, auth and dependency approval happens only by approving the spec, so the v2.2.6 chat-history schema is not approved until its spec is.
+Alternatives: plan-only phases with no spec; approval recorded in the roadmap or the plan.
+Reason: one approval step in one file, so `developer` never guesses whether a plan counts.
+
+### 2026-11-16 - One draft PR per feature, gabai pass per slice
+The PR is opened as a draft right after slice 1 is pushed, and merged when the last slice is accepted. The owner's gabai pass happens per slice and gates the commit; the weekly review only catches up. Small-lane code changes use a `fix/<name>` or `chore/<name>` branch. A "big" backlog item (needs more than one spec, or changes what a phase promises) is added to a `ROADMAP.md` phase: `pm` recommends, the owner decides, the coordinator edits.
+Alternatives: a PR per slice; a PR only when the feature is finished; gabai pass once a week.
+Reason: CI runs only on pull requests and `main`, so an early draft PR is what makes it run on every slice. A weekly gabai pass would limit work to one slice a week.

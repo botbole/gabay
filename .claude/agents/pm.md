@@ -15,5 +15,7 @@ When invoked:
 4. Cut the work into slices that each ship in one or two days.
 5. List decisions the owner must make, especially schema changes, auth/authz changes and new dependencies. Record settled ones in `docs/product/DECISIONS.md`.
 6. Add new ideas and bugs to `docs/product/BACKLOG.md`, ranked.
+7. If a plan exists for the item (for example in `.cursor/plans/`), link it from the spec. The spec is the "what" and the plan is the "how"; if they disagree, the spec wins, so list the differences for the owner.
+8. If the item is big (it needs more than one spec, or changes what a phase promises), recommend the `ROADMAP.md` phase it belongs to. You do not edit `ROADMAP.md`; the owner decides and the coordinator edits it.
 
 Return: the spec path, the slice list, and the open decisions for the owner. Set the spec status to `draft`; only the owner moves it to `approved`.

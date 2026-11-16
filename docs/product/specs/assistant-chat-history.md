@@ -68,7 +68,7 @@ Frontend (slice 2)
 - Opening the assistant to the congregant role.
 
 ## Risks and open questions
-- Schema change: two new tables and an Alembic migration in the llm module. Approved with the plan per `ROADMAP.md`; the owner confirms by approving this spec.
+- Schema change: two new tables and an Alembic migration in the llm module. Not approved yet: the owner approves it by approving this spec (`DECISIONS.md`, 2026-11-16).
 - Congregant role: the llm router has `dependencies=[Depends(require_operational)]` and each route uses `require_operational_scope`, both `require_roles(ADMIN, GABAI)`. So today only admin and gabai can call `/llm/chat`, and a congregant gets 403, even though `specs/llm-assistant.md` describes congregant-scope `my_*` tools. The new routes keep the same rule. Owner decision: confirm congregants stay out of v2.2.6. Opening the assistant to congregants is an authz change and would be a separate spec.
 - N (messages sent to the LLM): proposed 20 (10 exchanges), as a module constant, not in `.env` or `TenantConfig`. Owner decision: confirm 20. Tool-call results are not stored as separate messages, so only `role` and `content` of stored turns are replayed, and `actions` are for display only.
 - Plain `/llm/chat` without `conversation_id`: the plan says it "keeps working" and also that `chat()` creates a conversation when the ID is missing. Owner decision: should every chat without an ID create a saved conversation (proposed, so the panel never loses a first message), or should only clients that opt in be saved? `/llm/action` does not create one in either case.
@@ -83,3 +83,8 @@ Frontend (slice 2)
 Ordered, each shippable on its own.
 1. Backend (can run in parallel with v2.2.5 F1 to F4, no shared files): `app/modules/llm/models.py`, import in `module.py`, Alembic revision, owner-scoped service methods (`list_conversations`, `get_conversation`, `create_conversation`, `rename_conversation`, `delete_conversation`, `bulk_delete_conversations`), `chat()` with optional `conversation_id` that loads the last N messages and persists both turns, routes `GET /llm/conversations`, `GET/PATCH/DELETE /llm/conversations/{id}`, `POST /llm/conversations/bulk-delete`, `conversation_id` on `POST /llm/chat`. Tests in `tests/test_llm_conversations.py`; existing `tests/test_llm*.py` pass. One line in `docs/agent/backend.md` LLM section; `CHANGELOG.md` entry.
 2. Frontend (starts after v2.2.5 Gate 2 approves the panel): `conversationsApi` and `llmApi.chat` changes in `client.ts`, TanStack Query hooks, history view and conversation view in `AssistantPanel`, two-pane `/chat`, toasts and confirm modal, Playwright checks at three widths. `CHANGELOG.md` entry; tick v2.2.6 in `ROADMAP.md` when both slices are done.
+
+## Gabai pass
+One line per slice, written by the owner after trying it on realistic data: date, who tried it, result (accepted | fix | drop), notes.
+- Slice 1: pending
+- Slice 2: pending

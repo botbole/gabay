@@ -35,8 +35,8 @@ flowchart TD
   end
   subgraph cursorOnly [Cursor orchestration]
     Workflow["docs/product/WORKFLOW.md"]
-    Subagents[".cursor/agents: pm, developer, tester, reviewer"]
-    Skills[".cursor/skills: run-phase, modern-ui"]
+    Subagents[".claude/agents: pm, developer, tester, reviewer"]
+    Skills[".claude/skills: run-phase. .cursor/skills: modern-ui"]
     Specs["docs/product/specs"]
     Agents --> Workflow
     Skills --> Subagents
@@ -130,8 +130,8 @@ These look repeated. They stay split.
 | `AGENTS.md` | The only always-on rule text |
 | `.cursor/rules/*.mdc` | Short Cursor globs that point at `docs/agent`. The long text lives once |
 | `docs/product/WORKFLOW.md` | The process |
-| `.cursor/skills/run-phase/SKILL.md` | The short `/run-phase` checklist |
-| `.cursor/agents/*.md` | Role prompts. They point at the workflow and the specs |
+| `.claude/skills/run-phase/SKILL.md` | The short `/run-phase` checklist. Cursor and Claude Code both read it |
+| `.claude/agents/*.md` | Role prompts. They point at the workflow and the specs. Cursor and Claude Code both read them |
 | `ROADMAP.md` | English status agents read |
 | `docs/ROADMAP_HE.md` | Longer Hebrew history. Agents skip it unless asked |
 | `docs/PRD_GABAY.md` and `docs/PRD_GABAY_HE.md` | Bilingual product spec. Agents skip both unless asked |
@@ -147,10 +147,8 @@ These are actual mismatches, recorded so the next cleanup does not rediscover th
 | Item | Current fact |
 |---|---|
 | `modern-ui` skill | `.cursor/rules/modern-ui.mdc` is a thin pointer to `docs/agent/frontend.md`. `.cursor/skills/modern-ui/SKILL.md` still carries its own palette text, and `examples.md` shows hardcoded hex and raw JSX |
-| `/pm` | `docs/product/WORKFLOW.md` says to run `/pm`. The role prompt is `.cursor/agents/pm.md`. The skill that exists is `/run-phase`. There is no `.cursor/skills/pm/` |
-| Claude mirror | Subagents and skills live under `.cursor/`. `.claude/` has settings only, so Claude Code does not see those role prompts as native agents |
 | Graphify location | `AGENTS.md` tells agents to use graphify. The skill in this repo is under gitignored `.codex/skills/graphify/`, which Cursor and Claude Code do not load as a project skill |
-| Plan file | `.cursor/plans/warm_heritage_frontend_final_8497efef.plan.md` is tracked. `WORKFLOW.md` says plans stay uncommitted. The plan's own status can lag `ROADMAP.md` |
+| Plan file | `.cursor/plans/warm_heritage_frontend_final_8497efef.plan.md` is tracked. The plan's own status can lag `ROADMAP.md`; the spec wins over the plan (`WORKFLOW.md`, "Spec and plan") |
 | `mcp.json` | `.cursor/mcp.json` is tracked. `WORKFLOW.md` says to keep it out of git when it holds keys |
 | Bulletin schema | Tables are `bulletin_config` and `bulletin_week_overrides`. Alembic versions do not create them. Startup uses `create_all`, then `_ensure_module_enabled("bulletin")` on an existing tenant row |
 | `RoleGate` | Exported from `frontend/src/components/auth/ProtectedRoute.tsx` and not used by a page |

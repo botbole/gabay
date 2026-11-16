@@ -28,6 +28,14 @@ Three files, three levels. They do not replace each other.
 - The roadmap is the committed plan. A backlog row is not "pushed" into the roadmap when you decide to build it; it is picked and built. The roadmap changes only when a phase is finished, when a big item is added to a phase, or when the owner creates a new phase (rare).
 - Backlog rows usually name the phase they belong to (for example B-001 is v2.3). An idea with no phase may need a roadmap decision before a spec.
 - A feature that grows in a later phase keeps one spec and adds a slice. A later change to a `done` feature is a new spec that points at the done one (for example `specs/pledge-paid.md` after `specs/payments.md`). Architecture that is not a feature goes in `DECISIONS.md`, not in a spec.
+- A big backlog item (it needs more than one spec, or it changes what a phase promises) is added to a phase in `ROADMAP.md` when its spec is approved. `pm` recommends the phase, the owner decides, and the coordinator edits the roadmap. `pm` does not edit `ROADMAP.md`.
+
+### Spec and plan
+
+- A **spec** is the "what": who needs the feature, what they get, and when it is done. Every full-lane item has one, including the frontend redesign. The owner approves it.
+- A **plan** (for example in `.cursor/plans/`) is the "how": steps, order and technical detail. It is optional, and the spec links to it.
+- If the spec and the plan disagree, the spec wins. Approval of schema, auth/authz and dependency changes happens only by approving the spec; a plan or a roadmap line does not count.
+- Spec status: `pm` sets `draft`, the owner sets `approved`, the coordinator sets `in progress` when the first slice starts and `done` when the owner accepts the last slice.
 
 ## Bugs, gaps and ideas (triage)
 
@@ -57,10 +65,11 @@ Features that shipped before this workflow (v1 to v3.0 steps 0-3) each have a sp
 Example: pledge vs paid is backlog row B-001, belongs to phase v2.3, and has the spec `specs/pledge-paid.md`.
 1. **Waiting line.** A new idea, bug or gap goes to `BACKLOG.md` first, ranked, with a type and a phase when known. No spec yet. Items already on the roadmap or the backlog start at step 2.
 2. **Pick one.** One backlog row, or one item already listed under a phase in `ROADMAP.md`. Both are valid sources; the roadmap is the plan, the backlog is the ranked order.
-3. **Spec.** Full lane only: `pm` writes one feature spec, status `draft`, naming the phase, cut into slices of one or two days. The owner approves it. No code yet. Small-lane changes skip steps 3 to 5 and follow "Lanes" above.
-4. **Build one slice.** `developer` writes the code and that slice's tests together. `tester` checks the acceptance criteria and `reviewer` checks the rules, in parallel.
-5. **Close the slice.** Changelog line; decisions if a real choice was made. The next slice starts again at step 4.
-6. **Phase.** When every item in the phase is finished, mark it done in `ROADMAP.md`. A brand-new phase is an owner decision made before step 3, and it is rare.
+3. **Spec.** Full lane only: `pm` writes one feature spec, status `draft`, naming the phase, cut into slices of one or two days. The owner approves it. No code yet. Small-lane changes skip steps 3 to 6 and follow "Lanes" below.
+4. **Build one slice.** `developer` writes the code and that slice's tests together. `tester` checks the acceptance criteria and `reviewer` checks the rules, in parallel. A slice touching auth/authz, money or the schema also gets a second reviewer before it is committed: the owner runs the `reviewer` prompt on a model from another company and pastes the report back. Its fixes count toward the same two fix rounds.
+5. **Gabai pass.** The owner uses the slice on realistic data and decides: accepted, fix or drop. The result is written in the spec's "Gabai pass" section. Nothing is committed before "accepted".
+6. **Close the slice.** Changelog line; decisions if a real choice was made; commit and push. After slice 1, open a draft PR (see "Git"). The next slice starts again at step 4.
+7. **Phase.** When every item in the phase is finished, mark it done in `ROADMAP.md`. A brand-new phase is an owner decision made before step 3, and it is rare.
 
 Ideas that show up during step 4 go to the backlog and do not enter the current slice.
 
@@ -68,18 +77,18 @@ Ideas that show up during step 4 go to the backlog and do not enter the current 
 
 1. **Plan** (30-60 min, start of week). Pick 1-3 items from `BACKLOG.md` or `ROADMAP.md`. Use the `pm` agent to write a spec for each item. Review and approve the spec. No coding.
 2. **Build** (rest of week). Coordinator runs developer, then tester and reviewer in parallel, one slice at a time. Work in progress: one slice.
-3. **Review** (30 min, end of week). Use the feature as a real gabai would. Decide: ship, fix or drop. Update `CHANGELOG.md` and `DECISIONS.md`. Push. Every 2-3 weeks, show it to one or two real gabbaim.
+3. **Review** (30 min, end of week). Finish any gabai pass that is still open (the pass itself is per slice, step 5 above). Check that `CHANGELOG.md` and `DECISIONS.md` are up to date. Push. Every 2-3 weeks, show it to one or two real gabbaim.
 
 Ideas that appear while building go to `BACKLOG.md`. They do not change the current slice.
 
 ## Lanes: small (default) and full
 
-Every change starts by picking a lane. The coordinator states the choice in one line; the owner can override it. `AGENTS.md` holds the short version of this rule.
+Every change starts by picking a lane. The coordinator states the choice in one line; the owner can override it. This section is the source of the lane rule. `AGENTS.md` holds a short copy that must match it; other files point here.
 
 **Small lane (default).** All of these hold: one module or one page, about 3 files or fewer, no schema change, no auth/authz change, no new dependency, no new endpoint or LLM tool, no money (payments) logic. Examples: bug fix, UI text or styling, validation rule, new field on an existing form.
 - The coordinator makes the change directly in the main chat. No spec, no `pm`, no subagents (`developer`, `tester`, `reviewer`).
 - The touched module's tests (backend) or `npm run lint` and `npm run build` (frontend) must pass. Add a test for new behavior.
-- The owner checks the result, then it goes to a PR. Log it in `CHANGELOG.md` only if users notice it.
+- Code changes are made on a `fix/<name>` or `chore/<name>` branch, never directly on `main`. The owner checks the result, then it goes to a PR. Docs-only changes may go straight to `main`. Log it in `CHANGELOG.md` only if users notice it.
 - If it turns out to be bigger, stop and switch to the full lane.
 
 **Full lane.** A new feature or module, or anything touching schema, auth/authz, money, the LLM tool surface or a new dependency, or when the owner says "phase", "slice" or `/run-phase`. Use the flow below: spec, approval, `developer`, then `tester` and `reviewer` in parallel.
@@ -97,6 +106,8 @@ If unsure, ask which lane. Anything on the "ask before" list in `AGENTS.md` is n
 ## Definition of Done (per slice)
 - All acceptance criteria pass (tester report).
 - Reviewer returns APPROVE.
+- Slice touches auth/authz, money or the schema: the second reviewer's report (another company's model) is pasted and its findings are resolved.
+- The owner's gabai pass is recorded in the spec as accepted.
 - Touched module's tests pass; frontend changes pass `npm run lint` and `npm run build`.
 - `CHANGELOG.md` has a line; non-obvious choices are in `DECISIONS.md`.
 - `ROADMAP.md` updated only when a whole milestone item completes.
@@ -106,6 +117,7 @@ Start a fresh chat per feature or slice, or when a chat gets long. The handoff i
 
 ## Git
 - Branch per feature (`feat/<name>`), merge to `main` by PR, even solo.
+- One PR per feature. Open it as a draft right after slice 1 is pushed, so CI runs on every later push (CI runs only on pull requests and on `main`). Mark it ready and merge it when the last slice is accepted and CI is green.
 - Commit at the end of each accepted slice, explicit paths, small commits. Never start the next slice before the previous one is committed, so `tester` and `reviewer` see only one slice in `git diff`. Never mid-slice or with failing tests. Never commit `.env` or `gabay.db`.
 - Push after each accepted slice and always at the weekly review.
 - Agents commit and push only when asked. Check `git status` first.

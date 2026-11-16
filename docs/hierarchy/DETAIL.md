@@ -22,26 +22,30 @@ gabay/
 │
 ├── .cursor/                          # Cursor project config. Tracked, except where noted
 │   ├── mcp.json                      # Tracked. Keep secrets out of it
-│   ├── agents/
-│   │   ├── pm.md
-│   │   ├── developer.md
-│   │   ├── tester.md
-│   │   └── reviewer.md
 │   ├── rules/                        # Thin globs. Long text is docs/agent
 │   │   ├── backend.mdc               # -> docs/agent/backend.md
 │   │   ├── modern-ui.mdc             # -> docs/agent/frontend.md
 │   │   ├── prayer-schedule.mdc       # -> docs/agent/prayer-schedule.md
 │   │   └── domain-gotchas.mdc        # -> docs/agent/domain-gotchas.md
 │   ├── skills/
-│   │   ├── modern-ui/
-│   │   │   ├── SKILL.md              # Own palette text, plus a pointer to docs/agent/frontend.md
-│   │   │   └── examples.md           # Sample JSX that does not follow the current UI rules
-│   │   └── run-phase/
-│   │       └── SKILL.md              # /run-phase checklist
+│   │   └── modern-ui/
+│   │       ├── SKILL.md              # Own palette text, plus a pointer to docs/agent/frontend.md
+│   │       └── examples.md           # Sample JSX that does not follow the current UI rules
 │   └── plans/
 │       └── warm_heritage_frontend_final_8497efef.plan.md
 │
-├── .claude/                          # Local. Gitignored. settings.json, settings.local.json
+├── .claude/                          # Read by Claude Code and Cursor. Tracked, except settings.local.json
+│   ├── settings.json
+│   ├── hooks/
+│   │   └── block-secret-staging.py   # Blocks staging .env and gabay.db
+│   ├── agents/
+│   │   ├── pm.md
+│   │   ├── developer.md
+│   │   ├── tester.md
+│   │   └── reviewer.md
+│   └── skills/
+│       └── run-phase/
+│           └── SKILL.md              # /run-phase checklist
 ├── .codex/                           # Local. Gitignored. hooks.json and skills/graphify/
 ├── graphify-out/                     # Local generated index. Gitignored
 │

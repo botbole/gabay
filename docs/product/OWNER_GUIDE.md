@@ -64,16 +64,7 @@ Models change often, so this guide names strength tiers, not model versions. Pic
 
 ---
 
-## Section 1: The flow so far
-
-1. **Setup.** The four role agents, the `/run-phase` skill, the workflow section in `AGENTS.md`, the `docs/product/` files and `CHANGELOG.md` were created and pushed to GitHub (`botbole/gabay`, `main`).
-2. **Shipped work documented.** Every feature that shipped before this workflow (v1 to v3.0 steps 0-3) now has a spec with status `done`. There are 12: congregants, payments, aliyot, seating, azkarot, smachot, calendar, dashboard, llm-assistant, prayer-schedule, weekly-bulletin and auth.
-3. **Past decisions** were added to `DECISIONS.md`. The one real gap left, email sending for the bulletin, is backlog row B-005.
-4. **Nothing was rebuilt**, and the roadmap status was not changed.
-5. **Claude Code support.** The role files and `/run-phase` were moved from `.cursor/` to `.claude/`, so both tools find them.
-6. **Waiting for you.** Two specs are still `draft`: `pledge-paid.md` (B-001, phase v2.3) and `assistant-chat-history.md` (phase v2.2.6).
-
-## Section 2: From now on, with subagents
+## How work flows
 
 ```mermaid
 flowchart LR
@@ -85,7 +76,8 @@ flowchart LR
     dev --> reviewer[reviewer]
     tester --> coord
     reviewer --> coord
-    coord --> accept{You accept}
+    coord --> accept{Your gabai pass}
+    accept --> commit[Commit and push]
 ```
 
 ### Roadmap vs backlog vs spec
@@ -98,14 +90,18 @@ flowchart LR
 
 Rules and triage live in `docs/product/WORKFLOW.md`. This guide is how you operate them.
 
+**Spec and plan.** A spec is the "what": what the user gets and when it is done. A plan (for example in `.cursor/plans/`) is the "how": steps and technical detail. Every full-lane item has a spec, including the frontend redesign; a plan is optional and the spec links to it. If they disagree, the spec wins. Your approval of the spec is the only approval: a plan or a roadmap line does not approve a schema, sign-in or dependency change.
+
+**Big items.** A backlog item is big if it needs more than one spec, or changes what a phase promises. When you approve its spec, it is also added to a phase in `ROADMAP.md`: `pm` recommends the phase, you decide, and the coordinator edits the roadmap.
+
 ### Two lanes: small and full
 
 The coordinator picks a lane for each change and says which in one line. You can override it ("use the full flow" or "just do it directly").
 
-- **Small lane (default).** One module or page, about 3 files or fewer, and no schema, sign-in/permissions, dependency, new endpoint, LLM tool or money change. Examples: bug fix, text or styling, validation rule, new field on a form. The coordinator does it directly in the main chat: no spec, no subagents. You check the result, then it goes to a PR.
+- **Small lane (default).** One module or page, about 3 files or fewer, and no schema, sign-in/permissions, dependency, new endpoint, LLM tool or money change. Examples: bug fix, text or styling, validation rule, new field on a form. The coordinator does it directly in the main chat, on a `fix/<name>` or `chore/<name>` branch: no spec, no subagents. You check the result, then it goes to a PR.
 - **Full lane.** New features and modules, and anything touching schema, sign-in/permissions, money, LLM tools or dependencies. Also whenever you say "phase", "slice" or type `/run-phase`. Follow the steps below.
 
-Rules for the lanes are in `WORKFLOW.md` ("Lanes").
+The lane rule itself is in `WORKFLOW.md` ("Lanes"). If this summary and that section differ, that section is right.
 
 ### Steps for every change (full lane)
 
@@ -116,8 +112,8 @@ Rules for the lanes are in `WORKFLOW.md` ("Lanes").
 5. **Build one slice.** `developer` writes the code and that slice's tests together.
 6. **Check.** `tester` and `reviewer` run in parallel. If they find problems, the slice goes back to `developer`. After two failed rounds, the coordinator stops and reports to you.
    - **Second reviewer** (only for slices touching sign-in, permissions, money or the schema): before committing, run the reviewer on a model from another company and paste its report back. Fixes count toward the same two rounds.
-7. **Gabai pass.** You use the feature on realistic data and decide: accepted, fix or drop. Write the result in the spec's "Gabai pass" section.
-8. **Close the slice.** A changelog line, plus a decision entry if a real choice was made. Then commit and push. The next slice starts at step 5.
+7. **Gabai pass.** You use the slice on realistic data and decide: accepted, fix or drop. Write the result in the spec's "Gabai pass" section. This happens for every slice, and nothing is committed before "accepted".
+8. **Close the slice.** A changelog line, plus a decision entry if a real choice was made. Then commit and push. After slice 1, also open a draft pull request, so the automatic checks (CI) run on every later push. The next slice starts at step 5.
 9. **Phase done.** Mark the phase done in `ROADMAP.md` only when every item in it is finished.
 
 Ideas, bugs and gaps that come up during steps 5 to 8 go to the backlog. They do not change the current slice. Bugs found by `tester` or CI inside the current slice go back to `developer`, not to the backlog.
@@ -187,11 +183,25 @@ Slice <number> accepted.
 
 or `fix: <what to change>`.
 
-Then, only when you want it on GitHub:
+Then, after slice 1:
 
 ```text
-Commit and push this slice on feat/<name>, then open a pull request to main.
+Commit and push this slice on feat/<name>, then open a draft pull request to main.
 ```
+
+After each later slice:
+
+```text
+Commit and push this slice on feat/<name>.
+```
+
+After the last slice is accepted:
+
+```text
+Mark the pull request ready for review.
+```
+
+Then, on GitHub, check that CI is green, read the changes and merge.
 
 **After the PR is merged on GitHub** (you, in the terminal — not an agent prompt). Slice 2 of the same feature stays on `feat/<name>`. A new feature starts only after this:
 
@@ -205,7 +215,7 @@ git branch -d feat/<name>
 
 1. **Plan** (30-60 min, start of week): pick 1-3 items, get the specs, approve them. No coding.
 2. **Build** (rest of week): one slice at a time.
-3. **Review** (30 min, end of week): gabai pass, then update `CHANGELOG.md` and `DECISIONS.md`, and push. Every 2-3 weeks, show the product to a real gabai.
+3. **Review** (30 min, end of week): finish any gabai pass still open (normally it is done per slice, step 7), check that `CHANGELOG.md` and `DECISIONS.md` are up to date, and push. Every 2-3 weeks, show the product to a real gabai.
 
 ### Git: main, feature branches and GitHub
 
@@ -233,15 +243,15 @@ gitGraph
 Feature cycle, with what you type:
 
 1. **Start the feature.** "Create branch `feat/pledge-paid` from an up-to-date `main`."
-2. **Each accepted slice.** "Commit and push this slice." The agent shows `git status`, commits only the slice's files, and pushes the branch to GitHub. Never commit mid-slice, with failing tests, or `.env` and `gabay.db`.
-3. **Feature finished.** "Open a pull request from `feat/pledge-paid` to `main`." On GitHub, read the changes in the pull request, then merge it.
+2. **Each accepted slice.** "Commit and push this slice." The agent shows `git status`, commits only the slice's files, and pushes the branch to GitHub. Never commit mid-slice, with failing tests, or `.env` and `gabay.db`. After slice 1, add: "Open a draft pull request to `main`." CI then runs on every later push.
+3. **Feature finished.** "Mark the pull request ready for review." On GitHub, check that CI is green, read the changes in the pull request, then merge it. One pull request per feature.
 4. **Clean up.** "Switch to `main`, pull, and delete the feature branch."
 
 Small rules:
 
 - Approve and commit the spec on `main` before creating the feature branch, so `developer` finds it there. Other docs-only changes (backlog, decisions) can go straight to `main`, or ride with the slice.
 - Never start slice 2 before slice 1 is committed.
-- Small-lane changes skip the spec and all subagents; see `WORKFLOW.md` ("Lanes").
+- Small-lane changes skip the spec and all subagents, and use a `fix/<name>` or `chore/<name>` branch; see `WORKFLOW.md` ("Lanes").
 - Push at least at the weekly review, so nothing lives only on your machine.
 - One feature branch at a time, matching the one-slice-at-a-time rule.
 - Once deployment exists, tag a version (for example `v2.3.0`) when a phase is done.
@@ -260,6 +270,8 @@ Small rules:
 
 ### Next action
 
-1. Decide the order: `ROADMAP.md` puts the v2.2.5 redesign before v2.3. If pledge vs paid goes first, record that in `DECISIONS.md`.
-2. Review `docs/product/specs/pledge-paid.md`, answer its open questions (it needs a schema change), and set it to `approved`.
-3. On a `feat/pledge-paid` branch, run `/run-phase docs/product/specs/pledge-paid.md`.
+The frontend redesign (v2.2.5) runs first; pledge vs paid waits for it (`DECISIONS.md`, 2026-11-16).
+
+1. "Use the pm agent to write a spec for the v2.2.5 frontend redesign from its `ROADMAP.md` section and the plan in `.cursor/plans/`."
+2. Review the spec and set it to `approved`. Commit it on `main`.
+3. On a `feat/frontend-redesign` branch, run `/run-phase` on that spec for the first slice (F0b).
