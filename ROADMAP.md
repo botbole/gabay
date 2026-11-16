@@ -17,7 +17,7 @@ Principle: day-to-day gabai functionality comes before deployment and polish. Au
 | 2.1 | Prayer schedule and lessons | Done |
 | 2.2 | Weekly bulletin | Core done; SMTP open |
 | 2.2.5 | Frontend redesign (Warm Heritage), before 2.3 | Pending |
-| 2.2.6 | Assistant chat history (saved conversations), after 2.2.5 Gate 2 | Pending |
+| 2.2.6 | Assistant chat history (saved conversations), frontend after 2.2.5 is merged | Pending |
 | 2.2.7 | Minimal PR CI (tests, lint, build), before 2.3 | Done |
 | 2.3 | Financial completeness | Pending |
 | 2.4 | Smart gabai (aliya suggestions, inventory, LLM 2.0) | Pending |
@@ -56,37 +56,37 @@ Delivered: `BulletinConfig`, `GET /bulletin?date=`, three formats (WhatsApp text
 
 ## v2.2.5 - Frontend redesign (Warm Heritage)
 
-Runs before v2.3 so new financial screens are built on the new system. Frontend only: no backend, schema or new npm dependency (ask first for `@fontsource` and `jsdom`/Testing Library). Detailed plan: `.cursor/plans/warm_heritage_frontend_final_8497efef.plan.md`. Spec: to be written by `pm` under `docs/product/specs/` from this section and the plan; the spec wins if they differ.
+Runs before v2.3 so new financial screens are built on the new system. Frontend only: no backend, schema or new npm dependency (ask first for `@fontsource` and `jsdom`/Testing Library). Detailed plan: `.cursor/plans/warm_heritage_frontend_final_8497efef.plan.md`. Spec: `docs/product/specs/frontend-redesign.md` (approved); the spec wins if they differ.
 
 Target state
-- Warm stone background (`bg` #FAF8F5), white hairline-bordered surfaces, midnight blue `primary` (#172554), bronze `accent` (#B45309) plus AA-safe `accent-ink` for text. Heebo for UI, a Hebrew serif display face for titles only.
+- Warm stone background (`bg` #FAF8F5), white hairline-bordered surfaces, midnight blue `primary` (#172554), bronze `accent` (#B45309) plus AA-safe `accent-ink` for text. Heebo for UI, Frank Ruhl Libre as the display face for titles, the Hebrew date, the parasha and the bulletin.
 - Tokens in Tailwind v4 `@theme` (semantic: `bg`, `surface`, `line`, `ink`, `muted`, `primary`, `accent`, status colors). `--color-indigo` and `--color-gold` kept as temporary aliases, removed at the end.
-- Tenants can change only the accent color and the logo; `applyTheme` ignores `color_primary` and `color_bg`.
+- Tenants can change only the accent color (`color_secondary`) and the logo; `applyTheme` ignores `color_primary` and `color_bg`, and an accent below 4.5:1 against white falls back to the default bronze.
 - Existing `components/ui/` props stay valid; new `DataTable`, `Tabs`, `Toast`, `Skeleton`, `StatCard`, `Num`, `Ltr`.
-- Light sidebar with a bronze active edge, Dashboard "today" strip, dense data tables with tabular numerals.
+- Light sidebar with a bronze active edge, Dashboard "today" strip above a small `StatCard` row, dense data tables with tabular numerals.
 - RTL via logical utilities only; AA contrast; focus rings; 44px touch targets on phones; no horizontal scroll at 375, 768 and 1280px.
 
 Subtasks (each ends with a self-check)
 - [x] F0a Docs and roadmap updated (this section, Hebrew mirror, frontend guide note).
-- [ ] F0b Baseline and tooling: `npm run design:status` and `npm run design:check` (`frontend/scripts/design-status.mjs`); baseline hex 86, raw gray-family about 490, physical-direction about 26.
+- [ ] F0b Baseline and tooling: `npm run design:status` and `npm run design:check` (`frontend/scripts/design-status.mjs`); the script is extended with `cssvar`, `inline` and `palette` rules; the baseline is the extended script's output, recorded in the spec; test database and baseline screenshots under `frontend/.design-shots/`.
 - [ ] F1 Tokens and fonts; contrast ratios computed and recorded.
 - [ ] F2 Restyle existing primitives with unchanged APIs.
 - [ ] Gate 1: design review of primitives (screenshots at three widths).
 - [ ] F3 New primitives with server-render tests.
 - [ ] F4 Shell and Login (sidebar, header, layout drawer).
-- [ ] F4b Assistant side panel on every screen: header toggle, pushes content at 1024px and wider, overlay below, full-screen on phones; the conversation survives navigation; `/chat` renders the same component full-page.
-- [ ] Gate 2: design review of shell, assistant panel, Login and Dashboard skeleton.
+- [ ] F4b Assistant side panel on every screen: header toggle, pushes content at 1024px and wider, overlay below, full-screen on phones; the conversation survives navigation; `/chat` renders the same component full-page; toggle hidden on `/chat`; closed after reload; "new chat" control; full-screen under 768px; drawer and panel never both open under 1024px.
+- [ ] Gate 2: design review of shell, assistant panel, Login and Dashboard mock (built in F4).
 - [ ] F5 Pages A: Dashboard, Congregants.
 - [ ] F6 Pages B: Payments, Aliyot, Azkarot, Smachot.
 - [ ] F7 Pages C: Seating, Calendar, PrayerSchedule, Bulletin, Import (Chat moved to F4b).
-- [ ] F8 Cleanup: remove aliases, `design:check` reports 0, accessibility and responsive pass.
-- [ ] F9 Final docs: `docs/agent/frontend.md`, `modern-ui` skill and examples, `AGENTS.md` colors rule and definition of done.
+- [ ] F8 Cleanup: remove aliases, `design:check` reports 0, accessibility and responsive pass; `design:check` added to CI.
+- [ ] F9 Final docs: `docs/agent/frontend.md`, `modern-ui` skill and examples, `AGENTS.md` colors rule and definition of done; `docs/product/WORKFLOW.md` definition of done.
 
-Self-check after every subtask: `npm run lint`, `npm run build`, `npm test`; `npm run design:status` total never increases and migrated files report 0; Playwright MCP screenshots at 375, 768 and 1280px with no console errors and no horizontal scroll; two failed fixes of the same check means stop and report.
+Self-check after every subtask: `npm run lint`, `npm run build`, `npm test`; `npm run design:status` total never increases and migrated files report 0; browser screenshots by the developer on the test database at 375, 768 and 1280px with no console errors and no horizontal scroll; two failed fixes of the same check means stop and report.
 
 ## v2.2.6 - Assistant chat history (saved conversations)
 
-Gemini/Claude-style history in the assistant panel: past chats are listed, can be reopened and continued, renamed and deleted. Includes a schema change (approved when the owner approves the spec). The backend slice can run in parallel with v2.2.5 F1-F4 (no shared files); the frontend slice starts after v2.2.5 Gate 2 approves the panel. Spec: `docs/product/specs/assistant-chat-history.md` (draft).
+Gemini/Claude-style history in the assistant panel: past chats are listed, can be reopened and continued, renamed and deleted. Includes a schema change (approved when the owner approves the spec). The backend slice can run in parallel with v2.2.5 F1-F4 (no shared files); the frontend slice starts after v2.2.5 is merged to `main`. Spec: `docs/product/specs/assistant-chat-history.md` (draft).
 
 Rules
 - Stored on the server per user; a user sees only their own chats (admin included); another user's chat returns 404.
